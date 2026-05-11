@@ -83,7 +83,16 @@ E:\zhuomian\cybersecurity\code\build-vs\cyber_tank_design.sln
 .\build-mingw\net_packet_selftest.exe
 ```
 
-当前验证结果：`protocol_selftest`、`log_selftest`、`net_packet_selftest` 通过，四个角色的 `--self-test` 均通过。
+四主机连接骨架自测：
+
+```powershell
+.\build-mingw\as_server.exe --serve
+.\build-mingw\tgs_server.exe --serve
+.\build-mingw\v_server.exe --serve
+.\build-mingw\client.exe --connect-test
+```
+
+当前验证结果：`protocol_selftest`、`log_selftest`、`net_packet_selftest`、`connect_probe_selftest` 通过，四个角色的 `--self-test` 均通过。
 
 角色自检会写入本机日志文件：
 
@@ -105,6 +114,10 @@ logs/client_01.log
 `net_packet_selftest` 会在本机回环地址上建立一条临时 TCP 连接，并通过
 `send_packet_logged()` / `recv_packet_logged()` 交换 `KEY_DOWN` 和 `APP_ACK`，
 验证收发包日志自动输出 `PACKET_SEND` / `PACKET_RECV`。
+
+`connect_probe_selftest` 会自动启动 AS/TGS/V 的监听骨架，再让 Client 依次完成
+`AS_REQ/AS_REP`、`TGS_REQ/TGS_REP`、`V_AUTH_REQ/V_AUTH_REP`、`CERT_C2V/CERT_V2C`
+四段占位连接。四台物理机联调步骤见 `docs/four-host-connect-test.md`。
 
 ## 四主机配置验收
 

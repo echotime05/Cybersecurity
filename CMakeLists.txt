@@ -17,6 +17,7 @@ add_library(cyber_common
     src/common/log_parser.cpp
     src/common/logger.cpp
     src/common/net_packet.cpp
+    src/common/net_socket.cpp
     src/common/packet.cpp
     src/common/role_runtime.cpp
 )
@@ -56,3 +57,12 @@ set_tests_properties(protocol_selftest PROPERTIES
 )
 add_test(NAME log_selftest COMMAND log_selftest)
 add_test(NAME net_packet_selftest COMMAND net_packet_selftest)
+
+if(WIN32)
+    add_test(
+        NAME connect_probe_selftest
+        COMMAND powershell -NoProfile -ExecutionPolicy Bypass
+                -File ${CMAKE_CURRENT_SOURCE_DIR}/tests/connect_probe_selftest.ps1
+                -BuildDir $<TARGET_FILE_DIR:client>
+    )
+endif()
