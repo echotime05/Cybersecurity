@@ -334,8 +334,8 @@ void run_server(RoleKind role, const Config& config, const RoleSpec& spec, int m
                   main_thread + " start listen=" + endpoint_text(endpoint));
 
     SocketHandle listener = listen_tcp(endpoint);
-    std::cout << spec.name << " listening on " << endpoint_text(endpoint) << '\n';
-    std::cout << "log file: " << logger->path().string() << '\n';
+    std::cout << spec.name << " listening on " << endpoint_text(endpoint) << std::endl;
+    std::cout << "log file: " << logger->path().string() << std::endl;
 
     try
     {

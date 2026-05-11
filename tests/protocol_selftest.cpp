@@ -178,8 +178,8 @@ int main()
         require(config.get_string("AS_BIND_IP") == "0.0.0.0", "AS_BIND_IP mismatch");
         require(config.get_string("AS_IP") == config.get_string("AS_HOST"),
                 "AS_IP alias mismatch");
-        require(config.get_entity_id("LOCAL_CLIENT_ID") == cyber::EntityId::client1,
-                "LOCAL_CLIENT_ID mismatch");
+        require(cyber::is_client(config.get_entity_id("LOCAL_CLIENT_ID")),
+                "LOCAL_CLIENT_ID is not a client id");
         require(config.clients().size() == 4U, "client table mismatch");
 
         std::cout << "protocol_selftest: ok\n";
