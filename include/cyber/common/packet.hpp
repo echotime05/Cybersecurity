@@ -27,11 +27,26 @@ struct Packet
     Bytes payload;
 };
 
+struct PacketHeader
+{
+    MsgType msg_type = MsgType::error;
+    EntityId src = EntityId::unknown;
+    EntityId dst = EntityId::unknown;
+    std::uint32_t payload_len = 0;
+    std::uint32_t reserved = kDefaultReserved;
+};
+
+Packet make_packet(MsgType msg_type, EntityId src, EntityId dst, Bytes payload = {},
+                   std::uint32_t reserved = kDefaultReserved);
+PacketHeader packet_header(const Packet& packet);
+PacketHeader parse_packet_header(const Bytes& bytes);
+
 Bytes serialize_packet(const Packet& packet);
 Packet parse_packet(const Bytes& bytes);
 
 Bytes make_error_payload(ErrorCode code, const std::string& message);
 ErrorCode parse_error_code(const Bytes& payload);
+std::string parse_error_message(const Bytes& payload);
 
 Bytes make_app_payload(AppCode code, const Bytes& app_payload);
 AppCode parse_app_code(const Bytes& payload);

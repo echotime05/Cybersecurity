@@ -57,6 +57,105 @@ enum class AppCode : std::uint8_t
     app_ack = 0x08
 };
 
+inline bool is_known(EntityId id)
+{
+    switch (id)
+    {
+    case EntityId::client1:
+    case EntityId::client2:
+    case EntityId::client3:
+    case EntityId::client4:
+    case EntityId::as:
+    case EntityId::tgs:
+    case EntityId::v:
+        return true;
+    default:
+        return false;
+    }
+}
+
+inline bool is_client(EntityId id)
+{
+    switch (id)
+    {
+    case EntityId::client1:
+    case EntityId::client2:
+    case EntityId::client3:
+    case EntityId::client4:
+        return true;
+    default:
+        return false;
+    }
+}
+
+inline bool is_server(EntityId id)
+{
+    switch (id)
+    {
+    case EntityId::as:
+    case EntityId::tgs:
+    case EntityId::v:
+        return true;
+    default:
+        return false;
+    }
+}
+
+inline bool is_known(MsgType type)
+{
+    switch (type)
+    {
+    case MsgType::as_req:
+    case MsgType::as_rep:
+    case MsgType::tgs_req:
+    case MsgType::tgs_rep:
+    case MsgType::v_auth_req:
+    case MsgType::v_auth_rep:
+    case MsgType::cert_c2v:
+    case MsgType::cert_v2c:
+    case MsgType::error:
+    case MsgType::app:
+        return true;
+    default:
+        return false;
+    }
+}
+
+inline bool is_known(ErrorCode code)
+{
+    switch (code)
+    {
+    case ErrorCode::password_wrong:
+    case ErrorCode::tgt_expired:
+    case ErrorCode::ticket_v_expired:
+    case ErrorCode::tgs_id_mismatch:
+    case ErrorCode::v_id_mismatch:
+    case ErrorCode::replay_detected:
+    case ErrorCode::unsupported_msg_type:
+        return true;
+    default:
+        return false;
+    }
+}
+
+inline bool is_known(AppCode code)
+{
+    switch (code)
+    {
+    case AppCode::key_down:
+    case AppCode::key_up:
+    case AppCode::aim_event:
+    case AppCode::fire_event:
+    case AppCode::game_join_req:
+    case AppCode::game_start:
+    case AppCode::game_state:
+    case AppCode::app_ack:
+        return true;
+    default:
+        return false;
+    }
+}
+
 inline std::string_view to_string(EntityId id)
 {
     switch (id)

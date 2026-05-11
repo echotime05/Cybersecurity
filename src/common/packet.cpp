@@ -4,6 +4,7 @@
 #include <iomanip>
 #include <limits>
 #include <sstream>
+#include <utility>
 
 namespace cyber
 {
@@ -57,20 +58,61 @@ int hex_value(char ch)
 }
 } // namespace
 
-Bytes serialize_packet(const Packet& packet)
+Packet make_packet(MsgType msg_type, EntityId src, EntityId dst, Bytes payload,
+                   std::uint32_t reserved)
+{
+    Packet packet;
+    packet.msg_type = msg_type;
+    packet.src = src;
+    packet.dst = dst;
+    packet.reserved = reserved;
+    packet.payload = std::move(payload);
+    return packet;
+}
+
+PacketHeader packet_header(const Packet& packet)
 {
     if (packet.payload.size() > std::numeric_limits<std::uint32_t>::max())
     {
         throw PacketError("packet payload is too large");
     }
 
+    PacketHeader header;
+    header.msg_type = packet.msg_type;
+    header.src = packet.src;
+    header.dst = packet.dst;
+    header.payload_len = static_cast<std::uint32_t>(packet.payload.size());
+    header.reserved = packet.reserved;
+    return header;
+}
+
+PacketHeader parse_packet_header(const Bytes& bytes)
+{
+    if (bytes.size() < kPacketHeaderSize)
+    {
+        throw PacketError("packet is shorter than the fixed header");
+    }
+
+    PacketHeader header;
+    header.msg_type = static_cast<MsgType>(bytes[0]);
+    header.src = static_cast<EntityId>(bytes[1]);
+    header.dst = static_cast<EntityId>(bytes[2]);
+    header.payload_len = read_u32_be(bytes, 3);
+    header.reserved = read_u32_be(bytes, 7);
+    return header;
+}
+
+Bytes serialize_packet(const Packet& packet)
+{
+    const PacketHeader header = packet_header(packet);
+
     Bytes out;
     out.reserve(kPacketHeaderSize + packet.payload.size());
-    out.push_back(to_byte(packet.msg_type));
-    out.push_back(to_byte(packet.src));
-    out.push_back(to_byte(packet.dst));
-    write_u32_be(out, static_cast<std::uint32_t>(packet.payload.size()));
-    write_u32_be(out, packet.reserved);
+    out.push_back(to_byte(header.msg_type));
+    out.push_back(to_byte(header.src));
+    out.push_back(to_byte(header.dst));
+    write_u32_be(out, header.payload_len);
+    write_u32_be(out, header.reserved);
     out.insert(out.end(), packet.payload.begin(), packet.payload.end());
     return out;
 }
@@ -82,16 +124,17 @@ Packet parse_packet(const Bytes& bytes)
         throw PacketError("packet is shorter than the fixed header");
     }
 
-    Packet packet;
-    packet.msg_type = static_cast<MsgType>(bytes[0]);
-    packet.src = static_cast<EntityId>(bytes[1]);
-    packet.dst = static_cast<EntityId>(bytes[2]);
-    const std::uint32_t payload_len = read_u32_be(bytes, 3);
-    packet.reserved = read_u32_be(bytes, 7);
-    if (bytes.size() != kPacketHeaderSize + payload_len)
+    const PacketHeader header = parse_packet_header(bytes);
+    if (bytes.size() != kPacketHeaderSize + header.payload_len)
     {
         throw PacketError("packet payload length mismatch");
     }
+
+    Packet packet;
+    packet.msg_type = header.msg_type;
+    packet.src = header.src;
+    packet.dst = header.dst;
+    packet.reserved = header.reserved;
     packet.payload.assign(bytes.begin() + kPacketHeaderSize, bytes.end());
     return packet;
 }
@@ -112,6 +155,15 @@ ErrorCode parse_error_code(const Bytes& payload)
         throw PacketError("error payload is empty");
     }
     return static_cast<ErrorCode>(payload[0]);
+}
+
+std::string parse_error_message(const Bytes& payload)
+{
+    if (payload.empty())
+    {
+        throw PacketError("error payload is empty");
+    }
+    return std::string(payload.begin() + 1, payload.end());
 }
 
 Bytes make_app_payload(AppCode code, const Bytes& app_payload)
