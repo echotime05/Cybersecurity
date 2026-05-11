@@ -2,11 +2,11 @@
 #   LOCAL_CLIENT_ID
 #   AS_IP / TGS_IP / V_IP
 #
-# Example layout:
-#   host 1: AS + Client1, 192.168.1.101
-#   host 2: TGS + Client2, 192.168.1.102
-#   host 3: V + Client3, 192.168.1.103
-#   host 4: Client4, 192.168.1.104
+# Current four-host layout:
+#   host 1: Client1 only
+#   host 2: AS + Client2, 172.27.197.122
+#   host 3: TGS + Client3, 172.27.123.205
+#   host 4: V + Client4, 172.27.39.248
 
 # Entity IDs
 C1_ID=0x01
@@ -18,10 +18,10 @@ TGS_ID=0x12
 V_ID=0x13
 
 # Change this value on each host:
-#   host 1: 0x01
-#   host 2: 0x02
-#   host 3: 0x03
-#   host 4: 0x04
+#   host 1 Client1: 0x01
+#   host 2 Client2: 0x02
+#   host 3 Client3: 0x03
+#   host 4 Client4: 0x04
 LOCAL_CLIENT_ID=0x01
 
 # Servers listen on all local interfaces.
@@ -30,14 +30,14 @@ TGS_BIND_IP=0.0.0.0
 V_BIND_IP=0.0.0.0
 
 # Clients connect to these LAN addresses.
-AS_IP=192.168.1.101
-AS_HOST=192.168.1.101
+AS_IP=172.27.197.122
+AS_HOST=172.27.197.122
 AS_PORT=9001
-TGS_IP=192.168.1.102
-TGS_HOST=192.168.1.102
+TGS_IP=172.27.123.205
+TGS_HOST=172.27.123.205
 TGS_PORT=9002
-V_IP=192.168.1.103
-V_HOST=192.168.1.103
+V_IP=172.27.39.248
+V_HOST=172.27.39.248
 V_PORT=9003
 
 # Client password material from the report

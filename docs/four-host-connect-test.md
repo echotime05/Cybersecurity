@@ -4,31 +4,45 @@
 
 ## 前置条件
 
-四台主机都使用同一份代码，并按 `config/course_config.lan.example.txt` 修改
-`config/course_config.txt`：
+四台主机都使用同一份代码，并复制对应的 LAN 配置到 `config/course_config.txt`：
 
-- 主机 1：`LOCAL_CLIENT_ID=0x01`，运行 AS + Client1。
-- 主机 2：`LOCAL_CLIENT_ID=0x02`，运行 TGS + Client2。
-- 主机 3：`LOCAL_CLIENT_ID=0x03`，运行 V + Client3。
-- 主机 4：`LOCAL_CLIENT_ID=0x04`，运行 Client4。
+```powershell
+# 主机 1：Client1 only
+Copy-Item .\config\lan\host1_client1.txt .\config\course_config.txt -Force
 
-四台主机的 `AS_IP`、`TGS_IP`、`V_IP` 必须一致，分别指向主机 1、主机 2、主机 3 的局域网 IP。
+# 主机 2：AS + Client2
+Copy-Item .\config\lan\host2_as_client2.txt .\config\course_config.txt -Force
+
+# 主机 3：TGS + Client3
+Copy-Item .\config\lan\host3_tgs_client3.txt .\config\course_config.txt -Force
+
+# 主机 4：V + Client4
+Copy-Item .\config\lan\host4_v_client4.txt .\config\course_config.txt -Force
+```
+
+四台主机的 `AS_IP`、`TGS_IP`、`V_IP` 必须一致：
+
+```text
+AS_IP=172.27.197.122
+TGS_IP=172.27.123.205
+V_IP=172.27.39.248
+```
 
 ## 启动服务端
 
-主机 1：
+主机 2：
 
 ```powershell
 .\build-mingw\as_server.exe --serve
 ```
 
-主机 2：
+主机 3：
 
 ```powershell
 .\build-mingw\tgs_server.exe --serve
 ```
 
-主机 3：
+主机 4：
 
 ```powershell
 .\build-mingw\v_server.exe --serve
@@ -66,7 +80,7 @@ log file: logs\client_0x.log
 
 ## 日志验收
 
-主机 1 的 `logs/as.log` 应出现：
+主机 2 的 `logs/as.log` 应出现：
 
 ```text
 [AS][ASMainThread][ACCEPT] ...
@@ -74,7 +88,7 @@ log file: logs\client_0x.log
 [AS][ASWorker-Probe][PACKET_SEND] ... msg_type=MSG_AS_REP ...
 ```
 
-主机 2 的 `logs/tgs.log` 应出现：
+主机 3 的 `logs/tgs.log` 应出现：
 
 ```text
 [TGS][TGSMainThread][ACCEPT] ...
@@ -82,7 +96,7 @@ log file: logs\client_0x.log
 [TGS][TGSWorker-Probe][PACKET_SEND] ... msg_type=MSG_TGS_REP ...
 ```
 
-主机 3 的 `logs/v.log` 应出现：
+主机 4 的 `logs/v.log` 应出现：
 
 ```text
 [V][VMainThread][ACCEPT] ...
