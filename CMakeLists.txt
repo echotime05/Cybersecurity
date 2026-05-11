@@ -14,6 +14,7 @@ endif()
 
 add_library(cyber_common
     src/common/config.cpp
+    src/common/log_parser.cpp
     src/common/logger.cpp
     src/common/packet.cpp
     src/common/role_runtime.cpp

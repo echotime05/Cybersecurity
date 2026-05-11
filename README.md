@@ -71,7 +71,13 @@ E:\zhuomian\cybersecurity\code\build-vs\cyber_tank_design.sln
 .\build-mingw\protocol_selftest.exe
 ```
 
-当前验证结果：`protocol_selftest` 通过，四个角色的 `--self-test` 均通过。
+日志系统自测：
+
+```powershell
+.\build-mingw\log_selftest.exe
+```
+
+当前验证结果：`protocol_selftest`、`log_selftest` 通过，四个角色的 `--self-test` 均通过。
 
 角色自检会写入本机日志文件：
 
@@ -87,6 +93,8 @@ logs/client_01.log
 ```text
 [实体][线程名][事件] 具体内容
 ```
+
+`log_selftest` 会同时验证日志写入和结构化解析，解析结果包含 `entity`、`thread_name`、`event`、`message` 四个字段。
 
 ## 四主机配置验收
 
