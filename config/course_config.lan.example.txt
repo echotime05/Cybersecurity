@@ -1,0 +1,60 @@
+# Copy this file to course_config.txt on each physical host, then edit:
+#   LOCAL_CLIENT_ID
+#   AS_IP / TGS_IP / V_IP
+#
+# Example layout:
+#   host 1: AS + Client1, 192.168.1.101
+#   host 2: TGS + Client2, 192.168.1.102
+#   host 3: V + Client3, 192.168.1.103
+#   host 4: Client4, 192.168.1.104
+
+# Entity IDs
+C1_ID=0x01
+C2_ID=0x02
+C3_ID=0x03
+C4_ID=0x04
+AS_ID=0x11
+TGS_ID=0x12
+V_ID=0x13
+
+# Change this value on each host:
+#   host 1: 0x01
+#   host 2: 0x02
+#   host 3: 0x03
+#   host 4: 0x04
+LOCAL_CLIENT_ID=0x01
+
+# Servers listen on all local interfaces.
+AS_BIND_IP=0.0.0.0
+TGS_BIND_IP=0.0.0.0
+V_BIND_IP=0.0.0.0
+
+# Clients connect to these LAN addresses.
+AS_IP=192.168.1.101
+AS_HOST=192.168.1.101
+AS_PORT=9001
+TGS_IP=192.168.1.102
+TGS_HOST=192.168.1.102
+TGS_PORT=9002
+V_IP=192.168.1.103
+V_HOST=192.168.1.103
+V_PORT=9003
+
+# Client password material from the report
+C1_PASSWORD=123456
+C1_KC=0x8d969eef6ecad3
+C2_PASSWORD=admin123
+C2_KC=0x240be518fabd27
+C3_PASSWORD=hehe12345
+C3_KC=0xbf32dd3c5d555e
+C4_PASSWORD=&wxh@147
+C4_KC=0xf25edb100e43f2
+
+# Kerberos server keys
+KTGS=0x1c24deeecc136e
+KV=0x3398481d2a89f6
+
+# Course-design CA key parameters
+PK_CA_N=0xACE9A881930A29215BA7306E49654BB851F86EC32FE4A8D2FF516D4FB937E8A3
+PK_CA_E=0x10001
+SK_CA_D=0xA1A84610F63E7E9BA04B9BBCD043B2D891C75316A7AC70BEC7C3CEB1477AFB69
