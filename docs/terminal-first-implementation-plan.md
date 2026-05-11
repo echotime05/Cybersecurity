@@ -14,10 +14,10 @@
 
 | 主机 | 进程 | 日志 |
 | --- | --- | --- |
-| 主机 1 | AS + Client1 | `logs/as.log`、`logs/client_01.log` |
-| 主机 2 | TGS + Client2 | `logs/tgs.log`、`logs/client_02.log` |
-| 主机 3 | V + Client3 | `logs/v.log`、`logs/client_03.log` |
-| 主机 4 | Client4 | `logs/client_04.log` |
+| 主机 1 | Client1 only | `logs/client_01.log` |
+| 主机 2 | AS + Client2 | `logs/as.log`、`logs/client_02.log` |
+| 主机 3 | TGS + Client3 | `logs/tgs.log`、`logs/client_03.log` |
+| 主机 4 | V + Client4 | `logs/v.log`、`logs/client_04.log` |
 
 服务端监听 `0.0.0.0`，Client 通过配置文件中的局域网 IP 连接 AS/TGS/V。
 
