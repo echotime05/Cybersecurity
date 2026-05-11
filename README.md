@@ -73,6 +73,21 @@ E:\zhuomian\cybersecurity\code\build-vs\cyber_tank_design.sln
 
 当前验证结果：`protocol_selftest` 通过，四个角色的 `--self-test` 均通过。
 
+角色自检会写入本机日志文件：
+
+```text
+logs/as.log
+logs/tgs.log
+logs/v.log
+logs/client_01.log
+```
+
+日志格式固定为：
+
+```text
+[实体][线程名][事件] 具体内容
+```
+
 ## 四主机配置验收
 
 默认 `config/course_config.txt` 使用 `127.0.0.1`，便于本机自测。局域网部署时可参考

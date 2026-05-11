@@ -14,6 +14,7 @@ endif()
 
 add_library(cyber_common
     src/common/config.cpp
+    src/common/logger.cpp
     src/common/packet.cpp
     src/common/role_runtime.cpp
 )
@@ -36,8 +37,12 @@ add_role_target(client src/client/main.cpp)
 add_executable(protocol_selftest tests/protocol_selftest.cpp)
 target_link_libraries(protocol_selftest PRIVATE cyber_common)
 
+add_executable(log_selftest tests/log_selftest.cpp)
+target_link_libraries(log_selftest PRIVATE cyber_common)
+
 enable_testing()
 add_test(NAME protocol_selftest COMMAND protocol_selftest)
 set_tests_properties(protocol_selftest PROPERTIES
     WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}
 )
+add_test(NAME log_selftest COMMAND log_selftest)

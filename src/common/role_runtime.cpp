@@ -1,6 +1,7 @@
 #include "cyber/common/role_runtime.hpp"
 
 #include "cyber/common/config.hpp"
+#include "cyber/common/logger.hpp"
 #include "cyber/common/packet.hpp"
 
 #include <filesystem>
@@ -144,6 +145,79 @@ void print_deployment_config(const Config& config, const RoleSpec& spec)
                   << config.get_u16(spec.port_key) << '\n';
     }
 }
+
+std::string client_log_filename(EntityId client_id)
+{
+    switch (client_id)
+    {
+    case EntityId::client1:
+        return "client_01.log";
+    case EntityId::client2:
+        return "client_02.log";
+    case EntityId::client3:
+        return "client_03.log";
+    case EntityId::client4:
+        return "client_04.log";
+    default:
+        throw std::runtime_error("LOCAL_CLIENT_ID is not a client id");
+    }
+}
+
+std::filesystem::path role_log_path(RoleKind role, const Config& config)
+{
+    const std::filesystem::path log_dir = "logs";
+    switch (role)
+    {
+    case RoleKind::as_server:
+        return log_dir / "as.log";
+    case RoleKind::tgs_server:
+        return log_dir / "tgs.log";
+    case RoleKind::v_server:
+        return log_dir / "v.log";
+    case RoleKind::client:
+        return log_dir / client_log_filename(config.get_entity_id("LOCAL_CLIENT_ID"));
+    default:
+        throw std::runtime_error("unknown role");
+    }
+}
+
+std::string main_thread_name(RoleKind role)
+{
+    switch (role)
+    {
+    case RoleKind::as_server:
+        return "ASMainThread";
+    case RoleKind::tgs_server:
+        return "TGSMainThread";
+    case RoleKind::v_server:
+        return "VMainThread";
+    case RoleKind::client:
+        return "UI/GameThread";
+    default:
+        throw std::runtime_error("unknown role");
+    }
+}
+
+void run_logged_self_test(RoleKind role, const Config& config, const RoleSpec& spec)
+{
+    Logger logger(role_log_path(role, config));
+    const std::string thread_name = main_thread_name(role);
+    logger.write(spec.name, thread_name, "THREAD_START", "self-test start");
+    logger.write(spec.name, thread_name, "LOG", "log file=" + logger.path().generic_string());
+    try
+    {
+        run_common_self_test(config, spec);
+        logger.write(spec.name, thread_name, "THREAD_EXIT", "self-test exit");
+        std::cout << "log file: " << logger.path().string() << '\n';
+        std::cout << "self-test: ok\n";
+    }
+    catch (const std::exception& ex)
+    {
+        logger.write(spec.name, thread_name, "ERROR", ex.what());
+        logger.write(spec.name, thread_name, "THREAD_EXIT", "self-test failed");
+        throw;
+    }
+}
 } // namespace
 
 int run_role_main(RoleKind role, int argc, char** argv)
@@ -221,8 +295,7 @@ int run_role_main(RoleKind role, int argc, char** argv)
 
         if (self_test)
         {
-            run_common_self_test(config, spec);
-            std::cout << "self-test: ok\n";
+            run_logged_self_test(role, config, spec);
         }
         else
         {
