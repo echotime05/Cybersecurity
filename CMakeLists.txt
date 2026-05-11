@@ -16,6 +16,7 @@ add_library(cyber_common
     src/common/config.cpp
     src/common/log_parser.cpp
     src/common/logger.cpp
+    src/common/net_packet.cpp
     src/common/packet.cpp
     src/common/role_runtime.cpp
 )
@@ -24,6 +25,10 @@ target_include_directories(cyber_common
     PUBLIC
         ${CMAKE_CURRENT_SOURCE_DIR}/include
 )
+
+if(WIN32)
+    target_link_libraries(cyber_common PUBLIC ws2_32)
+endif()
 
 function(add_role_target target_name source_file)
     add_executable(${target_name} ${source_file})
@@ -41,9 +46,13 @@ target_link_libraries(protocol_selftest PRIVATE cyber_common)
 add_executable(log_selftest tests/log_selftest.cpp)
 target_link_libraries(log_selftest PRIVATE cyber_common)
 
+add_executable(net_packet_selftest tests/net_packet_selftest.cpp)
+target_link_libraries(net_packet_selftest PRIVATE cyber_common)
+
 enable_testing()
 add_test(NAME protocol_selftest COMMAND protocol_selftest)
 set_tests_properties(protocol_selftest PROPERTIES
     WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}
 )
 add_test(NAME log_selftest COMMAND log_selftest)
+add_test(NAME net_packet_selftest COMMAND net_packet_selftest)

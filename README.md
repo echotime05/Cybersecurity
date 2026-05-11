@@ -77,7 +77,13 @@ E:\zhuomian\cybersecurity\code\build-vs\cyber_tank_design.sln
 .\build-mingw\log_selftest.exe
 ```
 
-当前验证结果：`protocol_selftest`、`log_selftest` 通过，四个角色的 `--self-test` 均通过。
+本地 socket 收发日志自测：
+
+```powershell
+.\build-mingw\net_packet_selftest.exe
+```
+
+当前验证结果：`protocol_selftest`、`log_selftest`、`net_packet_selftest` 通过，四个角色的 `--self-test` 均通过。
 
 角色自检会写入本机日志文件：
 
@@ -95,6 +101,10 @@ logs/client_01.log
 ```
 
 `log_selftest` 会同时验证日志写入和结构化解析，解析结果包含 `entity`、`thread_name`、`event`、`message` 四个字段。
+
+`net_packet_selftest` 会在本机回环地址上建立一条临时 TCP 连接，并通过
+`send_packet_logged()` / `recv_packet_logged()` 交换 `KEY_DOWN` 和 `APP_ACK`，
+验证收发包日志自动输出 `PACKET_SEND` / `PACKET_RECV`。
 
 ## 四主机配置验收
 
