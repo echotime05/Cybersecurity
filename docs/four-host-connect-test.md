@@ -1,6 +1,9 @@
-# 四主机连接骨架联调说明
+# 四主机联调说明
 
-本阶段只验证网络骨架和日志链路，不做真实加密和 Kerberos payload 校验。
+本说明包含两个验收入口：
+
+- `--connect-test`：轻量网络骨架探测。
+- `--auth-test`：真实 Kerberos 正常链路、证书交换、`GAME_JOIN_REQ / APP_ACK` 双向不可否认。
 
 ## 前置条件
 
@@ -45,7 +48,7 @@ V_IP=172.27.39.248
 主机 4：
 
 ```powershell
-.\build-mingw\v_server.exe --serve
+.\run_v.bat
 ```
 
 预期终端输出：
@@ -125,3 +128,49 @@ ctest --test-dir build-mingw --output-on-failure
 ```
 
 其中 `connect_probe_selftest` 会自动启动 AS/TGS/V 的临时监听进程，并运行一次 `client --connect-test`。
+
+## 完整认证验收
+
+AS/TGS/V 保持启动后，任一 Client 主机运行：
+
+```powershell
+.\build-mingw\client.exe --auth-test
+```
+
+预期终端输出：
+
+```text
+AUTH_STATE AS_OK
+AUTH_STATE TGS_OK
+AUTH_STATE V_AUTH_OK
+AUTH_STATE AUTH_DONE
+APP_NON_REPUDIATION GAME_JOIN_REQ_SIGNED
+APP_NON_REPUDIATION APP_ACK_VERIFIED
+auth-test: ok
+```
+
+Client 日志应出现：
+
+```text
+[Client][CAuthWorker][AUTH_STATE] AS_OK
+[Client][CAuthWorker][AUTH_STATE] TGS_OK
+[Client][CAuthWorker][AUTH_STATE] V_AUTH_OK
+[Client][CAuthWorker][AUTH_STATE] AUTH_DONE
+[Client][CAuthWorker][APP_NON_REPUDIATION] GAME_JOIN_REQ_SIGNED
+[Client][CAuthWorker][APP_NON_REPUDIATION] APP_ACK_VERIFIED
+```
+
+V 日志应出现：
+
+```text
+[V][VWorker-Probe][APP_NON_REPUDIATION] GAME_JOIN_REQ_VERIFIED
+[V][VWorker-Probe][APP_NON_REPUDIATION] APP_ACK_SIGNED
+```
+
+开发机自动验收：
+
+```powershell
+ctest --test-dir build-mingw -R auth_flow_selftest --output-on-failure
+```
+
+其中 `auth_flow_selftest` 会自动启动 AS/TGS/V 临时监听进程，并运行一次 `client --auth-test`。

@@ -1,5 +1,6 @@
 #include "cyber/common/role_runtime.hpp"
 
+#include "cyber/common/auth_flow.hpp"
 #include "cyber/common/config.hpp"
 #include "cyber/common/logger.hpp"
 #include "cyber/common/net_packet.hpp"
@@ -58,7 +59,7 @@ void print_usage(const RoleSpec& spec)
 {
     std::cout << "Usage: " << spec.binary
               << " [--config PATH] [--self-test] [--print-config] [--serve] [--once]"
-                 " [--max-connections N] [--connect-test]\n";
+                 " [--max-connections N] [--connect-test] [--auth-test]\n";
 }
 
 std::filesystem::path find_default_config()
@@ -293,22 +294,36 @@ Packet make_probe_response(RoleKind role, const RoleSpec& spec, const Packet& re
                        make_error_payload(ErrorCode::unsupported_msg_type, "probe unsupported msg_type"));
 }
 
-void handle_probe_connection(SocketHandle socket, std::shared_ptr<Logger> logger, RoleKind role,
-                             RoleSpec spec)
+bool is_probe_packet(const Packet& packet)
+{
+    const std::string payload(packet.payload.begin(), packet.payload.end());
+    return payload.rfind("probe_", 0) == 0;
+}
+
+void handle_server_connection(SocketHandle socket, std::shared_ptr<Logger> logger,
+                              std::shared_ptr<AuthRuntime> auth_runtime, RoleKind role,
+                              RoleSpec spec, Config config)
 {
     const std::string thread_name = worker_thread_name(role);
     logger->write(spec.name, thread_name, "THREAD_START", thread_name + " start");
     try
     {
         const Packet request = recv_packet_logged(socket, *logger, spec.name, thread_name);
-        const Packet response = make_probe_response(role, spec, request);
-        if (response.msg_type == MsgType::error)
+        if (is_probe_packet(request))
         {
-            logger->write(spec.name, thread_name, "ERROR", "ERR_UNSUPPORTED_MSG_TYPE");
+            const Packet response = make_probe_response(role, spec, request);
+            if (response.msg_type == MsgType::error)
+            {
+                logger->write(spec.name, thread_name, "ERROR", "ERR_UNSUPPORTED_MSG_TYPE");
+            }
+            send_packet_logged(socket, response, *logger, spec.name, thread_name);
+            close_socket(socket);
         }
-        send_packet_logged(socket, response, *logger, spec.name, thread_name);
+        else
+        {
+            handle_auth_packet(role, socket, request, config, *auth_runtime, *logger, thread_name);
+        }
         logger->write(spec.name, thread_name, "SOCKET_CLOSE", "close probe connection");
-        close_socket(socket);
         logger->write(spec.name, thread_name, "THREAD_EXIT", thread_name + " exit");
     }
     catch (const std::exception& ex)
@@ -327,6 +342,7 @@ void run_server(RoleKind role, const Config& config, const RoleSpec& spec, int m
     }
 
     SocketRuntime runtime;
+    auto auth_runtime = std::make_shared<AuthRuntime>(make_auth_runtime(config));
     auto logger = std::make_shared<Logger>(role_log_path(role, config));
     const std::string main_thread = main_thread_name(role);
     const TcpEndpoint endpoint = bind_endpoint(config, spec);
@@ -347,7 +363,8 @@ void run_server(RoleKind role, const Config& config, const RoleSpec& spec, int m
             ++accepted_count;
             logger->write(spec.name, main_thread, "ACCEPT", "accept connection from " + peer);
 
-            std::thread worker(handle_probe_connection, accepted, logger, role, spec);
+            std::thread worker(handle_server_connection, accepted, logger, auth_runtime, role, spec,
+                               config);
             if (max_connections > 0)
             {
                 worker.join();
@@ -438,6 +455,7 @@ int run_role_main(RoleKind role, int argc, char** argv)
     bool serve = false;
     bool once = false;
     bool connect_test = false;
+    bool auth_test = false;
     int max_connections = 0;
     std::filesystem::path config_path;
 
@@ -477,6 +495,10 @@ int run_role_main(RoleKind role, int argc, char** argv)
         else if (arg == "--connect-test")
         {
             connect_test = true;
+        }
+        else if (arg == "--auth-test")
+        {
+            auth_test = true;
         }
         else if (arg == "--config")
         {
@@ -548,6 +570,15 @@ int run_role_main(RoleKind role, int argc, char** argv)
                 throw std::runtime_error("--connect-test is only supported by client");
             }
             run_client_connect_test(config);
+        }
+        else if (auth_test)
+        {
+            if (role != RoleKind::client)
+            {
+                throw std::runtime_error("--auth-test is only supported by client");
+            }
+            Logger logger(role_log_path(RoleKind::client, config));
+            run_client_auth_test(config, logger);
         }
         else
         {

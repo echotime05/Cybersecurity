@@ -13,12 +13,15 @@ else()
 endif()
 
 add_library(cyber_common
+    src/common/auth_flow.cpp
     src/common/config.cpp
+    src/common/crypto.cpp
     src/common/log_parser.cpp
     src/common/logger.cpp
     src/common/net_packet.cpp
     src/common/net_socket.cpp
     src/common/packet.cpp
+    src/common/protocol_payloads.cpp
     src/common/role_runtime.cpp
 )
 
@@ -50,6 +53,12 @@ target_link_libraries(log_selftest PRIVATE cyber_common)
 add_executable(net_packet_selftest tests/net_packet_selftest.cpp)
 target_link_libraries(net_packet_selftest PRIVATE cyber_common)
 
+add_executable(crypto_selftest tests/crypto_selftest.cpp)
+target_link_libraries(crypto_selftest PRIVATE cyber_common)
+
+add_executable(auth_payload_selftest tests/auth_payload_selftest.cpp)
+target_link_libraries(auth_payload_selftest PRIVATE cyber_common)
+
 enable_testing()
 add_test(NAME protocol_selftest COMMAND protocol_selftest)
 set_tests_properties(protocol_selftest PROPERTIES
@@ -57,12 +66,21 @@ set_tests_properties(protocol_selftest PROPERTIES
 )
 add_test(NAME log_selftest COMMAND log_selftest)
 add_test(NAME net_packet_selftest COMMAND net_packet_selftest)
+add_test(NAME crypto_selftest COMMAND crypto_selftest)
+add_test(NAME auth_payload_selftest COMMAND auth_payload_selftest)
 
 if(WIN32)
     add_test(
         NAME connect_probe_selftest
         COMMAND powershell -NoProfile -ExecutionPolicy Bypass
                 -File ${CMAKE_CURRENT_SOURCE_DIR}/tests/connect_probe_selftest.ps1
+                -BuildDir $<TARGET_FILE_DIR:client>
+    )
+
+    add_test(
+        NAME auth_flow_selftest
+        COMMAND powershell -NoProfile -ExecutionPolicy Bypass
+                -File ${CMAKE_CURRENT_SOURCE_DIR}/tests/auth_flow_selftest.ps1
                 -BuildDir $<TARGET_FILE_DIR:client>
     )
 endif()

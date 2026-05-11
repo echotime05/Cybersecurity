@@ -4,6 +4,8 @@
 
 #include "cyber/common/net_packet.hpp"
 
+#include "cyber/common/crypto.hpp"
+
 #include <algorithm>
 #include <iomanip>
 #include <limits>
@@ -108,6 +110,27 @@ std::string hex_id(EntityId id)
 
 std::string format_payload_summary(const Packet& packet)
 {
+    const auto encrypted_summary = [&](const char* label) {
+        std::ostringstream oss;
+        oss << label << "{encrypted=true, cipher_hash=0x" << std::hex << std::uppercase
+            << std::setfill('0') << std::setw(16) << hash64(packet.payload) << std::dec
+            << ", cipher_len=" << packet.payload.size() << '}';
+        return oss.str();
+    };
+
+    if (packet.msg_type == MsgType::as_rep || packet.msg_type == MsgType::tgs_rep ||
+        packet.msg_type == MsgType::v_auth_rep || packet.msg_type == MsgType::cert_c2v ||
+        packet.msg_type == MsgType::cert_v2c)
+    {
+        return encrypted_summary("payload");
+    }
+
+    if (packet.msg_type == MsgType::app && !packet.payload.empty() &&
+        packet.payload.size() % 8U == 0U)
+    {
+        return encrypted_summary("MSG_APP");
+    }
+
     if (packet.msg_type == MsgType::app && !packet.payload.empty())
     {
         const AppCode code = parse_app_code(packet.payload);

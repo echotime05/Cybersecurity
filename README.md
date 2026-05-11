@@ -2,7 +2,7 @@
 
 本工程用于实现课程设计报告中的多人联机坦克大战安全通信系统。
 
-当前重点是终端验收：先跑通四主机配置、日志、报文、监听和连接骨架；加密、真实 Kerberos payload、应用层同步和可视化后置。
+当前重点是终端验收：已跑通四主机配置、日志、报文、监听、真实 Kerberos 正常链路、证书交换，以及 `GAME_JOIN_REQ / APP_ACK` 双向不可否认闭环；坦克大战应用层同步和可视化后置。
 
 ## 当前四主机部署
 
@@ -99,6 +99,8 @@ Copy-Item .\config\lan\host4_v_client4.txt .\config\course_config.txt -Force
 .\build-mingw\protocol_selftest.exe
 .\build-mingw\log_selftest.exe
 .\build-mingw\net_packet_selftest.exe
+.\build-mingw\crypto_selftest.exe
+.\build-mingw\auth_payload_selftest.exe
 ctest --test-dir build-mingw --output-on-failure
 ```
 
@@ -145,6 +147,36 @@ Client 日志应出现：
 
 更多四主机联调细节见 `docs/four-host-connect-test.md`。
 
+## 真实认证与双向不可否认验收
+
+启动 AS/TGS/V 后，任一 Client 主机运行：
+
+```powershell
+.\build-mingw\client.exe --auth-test
+```
+
+成功输出：
+
+```text
+AUTH_STATE AS_OK
+AUTH_STATE TGS_OK
+AUTH_STATE V_AUTH_OK
+AUTH_STATE AUTH_DONE
+APP_NON_REPUDIATION GAME_JOIN_REQ_SIGNED
+APP_NON_REPUDIATION APP_ACK_VERIFIED
+auth-test: ok
+```
+
+`--auth-test` 执行真实正常流程：
+
+```text
+AS_REQ / AS_REP
+TGS_REQ / TGS_REP
+V_AUTH_REQ / V_AUTH_REP
+CERT_C2V / CERT_V2C
+GAME_JOIN_REQ + signed APP_ACK
+```
+
 ## 日志格式
 
 所有日志行固定为：
@@ -157,7 +189,10 @@ Client 日志应出现：
 
 - `log_selftest` 验证日志写入和结构化解析。
 - `net_packet_selftest` 验证本机 TCP 收发和 `PACKET_SEND` / `PACKET_RECV` 日志。
+- `crypto_selftest` 验证 DES 风格分组加密、hash、RSA 签名验签和证书验签。
+- `auth_payload_selftest` 验证 Kerberos、证书和 ACK payload 的 build/parse。
 - `connect_probe_selftest` 自动启动 AS/TGS/V 监听骨架，并让 Client 依次完成 `AS_REQ/AS_REP`、`TGS_REQ/TGS_REP`、`V_AUTH_REQ/V_AUTH_REP`、`CERT_C2V/CERT_V2C`。
+- `auth_flow_selftest` 自动启动 AS/TGS/V，并让 Client 完成 `--auth-test`。
 
 ## 当前阶段边界
 
@@ -168,10 +203,14 @@ Client 日志应出现：
 - Client 连接探测骨架
 - 固定格式日志和日志解析
 - 报文序列化、反序列化和基础校验
+- 加密解密基础
+- 完整 Kerberos 正常票据流程
+- C/V 证书交换
+- `GAME_JOIN_REQ / APP_ACK` 双向不可否认正常闭环
 
 尚未完成：
 
-- 真实加密解密
-- 完整 Kerberos 票据内容
+- Kerberos 错误处理和回退状态机
+- 篡改报文/ACK 的错误演示
 - 坦克大战应用层状态同步
 - Qt/Web 可视化
