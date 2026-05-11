@@ -1,3 +1,7 @@
+#ifndef NOMINMAX
+#define NOMINMAX
+#endif
+
 #include "cyber/common/net_packet.hpp"
 
 #include <algorithm>
@@ -7,9 +11,6 @@
 #include <stdexcept>
 
 #ifdef _WIN32
-#ifndef NOMINMAX
-#define NOMINMAX
-#endif
 #define WIN32_LEAN_AND_MEAN
 #include <winsock2.h>
 #else
