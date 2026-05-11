@@ -13,56 +13,42 @@
 | 主机 3 | TGS + Client3 | `0x03` | `logs/tgs.log`、`logs/client_03.log` |
 | 主机 4 | V + Client4 | `0x04` | `logs/v.log`、`logs/client_04.log` |
 
-<<<<<<< HEAD
-## 编译环境要求
-
-- 支持 C++17 的编译器（如 GCC, Clang, MSVC）
-- CMake (版本 >= 3.16)
-
-## 编译教程
-
-本项目使用 CMake 进行构建，支持多平台和多种构建系统。以下提供通用的编译和测试步骤。
-
-### 通用构建命令
-
-在项目根目录下执行以下命令进行编译：
-
-```bash
-# 生成构建文件（默认使用系统的默认生成器）
-cmake -S . -B build
-
-# 编译项目
-cmake --build build
-
-# 运行所有测试验证编译结果
-ctest --test-dir build --output-on-failure
-```
-
-### Windows 下使用 Visual Studio 2022 编译
-
-如果你使用 Visual Studio 2022，推荐在“Developer PowerShell for VS 2022”或“Developer Command Prompt for VS 2022”中执行以下命令：
-
-```powershell
-# 使用 MSVC 生成构建文件，指定 64 位架构
-cmake -S . -B build-vs -G "Visual Studio 17 2022" -A x64
-
-# 编译项目（以 Debug 模式为例）
-cmake --build build-vs --config Debug
-
-# 运行所有测试
-ctest --test-dir build-vs -C Debug --output-on-failure
-```
-
-*注意：编译完成后，生成的可执行文件将位于 `build/` 或 `build-vs/Debug/` 目录下。接下来的运行示例以 `build/` 为例。*
-
-## 当前可运行目标
-=======
 当前 LAN 地址：
 
 ```text
 AS  = 172.27.197.122:9001
 TGS = 172.27.123.205:9002
 V   = 172.27.39.248:9003
+```
+
+## Host4 一键启动 V
+
+在主机 4 的仓库根目录运行：
+
+```powershell
+.\run_v.bat
+```
+
+这个命令会自动完成：
+
+- 复制 `config\lan\host4_v_client4.txt` 到 `config\course_config.txt`
+- 停掉旧的 `v_server.exe`，避免 9003 端口被占用
+- 如果能找到 `cmake.exe`，自动构建 `v_server`
+- 前台启动 V 并输出监听状态
+
+成功时终端会停在监听状态，并至少看到：
+
+```text
+V listening on 0.0.0.0:9003
+log file: logs\v.log
+```
+
+停止 V 使用 `Ctrl+C`。
+
+只检查配置和构建、不进入监听：
+
+```powershell
+.\run_v.bat -PrintOnly
 ```
 
 ## 构建
@@ -76,7 +62,6 @@ ctest --test-dir build-mingw --output-on-failure
 ```
 
 如果使用 Visual Studio：
->>>>>>> 25a936be254debbc3798bdaf109bf9a72b958635
 
 ```powershell
 cmake -S . -B build-vs -G "Visual Studio 17 2022" -A x64
@@ -86,9 +71,7 @@ ctest --test-dir build-vs -C Debug --output-on-failure
 
 ## 配置
 
-默认 `config/course_config.txt` 使用 `127.0.0.1`，用于本机自测。
-
-四主机联调时，在每台机器上复制对应模板：
+默认 `config/course_config.txt` 用于当前机器运行。四主机联调时，在每台机器上复制对应模板：
 
 ```powershell
 # 主机 1：Client1 only
@@ -116,52 +99,11 @@ Copy-Item .\config\lan\host4_v_client4.txt .\config\course_config.txt -Force
 .\build-mingw\protocol_selftest.exe
 .\build-mingw\log_selftest.exe
 .\build-mingw\net_packet_selftest.exe
-```
-
-角色自检：
-
-```bash
-./build/as_server --self-test
-./build/tgs_server --self-test
-./build/v_server --self-test
-./build/client --self-test
-```
-
-完整 CTest 当前应通过：
-
-<<<<<<< HEAD
-```bash
-./build/protocol_selftest
-=======
-```text
-protocol_selftest
-log_selftest
-net_packet_selftest
-connect_probe_selftest
->>>>>>> 25a936be254debbc3798bdaf109bf9a72b958635
+ctest --test-dir build-mingw --output-on-failure
 ```
 
 ## 四主机连接骨架联调
 
-<<<<<<< HEAD
-```bash
-./build/log_selftest
-```
-
-本地 socket 收发日志自测：
-
-```bash
-./build/net_packet_selftest
-```
-
-四主机连接骨架自测：
-
-```bash
-./build/as_server --serve
-./build/tgs_server --serve
-./build/v_server --serve
-./build/client --connect-test
-=======
 主机 2 启动 AS：
 
 ```powershell
@@ -177,14 +119,13 @@ connect_probe_selftest
 主机 4 启动 V：
 
 ```powershell
-.\build-mingw\v_server.exe --serve
+.\run_v.bat
 ```
 
-四台主机都运行 Client 探测：
+四台主机都可以运行 Client 探测：
 
 ```powershell
 .\build-mingw\client.exe --connect-test
->>>>>>> 25a936be254debbc3798bdaf109bf9a72b958635
 ```
 
 成功时 Client 终端输出：
@@ -212,23 +153,25 @@ Client 日志应出现：
 [实体][线程名][事件] 具体内容
 ```
 
-<<<<<<< HEAD
-- `log_selftest` 会同时验证日志写入和结构化解析，解析结果包含 `entity`、`thread_name`、`event`、`message` 四个字段。
-- `net_packet_selftest` 会在本机回环地址上建立一条临时 TCP 连接，并通过 `send_packet_logged()` / `recv_packet_logged()` 交换 `KEY_DOWN` 和 `APP_ACK`，验证收发包日志自动输出 `PACKET_SEND` / `PACKET_RECV`。
-- `connect_probe_selftest` 会自动启动 AS/TGS/V 的监听骨架，再让 Client 依次完成 `AS_REQ/AS_REP`、`TGS_REQ/TGS_REP`、`V_AUTH_REQ/V_AUTH_REP`、`CERT_C2V/CERT_V2C` 四段占位连接。四台物理机联调步骤见 `docs/four-host-connect-test.md`。
+当前自测覆盖：
 
-## 四主机配置验收
+- `log_selftest` 验证日志写入和结构化解析。
+- `net_packet_selftest` 验证本机 TCP 收发和 `PACKET_SEND` / `PACKET_RECV` 日志。
+- `connect_probe_selftest` 自动启动 AS/TGS/V 监听骨架，并让 Client 依次完成 `AS_REQ/AS_REP`、`TGS_REQ/TGS_REP`、`V_AUTH_REQ/V_AUTH_REP`、`CERT_C2V/CERT_V2C`。
 
-默认 `config/course_config.txt` 使用 `127.0.0.1`，便于本机自测。局域网部署时可参考 `config/course_config.lan.example.txt`，在四台物理机上分别设置 `LOCAL_CLIENT_ID` 以及 `AS_IP`、`TGS_IP`、`V_IP`。
+## 当前阶段边界
 
-查看当前角色和网络配置：
+已经完成：
 
-```bash
-./build/client --print-config
-./build/as_server --print-config
-./build/tgs_server --print-config
-./build/v_server --print-config
-```
-=======
-AS/TGS/V 不做独立 UI，只写本机日志。后续 Qt 或 Web 可视化只读取同一套日志。
->>>>>>> 25a936be254debbc3798bdaf109bf9a72b958635
+- 四主机 LAN 配置模板
+- AS/TGS/V 监听骨架
+- Client 连接探测骨架
+- 固定格式日志和日志解析
+- 报文序列化、反序列化和基础校验
+
+尚未完成：
+
+- 真实加密解密
+- 完整 Kerberos 票据内容
+- 坦克大战应用层状态同步
+- Qt/Web 可视化
