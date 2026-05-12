@@ -1,6 +1,7 @@
 #include "cyber/common/log_parser.hpp"
 #include "cyber/common/logger.hpp"
 #include "cyber/common/net_packet.hpp"
+#include "cyber/common/net_socket.hpp"
 #include "cyber/common/packet.hpp"
 
 #include <chrono>
@@ -15,6 +16,7 @@
 
 #define WIN32_LEAN_AND_MEAN
 #include <winsock2.h>
+#include <ws2tcpip.h>
 
 namespace
 {
@@ -50,6 +52,17 @@ void require_socket_result(int result, const char* message)
         throw std::runtime_error(std::string(message) + ", WSAGetLastError=" +
                                  std::to_string(WSAGetLastError()));
     }
+}
+
+void require_tcp_nodelay_enabled(cyber::SocketHandle socket, const char* message)
+{
+    int value = 0;
+    int len = sizeof(value);
+    require_socket_result(
+        getsockopt(static_cast<SOCKET>(socket), IPPROTO_TCP, TCP_NODELAY,
+                   reinterpret_cast<char*>(&value), &len),
+        "getsockopt TCP_NODELAY failed");
+    require(value != 0, message);
 }
 
 std::vector<std::string> read_lines(const std::filesystem::path& path)
@@ -109,6 +122,55 @@ NativeSocket connect_loopback(std::uint16_t port)
         "connect failed");
     return client_socket;
 }
+
+void verify_helper_sockets_enable_tcp_nodelay()
+{
+    cyber::SocketHandle listener = cyber::listen_tcp({"127.0.0.1", 0}, 1);
+    const std::uint16_t port = bound_port(static_cast<SOCKET>(listener));
+
+    std::exception_ptr server_error;
+    std::thread server([&]() {
+        cyber::SocketHandle accepted = 0;
+        try
+        {
+            accepted = cyber::accept_tcp(listener);
+            require_tcp_nodelay_enabled(accepted, "accept_tcp did not enable TCP_NODELAY");
+        }
+        catch (...)
+        {
+            server_error = std::current_exception();
+        }
+        if (accepted != 0)
+        {
+            cyber::close_socket(accepted);
+        }
+    });
+
+    cyber::SocketHandle client = 0;
+    try
+    {
+        client = cyber::connect_tcp({"127.0.0.1", port});
+        require_tcp_nodelay_enabled(client, "connect_tcp did not enable TCP_NODELAY");
+    }
+    catch (...)
+    {
+        if (client != 0)
+        {
+            cyber::close_socket(client);
+        }
+        cyber::close_socket(listener);
+        server.join();
+        throw;
+    }
+
+    cyber::close_socket(client);
+    cyber::close_socket(listener);
+    server.join();
+    if (server_error)
+    {
+        std::rethrow_exception(server_error);
+    }
+}
 } // namespace
 
 int main()
@@ -116,6 +178,7 @@ int main()
     try
     {
         cyber::SocketRuntime runtime;
+        verify_helper_sockets_enable_tcp_nodelay();
 
         const auto now = std::chrono::steady_clock::now().time_since_epoch().count();
         const std::filesystem::path dir =

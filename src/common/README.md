@@ -9,7 +9,7 @@ crypto.cpp             DES-style payload encryption, hash, RSA-style signatures,
 log_parser.cpp         structured log parser
 logger.cpp             async 20ms batched thread-safe line logger
 net_packet.cpp         packet send/recv with required PACKET_SEND/PACKET_RECV logs
-net_socket.cpp         TCP socket helpers
+net_socket.cpp         TCP socket helpers with TCP_NODELAY for low-latency small packets
 packet.cpp             packet header serialization and generic MSG_ERROR / MSG_APP helpers
 protocol_payloads.cpp  binary payload builders/parsers for Kerberos and APP_ACK
 role_runtime.cpp       common CLI and role runtime dispatch

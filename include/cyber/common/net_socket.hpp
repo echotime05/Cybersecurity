@@ -16,4 +16,5 @@ struct TcpEndpoint
 SocketHandle listen_tcp(const TcpEndpoint& endpoint, int backlog = 16);
 SocketHandle accept_tcp(SocketHandle listen_socket, std::string* peer = nullptr);
 SocketHandle connect_tcp(const TcpEndpoint& endpoint);
+void set_tcp_nodelay(SocketHandle socket);
 } // namespace cyber

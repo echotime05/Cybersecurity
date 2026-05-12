@@ -101,6 +101,16 @@ SocketHandle accept_tcp(SocketHandle listen_socket, std::string* peer)
         throw std::runtime_error(last_socket_error("accept"));
     }
 
+    try
+    {
+        set_tcp_nodelay(to_handle(accepted));
+    }
+    catch (...)
+    {
+        close_if_valid(accepted);
+        throw;
+    }
+
     if (peer != nullptr)
     {
         char host[INET_ADDRSTRLEN] = {};
@@ -133,6 +143,7 @@ SocketHandle connect_tcp(const TcpEndpoint& endpoint)
         {
             throw std::runtime_error(last_socket_error("connect"));
         }
+        set_tcp_nodelay(to_handle(socket));
     }
     catch (...)
     {
@@ -141,5 +152,15 @@ SocketHandle connect_tcp(const TcpEndpoint& endpoint)
     }
 
     return to_handle(socket);
+}
+
+void set_tcp_nodelay(SocketHandle socket)
+{
+    int flag = 1;
+    if (setsockopt(native_socket(socket), IPPROTO_TCP, TCP_NODELAY,
+                   reinterpret_cast<const char*>(&flag), sizeof(flag)) != 0)
+    {
+        throw std::runtime_error(last_socket_error("setsockopt TCP_NODELAY"));
+    }
 }
 } // namespace cyber
