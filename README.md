@@ -69,6 +69,26 @@ cmake --build build-vs --config Debug
 ctest --test-dir build-vs -C Debug --output-on-failure
 ```
 
+## 代码目录
+
+当前仓库按“4 个角色 + 公共模块”组织：
+
+```text
+src/roles/client/   Client 入口
+src/roles/as/       AS 入口
+src/roles/tgs/      TGS 入口
+src/roles/v/        V 入口
+src/common/         四个角色共享的协议、日志、网络、加密和认证流程
+include/cyber/      公共头文件
+config/             本机配置和四主机 LAN 配置模板
+tests/              自测和本机集成测试
+docs/               设计、计划和联调说明
+scripts/            运行辅助脚本
+useless/            本地废弃/临时产物说明，不参与构建
+```
+
+每个角色负责人优先看自己的 `src/roles/<role>/main.cpp`，共用逻辑再进入 `src/common`。
+
 ## 配置
 
 默认 `config/course_config.txt` 用于当前机器运行。四主机联调时，在每台机器上复制对应模板：
