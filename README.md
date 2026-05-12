@@ -234,3 +234,20 @@ GAME_JOIN_REQ + signed APP_ACK
 - 篡改报文/ACK 的错误演示
 - 坦克大战应用层状态同步
 - Qt/Web 可视化
+
+## 低延迟修改记录
+
+为了给后续坦克大战实时同步降低抖动，当前已完成两项低延迟基础修改：
+
+1. 异步批量日志写入
+
+   原来的 `Logger::write()` 每写一条日志都会立即 `flush()` 到磁盘。网络收发线程在记录 `PACKET_SEND`、`PACKET_RECV`、应用层事件和 ACK 时，会被磁盘 I/O 阻塞。现在 `Logger::write()` 只负责格式化日志并放入内存队列，后台日志线程每 20ms 批量写入文件；当队列达到 64 条时会提前唤醒写线程。`Logger::flush()` 和 `Logger` 析构会等待队列落盘，保证认证验收、测试结束和程序退出时日志完整。
+
+2. 小包连接启用 `TCP_NODELAY`
+
+   坦克大战阶段会频繁发送 `KEY_DOWN`、`KEY_UP`、`AIM_EVENT`、`FIRE_EVENT`、`APP_ACK` 等小包。为了减少 Nagle 算法合并小包造成的额外等待，`connect_tcp()` 和 `accept_tcp()` 现在会在连接建立后自动调用 `set_tcp_nodelay()`，对连接两端开启 `TCP_NODELAY`。这样后续 Client 与 V 的游戏长连接天然使用低延迟小包发送策略。
+
+相关自测：
+
+- `log_selftest` 验证异步日志在 `flush()` 和析构后能完整落盘。
+- `net_packet_selftest` 验证 `connect_tcp()` 和 `accept_tcp()` 返回的 socket 已启用 `TCP_NODELAY`，并继续验证 `PACKET_SEND` / `PACKET_RECV` 日志。
