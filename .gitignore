@@ -24,6 +24,7 @@ logs/
 *.obj
 *.pdb
 *.ilk
+*.zip
 
 # OS and temporary files
 Thumbs.db

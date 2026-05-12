@@ -68,6 +68,10 @@ int main()
             thread_a.join();
             thread_b.join();
 
+            logger.flush();
+            const std::vector<std::string> flushed_lines = read_lines(log_path);
+            require(flushed_lines.size() == 42U, "flush did not make queued log lines visible");
+
             logger.write("Client", "UI/GameThread", "THREAD_EXIT", "self-test exit");
         }
 

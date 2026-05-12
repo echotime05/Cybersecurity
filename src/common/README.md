@@ -7,7 +7,7 @@ auth_flow.cpp          Kerberos normal flow, certificate exchange, APP_ACK non-r
 config.cpp             course_config.txt parser
 crypto.cpp             DES-style payload encryption, hash, RSA-style signatures, certificates
 log_parser.cpp         structured log parser
-logger.cpp             thread-safe line logger
+logger.cpp             async 20ms batched thread-safe line logger
 net_packet.cpp         packet send/recv with required PACKET_SEND/PACKET_RECV logs
 net_socket.cpp         TCP socket helpers
 packet.cpp             packet header serialization and generic MSG_ERROR / MSG_APP helpers
