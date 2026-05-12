@@ -6,23 +6,14 @@
 
 #include <stdexcept>
 
-#ifdef _WIN32
 #define WIN32_LEAN_AND_MEAN
 #include <winsock2.h>
 #include <ws2tcpip.h>
-#else
-#include <arpa/inet.h>
-#include <cerrno>
-#include <cstring>
-#include <netinet/in.h>
-#include <sys/socket.h>
-#endif
 
 namespace cyber
 {
 namespace
 {
-#ifdef _WIN32
 using NativeSocket = SOCKET;
 constexpr NativeSocket kInvalidSocket = INVALID_SOCKET;
 
@@ -41,26 +32,6 @@ std::string last_socket_error(const char* operation)
     return std::string(operation) + " failed, WSAGetLastError=" +
            std::to_string(WSAGetLastError());
 }
-#else
-using NativeSocket = int;
-constexpr NativeSocket kInvalidSocket = -1;
-
-SocketHandle to_handle(NativeSocket socket)
-{
-    return static_cast<SocketHandle>(socket);
-}
-
-NativeSocket native_socket(SocketHandle socket)
-{
-    return static_cast<int>(socket);
-}
-
-std::string last_socket_error(const char* operation)
-{
-    return std::string(operation) + " failed, errno=" + std::to_string(errno) + " (" +
-           std::strerror(errno) + ")";
-}
-#endif
 
 sockaddr_in make_sockaddr(const TcpEndpoint& endpoint)
 {

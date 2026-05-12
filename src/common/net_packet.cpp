@@ -12,21 +12,13 @@
 #include <sstream>
 #include <stdexcept>
 
-#ifdef _WIN32
 #define WIN32_LEAN_AND_MEAN
 #include <winsock2.h>
-#else
-#include <cerrno>
-#include <cstring>
-#include <sys/socket.h>
-#include <unistd.h>
-#endif
 
 namespace cyber
 {
 namespace
 {
-#ifdef _WIN32
 SOCKET native_socket(SocketHandle socket)
 {
     return static_cast<SOCKET>(socket);
@@ -37,18 +29,6 @@ std::string socket_error_message(const char* operation)
     return std::string(operation) + " failed, WSAGetLastError=" +
            std::to_string(WSAGetLastError());
 }
-#else
-int native_socket(SocketHandle socket)
-{
-    return static_cast<int>(socket);
-}
-
-std::string socket_error_message(const char* operation)
-{
-    return std::string(operation) + " failed, errno=" + std::to_string(errno) + " (" +
-           std::strerror(errno) + ")";
-}
-#endif
 
 void send_all(SocketHandle socket, const Bytes& bytes)
 {
@@ -58,13 +38,8 @@ void send_all(SocketHandle socket, const Bytes& bytes)
         const std::size_t remaining = bytes.size() - sent;
         const int chunk = static_cast<int>(
             std::min<std::size_t>(remaining, static_cast<std::size_t>(std::numeric_limits<int>::max())));
-#ifdef _WIN32
         const int n =
             ::send(native_socket(socket), reinterpret_cast<const char*>(bytes.data() + sent), chunk, 0);
-#else
-        const int n = static_cast<int>(
-            ::send(native_socket(socket), bytes.data() + sent, static_cast<std::size_t>(chunk), 0));
-#endif
         if (n <= 0)
         {
             throw PacketError(socket_error_message("send"));
@@ -81,13 +56,8 @@ void recv_exact(SocketHandle socket, std::uint8_t* out, std::size_t size)
         const std::size_t remaining = size - received;
         const int chunk = static_cast<int>(
             std::min<std::size_t>(remaining, static_cast<std::size_t>(std::numeric_limits<int>::max())));
-#ifdef _WIN32
         const int n =
             ::recv(native_socket(socket), reinterpret_cast<char*>(out + received), chunk, 0);
-#else
-        const int n = static_cast<int>(
-            ::recv(native_socket(socket), out + received, static_cast<std::size_t>(chunk), 0));
-#endif
         if (n == 0)
         {
             throw PacketError("recv failed, peer closed connection");
@@ -162,36 +132,25 @@ std::string format_payload_summary(const Packet& packet)
 
 SocketRuntime::SocketRuntime()
 {
-#ifdef _WIN32
     WSADATA data;
     const int result = WSAStartup(MAKEWORD(2, 2), &data);
     if (result != 0)
     {
         throw std::runtime_error("WSAStartup failed, result=" + std::to_string(result));
     }
-#endif
 }
 
 SocketRuntime::~SocketRuntime()
 {
-#ifdef _WIN32
     WSACleanup();
-#endif
 }
 
 void close_socket(SocketHandle socket)
 {
-#ifdef _WIN32
     if (native_socket(socket) != INVALID_SOCKET)
     {
         closesocket(native_socket(socket));
     }
-#else
-    if (native_socket(socket) >= 0)
-    {
-        close(native_socket(socket));
-    }
-#endif
 }
 
 bool send_packet_logged(SocketHandle socket, const Packet& packet, Logger& logger,

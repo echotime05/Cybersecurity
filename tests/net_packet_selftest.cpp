@@ -13,15 +13,8 @@
 #include <thread>
 #include <vector>
 
-#ifdef _WIN32
 #define WIN32_LEAN_AND_MEAN
 #include <winsock2.h>
-#else
-#include <arpa/inet.h>
-#include <netinet/in.h>
-#include <sys/socket.h>
-#include <unistd.h>
-#endif
 
 namespace
 {
@@ -33,7 +26,6 @@ void require(bool condition, const char* message)
     }
 }
 
-#ifdef _WIN32
 using NativeSocket = SOCKET;
 constexpr NativeSocket kInvalidSocket = INVALID_SOCKET;
 
@@ -59,31 +51,6 @@ void require_socket_result(int result, const char* message)
                                  std::to_string(WSAGetLastError()));
     }
 }
-#else
-using NativeSocket = int;
-constexpr NativeSocket kInvalidSocket = -1;
-
-cyber::SocketHandle to_handle(NativeSocket socket)
-{
-    return static_cast<cyber::SocketHandle>(socket);
-}
-
-void require_socket(NativeSocket socket, const char* message)
-{
-    if (socket < 0)
-    {
-        throw std::runtime_error(message);
-    }
-}
-
-void require_socket_result(int result, const char* message)
-{
-    if (result < 0)
-    {
-        throw std::runtime_error(message);
-    }
-}
-#endif
 
 std::vector<std::string> read_lines(const std::filesystem::path& path)
 {

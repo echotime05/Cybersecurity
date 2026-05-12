@@ -886,14 +886,12 @@ Write-Host 'auth_flow_selftest: ok'
 Modify `CMakeLists.txt`:
 
 ```cmake
-if(WIN32)
-    add_test(
-        NAME auth_flow_selftest
-        COMMAND powershell -NoProfile -ExecutionPolicy Bypass
-                -File ${CMAKE_CURRENT_SOURCE_DIR}/tests/auth_flow_selftest.ps1
-                -BuildDir $<TARGET_FILE_DIR:client>
-    )
-endif()
+add_test(
+    NAME auth_flow_selftest
+    COMMAND powershell -NoProfile -ExecutionPolicy Bypass
+            -File ${CMAKE_CURRENT_SOURCE_DIR}/tests/auth_flow_selftest.ps1
+            -BuildDir $<TARGET_FILE_DIR:client>
+)
 ```
 
 - [ ] **Step 3: Run auth flow self-test**
