@@ -1,0 +1,56 @@
+#pragma once
+
+#include "cyber/common/auth_flow.hpp"
+#include "cyber/common/config.hpp"
+#include "cyber/common/logger.hpp"
+#include "cyber/game/game_protocol.hpp"
+#include "cyber/ui/ui_bridge.hpp"
+
+#include <atomic>
+#include <cstdint>
+#include <memory>
+#include <mutex>
+#include <string>
+#include <thread>
+
+namespace cyber::game
+{
+class AuthPlainGameClient
+{
+public:
+    AuthPlainGameClient(Config config, std::uint16_t ui_port);
+    ~AuthPlainGameClient();
+
+    void run();
+
+private:
+    enum class State
+    {
+        waiting_for_login,
+        authenticating,
+        authenticated,
+        joined
+    };
+
+    void handle_ui_command(const cyber::ui::UiCommand& command);
+    void handle_login(const cyber::ui::UiCommand& command);
+    void handle_join();
+    void handle_game_command(const cyber::ui::UiCommand& command);
+    void receive_loop();
+    void send_game_message(GameMsgType type, const Bytes& payload);
+    void close_v_socket();
+    std::string v_server_text() const;
+
+    Config config_;
+    std::uint16_t ui_port_ = 0;
+    EntityId self_ = EntityId::unknown;
+    SocketHandle v_socket_ = 0;
+    State state_ = State::waiting_for_login;
+    std::mutex state_mutex_;
+    std::mutex send_mutex_;
+    std::atomic<bool> stopping_{false};
+    Logger logger_;
+    std::unique_ptr<cyber::ui::UiBridge> bridge_;
+    std::thread rx_thread_;
+};
+} // namespace cyber::game
