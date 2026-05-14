@@ -18,7 +18,8 @@ namespace cyber::game
 class AuthPlainGameClient
 {
 public:
-    AuthPlainGameClient(Config config, std::uint16_t ui_port);
+    AuthPlainGameClient(Config config, std::uint16_t ui_port,
+                        bool encrypt_app_payloads = false);
     ~AuthPlainGameClient();
 
     void run();
@@ -45,6 +46,8 @@ private:
     std::uint16_t ui_port_ = 0;
     EntityId self_ = EntityId::unknown;
     SocketHandle v_socket_ = 0;
+    std::uint64_t kc_v_ = 0;
+    bool encrypt_app_payloads_ = false;
     State state_ = State::waiting_for_login;
     std::mutex state_mutex_;
     std::mutex send_mutex_;

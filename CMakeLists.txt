@@ -89,6 +89,10 @@ target_link_libraries(battle_room_selftest PRIVATE cyber_common)
 add_executable(plain_game_flow_selftest tests/plain_game_flow_selftest.cpp)
 target_link_libraries(plain_game_flow_selftest PRIVATE cyber_common)
 
+add_executable(auth_plain_game_client_options_selftest
+    tests/auth_plain_game_client_options_selftest.cpp)
+target_link_libraries(auth_plain_game_client_options_selftest PRIVATE cyber_common)
+
 add_executable(websocket_selftest tests/websocket_selftest.cpp)
 target_link_libraries(websocket_selftest PRIVATE cyber_common)
 
@@ -110,6 +114,8 @@ add_test(NAME app_payload_codec_selftest COMMAND app_payload_codec_selftest)
 add_test(NAME game_world_selftest COMMAND game_world_selftest)
 add_test(NAME battle_room_selftest COMMAND battle_room_selftest)
 add_test(NAME plain_game_flow_selftest COMMAND plain_game_flow_selftest)
+add_test(NAME auth_plain_game_client_options_selftest
+         COMMAND auth_plain_game_client_options_selftest)
 add_test(NAME websocket_selftest COMMAND websocket_selftest)
 add_test(NAME ui_bridge_selftest COMMAND ui_bridge_selftest)
 

@@ -2,6 +2,7 @@
 
 #include "cyber/common/auth_credentials.hpp"
 #include "cyber/common/net_packet.hpp"
+#include "cyber/game/app_payload_codec.hpp"
 
 #include <filesystem>
 #include <iostream>
@@ -10,9 +11,11 @@
 
 namespace cyber::game
 {
-AuthPlainGameClient::AuthPlainGameClient(Config config, std::uint16_t ui_port)
+AuthPlainGameClient::AuthPlainGameClient(Config config, std::uint16_t ui_port,
+                                         bool encrypt_app_payloads)
     : config_(std::move(config)),
       ui_port_(ui_port),
+      encrypt_app_payloads_(encrypt_app_payloads),
       logger_(std::filesystem::path("logs") / "client_auth_plain_game.log")
 {
 }
@@ -99,6 +102,7 @@ void AuthPlainGameClient::handle_login(const cyber::ui::UiCommand& command)
         {
             std::lock_guard<std::mutex> lock(state_mutex_);
             self_ = command.client_id;
+            kc_v_ = auth.state.kc_v;
             v_socket_ = auth.socket;
             state_ = State::authenticated;
         }
@@ -113,6 +117,7 @@ void AuthPlainGameClient::handle_login(const cyber::ui::UiCommand& command)
         close_v_socket();
         {
             std::lock_guard<std::mutex> lock(state_mutex_);
+            kc_v_ = 0;
             state_ = State::waiting_for_login;
         }
         bridge_->broadcast_text(cyber::ui::login_state_json(
@@ -156,7 +161,8 @@ void AuthPlainGameClient::send_game_message(GameMsgType type, const Bytes& paylo
         return;
     }
     const Bytes message = build_game_message({type, payload});
-    const Packet packet = make_packet(MsgType::app, self_, EntityId::v, message);
+    const Bytes wire_payload = encode_app_payload(message, kc_v_, encrypt_app_payloads_);
+    const Packet packet = make_packet(MsgType::app, self_, EntityId::v, wire_payload);
     send_packet_logged(v_socket_, packet, logger_, "Client", "AuthPlainGameTx");
 }
 
@@ -172,7 +178,9 @@ void AuthPlainGameClient::receive_loop()
             {
                 continue;
             }
-            const GameMessage message = parse_game_message(packet.payload);
+            const Bytes plain_payload =
+                decode_app_payload(packet.payload, kc_v_, encrypt_app_payloads_);
+            const GameMessage message = parse_game_message(plain_payload);
             if (message.type == GameMsgType::state && bridge_)
             {
                 bridge_->broadcast_state(parse_state(message.payload));
