@@ -79,6 +79,35 @@ The browser first shows `Client1` through `Client4` plus password login. After
 Kerberos authentication succeeds, it shows a simple join screen with the
 authenticated client id and V server address.
 
+## Kerberos-Gated Encrypted Tank Battle
+
+This mode keeps the same browser login and join flow as `--game-auth-plain`,
+but encrypts the C++ client-to-V `MsgType::app` game payload with the Kerberos
+`Kc_v` session key. The fixed packet header remains unchanged, and the
+browser-to-local-client WebSocket bridge remains plaintext.
+
+Start AS and TGS:
+
+```powershell
+.\build-mingw\as_server.exe --serve
+.\build-mingw\tgs_server.exe --serve
+```
+
+Start the encrypted auth-gated V game server:
+
+```powershell
+.\build-mingw\v_server.exe --game-auth-encrypted
+```
+
+Start one local C++ client per player host:
+
+```powershell
+.\build-mingw\client.exe --game-auth-encrypted --ui-port 7001
+```
+
+Then start the Web UI and open the same local client URL used by the plaintext
+authenticated mode.
+
 本工程用于实现课程设计报告中的多人联机坦克大战安全通信系统。
 
 当前重点是终端验收：已跑通四主机配置、日志、报文、监听、真实 Kerberos 正常链路、证书交换，以及 `GAME_JOIN_REQ / APP_ACK` 双向不可否认闭环；坦克大战应用层同步和可视化后置。
