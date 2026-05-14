@@ -30,6 +30,7 @@ add_library(cyber_common
     src/game/game_protocol.cpp
     src/game/game_world.cpp
     src/game/battle_room.cpp
+    src/game/plain_game_server.cpp
 )
 
 target_include_directories(cyber_common
@@ -73,6 +74,9 @@ target_link_libraries(game_world_selftest PRIVATE cyber_common)
 add_executable(battle_room_selftest tests/battle_room_selftest.cpp)
 target_link_libraries(battle_room_selftest PRIVATE cyber_common)
 
+add_executable(plain_game_flow_selftest tests/plain_game_flow_selftest.cpp)
+target_link_libraries(plain_game_flow_selftest PRIVATE cyber_common)
+
 enable_testing()
 add_test(NAME protocol_selftest COMMAND protocol_selftest)
 set_tests_properties(protocol_selftest PROPERTIES
@@ -85,6 +89,7 @@ add_test(NAME auth_payload_selftest COMMAND auth_payload_selftest)
 add_test(NAME game_protocol_selftest COMMAND game_protocol_selftest)
 add_test(NAME game_world_selftest COMMAND game_world_selftest)
 add_test(NAME battle_room_selftest COMMAND battle_room_selftest)
+add_test(NAME plain_game_flow_selftest COMMAND plain_game_flow_selftest)
 
 add_test(
     NAME connect_probe_selftest

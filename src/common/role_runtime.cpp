@@ -6,6 +6,7 @@
 #include "cyber/common/net_packet.hpp"
 #include "cyber/common/net_socket.hpp"
 #include "cyber/common/packet.hpp"
+#include "cyber/game/plain_game_server.hpp"
 
 #include <filesystem>
 #include <iostream>
@@ -59,7 +60,8 @@ void print_usage(const RoleSpec& spec)
 {
     std::cout << "Usage: " << spec.binary
               << " [--config PATH] [--self-test] [--print-config] [--serve] [--once]"
-                 " [--max-connections N] [--connect-test] [--auth-test]\n";
+                 " [--max-connections N] [--connect-test] [--auth-test]"
+                 " [--game-plain] [--ui-port PORT]\n";
 }
 
 std::filesystem::path find_default_config()
@@ -456,6 +458,8 @@ int run_role_main(RoleKind role, int argc, char** argv)
     bool once = false;
     bool connect_test = false;
     bool auth_test = false;
+    bool game_plain = false;
+    std::uint16_t ui_port = 0;
     int max_connections = 0;
     std::filesystem::path config_path;
 
@@ -499,6 +503,19 @@ int run_role_main(RoleKind role, int argc, char** argv)
         else if (arg == "--auth-test")
         {
             auth_test = true;
+        }
+        else if (arg == "--game-plain")
+        {
+            game_plain = true;
+        }
+        else if (arg == "--ui-port")
+        {
+            if (i + 1 >= argc)
+            {
+                std::cerr << "--ui-port requires a port\n";
+                return 2;
+            }
+            ui_port = static_cast<std::uint16_t>(std::stoi(argv[++i]));
         }
         else if (arg == "--config")
         {
@@ -553,6 +570,24 @@ int run_role_main(RoleKind role, int argc, char** argv)
             {
                 return 0;
             }
+        }
+
+        if (game_plain)
+        {
+            if (role == RoleKind::v_server)
+            {
+                SocketRuntime runtime;
+                cyber::game::PlainGameServer server(bind_endpoint(config, spec));
+                server.run();
+                return 0;
+            }
+            if (role == RoleKind::client)
+            {
+                std::cout << "client --game-plain will be enabled after PlainGameClient is added"
+                          << " on ui port " << ui_port << '\n';
+                return 2;
+            }
+            throw std::runtime_error("--game-plain is only supported by v_server and client");
         }
 
         if (self_test)
