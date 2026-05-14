@@ -31,7 +31,9 @@ add_library(cyber_common
     src/game/game_world.cpp
     src/game/battle_room.cpp
     src/game/plain_game_server.cpp
+    src/game/plain_game_client.cpp
     src/ui/websocket.cpp
+    src/ui/ui_bridge.cpp
 )
 
 target_include_directories(cyber_common
@@ -81,6 +83,9 @@ target_link_libraries(plain_game_flow_selftest PRIVATE cyber_common)
 add_executable(websocket_selftest tests/websocket_selftest.cpp)
 target_link_libraries(websocket_selftest PRIVATE cyber_common)
 
+add_executable(ui_bridge_selftest tests/ui_bridge_selftest.cpp)
+target_link_libraries(ui_bridge_selftest PRIVATE cyber_common)
+
 enable_testing()
 add_test(NAME protocol_selftest COMMAND protocol_selftest)
 set_tests_properties(protocol_selftest PROPERTIES
@@ -95,6 +100,7 @@ add_test(NAME game_world_selftest COMMAND game_world_selftest)
 add_test(NAME battle_room_selftest COMMAND battle_room_selftest)
 add_test(NAME plain_game_flow_selftest COMMAND plain_game_flow_selftest)
 add_test(NAME websocket_selftest COMMAND websocket_selftest)
+add_test(NAME ui_bridge_selftest COMMAND ui_bridge_selftest)
 
 add_test(
     NAME connect_probe_selftest

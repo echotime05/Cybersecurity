@@ -6,6 +6,7 @@
 #include "cyber/common/net_packet.hpp"
 #include "cyber/common/net_socket.hpp"
 #include "cyber/common/packet.hpp"
+#include "cyber/game/plain_game_client.hpp"
 #include "cyber/game/plain_game_server.hpp"
 
 #include <filesystem>
@@ -583,9 +584,13 @@ int run_role_main(RoleKind role, int argc, char** argv)
             }
             if (role == RoleKind::client)
             {
-                std::cout << "client --game-plain will be enabled after PlainGameClient is added"
-                          << " on ui port " << ui_port << '\n';
-                return 2;
+                if (ui_port == 0)
+                {
+                    throw std::runtime_error("client --game-plain requires --ui-port");
+                }
+                cyber::game::PlainGameClient client(config, ui_port);
+                client.run();
+                return 0;
             }
             throw std::runtime_error("--game-plain is only supported by v_server and client");
         }
