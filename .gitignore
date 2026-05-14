@@ -3,6 +3,8 @@ build/
 build-*/
 out/
 .worktrees/
+web-ui/node_modules/
+web-ui/dist/
 
 # Runtime output
 logs/
