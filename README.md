@@ -1,5 +1,41 @@
 # Cybersecurity Course Design
 
+## Phase A Plaintext Tank Battle
+
+Phase A runs the tank battle application layer without Kerberos, DES, RSA
+signatures, ACK non-repudiation, or replay protection. It keeps the existing
+packet header and sends plaintext `MsgType::app` game messages between client
+and V.
+
+Start V on the V host:
+
+```powershell
+.\build-mingw\v_server.exe --game-plain
+```
+
+Start one client per player host:
+
+```powershell
+.\build-mingw\client.exe --game-plain --ui-port 7001
+```
+
+Start the Web UI:
+
+```powershell
+cd web-ui
+npm install
+npm run dev -- --host 127.0.0.1
+```
+
+Open:
+
+```text
+http://127.0.0.1:5173/?client=ws://127.0.0.1:7001
+```
+
+The browser connects only to the local C++ client bridge. The C++ client keeps
+the TCP game connection to V and forwards world-state snapshots to the browser.
+
 本工程用于实现课程设计报告中的多人联机坦克大战安全通信系统。
 
 当前重点是终端验收：已跑通四主机配置、日志、报文、监听、真实 Kerberos 正常链路、证书交换，以及 `GAME_JOIN_REQ / APP_ACK` 双向不可否认闭环；坦克大战应用层同步和可视化后置。
