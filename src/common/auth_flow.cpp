@@ -129,19 +129,7 @@ void handle_tgs_packet(SocketHandle socket, const Packet& request, const Config&
 void handle_v_auth_packet(SocketHandle socket, const Packet& request, const Config& config,
                           AuthRuntime& runtime, Logger& logger, const std::string& thread_name)
 {
-    const VAuthReq v_req = parse_v_auth_req(request.payload);
-    const TicketVBody ticket = decrypt_ticket_v(v_req.ticket_v, config.get_u64("KV"));
-    const AuthenticatorBody auth = decrypt_authenticator(v_req.authenticator_v, ticket.kc_v);
-    if (ticket.idc != auth.idc || ticket.idv != EntityId::v)
-    {
-        throw std::runtime_error("V identity check failed");
-    }
-    runtime.v_sessions.put_v_auth(ticket.idc, ticket.adc, ticket.kc_v);
-    const Packet response =
-        encrypted_packet(MsgType::v_auth_rep, EntityId::v, ticket.idc,
-                         build_v_auth_rep_body({auth.ts + 1U}), ticket.kc_v);
-    logger.write("V", thread_name, "AUTH_STATE",
-                 "V_AUTH_REP_SENT client=" + entity_log_name(ticket.idc));
+    const Packet response = process_v_auth_request(request, config, runtime, logger, thread_name);
     send_packet_logged(socket, response, logger, "V", thread_name);
 }
 
@@ -284,6 +272,90 @@ AuthRuntime make_auth_runtime(const Config& config)
                              config.get_string("SK_CA_D"));
     runtime.v_key_pair = demo_rsa_key_pair_for(EntityId::v);
     return runtime;
+}
+
+Packet process_v_auth_request(const Packet& request, const Config& config, AuthRuntime& runtime,
+                              Logger& logger, const std::string& thread_name)
+{
+    ensure_msg(request, MsgType::v_auth_req);
+    const VAuthReq v_req = parse_v_auth_req(request.payload);
+    const TicketVBody ticket = decrypt_ticket_v(v_req.ticket_v, config.get_u64("KV"));
+    const AuthenticatorBody auth = decrypt_authenticator(v_req.authenticator_v, ticket.kc_v);
+    if (ticket.idc != auth.idc || ticket.idv != EntityId::v || request.src != ticket.idc)
+    {
+        throw std::runtime_error("V identity check failed");
+    }
+    runtime.v_sessions.put_v_auth(ticket.idc, ticket.adc, ticket.kc_v);
+    logger.write("V", thread_name, "AUTH_STATE",
+                 "V_AUTH_REP_SENT client=" + entity_log_name(ticket.idc));
+    return encrypted_packet(MsgType::v_auth_rep, EntityId::v, ticket.idc,
+                            build_v_auth_rep_body({auth.ts + 1U}), ticket.kc_v);
+}
+
+VAuthenticatedSocket authenticate_client_to_v_socket(const Config& config, EntityId client_id,
+                                                     std::uint64_t kc, Logger& logger,
+                                                     const std::string& thread_name)
+{
+    AuthClientState state;
+    state.client_id = client_id;
+    state.adc = kDefaultAdc;
+    state.kc = kc;
+    state.client_key_pair = demo_rsa_key_pair_for(client_id);
+
+    const std::uint64_t ts1 = now_ms();
+    const Packet as_req =
+        make_packet(MsgType::as_req, state.client_id, EntityId::as,
+                    build_as_req({state.client_id, EntityId::tgs, ts1}));
+    const Packet as_rep = request_response(connect_endpoint(config, "AS_IP", "AS_PORT"), as_req,
+                                           logger, thread_name);
+    ensure_msg(as_rep, MsgType::as_rep);
+    const AsRepBody as_body = parse_as_rep_body(des_decrypt_payload(as_rep.payload, state.kc));
+    state.kc_tgs = as_body.kc_tgs;
+    state.ticket_tgs = as_body.ticket_tgs;
+    logger.write("Client", thread_name, "AUTH_STATE", "AS_OK");
+
+    const AuthenticatorBody auth_tgs{state.client_id, state.adc, now_ms()};
+    const TgsReq tgs_req_body{EntityId::v, state.ticket_tgs,
+                              encrypt_authenticator(auth_tgs, state.kc_tgs)};
+    const Packet tgs_req =
+        make_packet(MsgType::tgs_req, state.client_id, EntityId::tgs,
+                    build_tgs_req(tgs_req_body));
+    const Packet tgs_rep = request_response(connect_endpoint(config, "TGS_IP", "TGS_PORT"),
+                                            tgs_req, logger, thread_name);
+    ensure_msg(tgs_rep, MsgType::tgs_rep);
+    const TgsRepBody tgs_body =
+        parse_tgs_rep_body(des_decrypt_payload(tgs_rep.payload, state.kc_tgs));
+    state.kc_v = tgs_body.kc_v;
+    state.ticket_v = tgs_body.ticket_v;
+    logger.write("Client", thread_name, "AUTH_STATE", "TGS_OK");
+
+    const TcpEndpoint v = connect_endpoint(config, "V_IP", "V_PORT");
+    logger.write("Client", thread_name, "CONNECT", "connect to V " + endpoint_text(v));
+    SocketHandle socket = connect_tcp(v);
+    try
+    {
+        const std::uint64_t ts5 = now_ms();
+        const AuthenticatorBody auth_v{state.client_id, state.adc, ts5};
+        const VAuthReq v_req_body{state.ticket_v, encrypt_authenticator(auth_v, state.kc_v)};
+        const Packet v_req = make_packet(MsgType::v_auth_req, state.client_id, EntityId::v,
+                                         build_v_auth_req(v_req_body));
+        send_packet_logged(socket, v_req, logger, "Client", thread_name);
+        const Packet v_rep = recv_packet_logged(socket, logger, "Client", thread_name);
+        ensure_msg(v_rep, MsgType::v_auth_rep);
+        const VAuthRepBody v_body =
+            parse_v_auth_rep_body(des_decrypt_payload(v_rep.payload, state.kc_v));
+        if (v_body.ts5_plus_1 != ts5 + 1U)
+        {
+            throw std::runtime_error("V_AUTH TS5+1 check failed");
+        }
+        logger.write("Client", thread_name, "AUTH_STATE", "V_AUTH_OK");
+        return {state, socket};
+    }
+    catch (const std::exception&)
+    {
+        close_socket(socket);
+        throw;
+    }
 }
 
 void handle_auth_packet(RoleKind role, SocketHandle socket, const Packet& request,

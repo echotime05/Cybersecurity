@@ -1,6 +1,11 @@
+#include "cyber/common/auth_flow.hpp"
+#include "cyber/common/config.hpp"
 #include "cyber/common/crypto.hpp"
+#include "cyber/common/logger.hpp"
 #include "cyber/common/protocol_payloads.hpp"
 
+#include <filesystem>
+#include <fstream>
 #include <iostream>
 #include <stdexcept>
 
@@ -92,6 +97,42 @@ int main()
                 "signed app code mismatch");
         require(cyber::verify_signed_app_payload(parsed_join, client_pair.public_key),
                 "signed app verification failed");
+
+        const std::filesystem::path config_path =
+            std::filesystem::temp_directory_path() / "auth_payload_config.txt";
+        {
+            std::ofstream out(config_path);
+            out << "C1_ID=0x01\nC2_ID=0x02\nC3_ID=0x03\nC4_ID=0x04\n"
+                << "AS_ID=0x11\nTGS_ID=0x12\nV_ID=0x13\nLOCAL_CLIENT_ID=0x01\n"
+                << "AS_BIND_IP=127.0.0.1\nAS_IP=127.0.0.1\nAS_HOST=127.0.0.1\nAS_PORT=1\n"
+                << "TGS_BIND_IP=127.0.0.1\nTGS_IP=127.0.0.1\nTGS_HOST=127.0.0.1\nTGS_PORT=2\n"
+                << "V_BIND_IP=127.0.0.1\nV_IP=127.0.0.1\nV_HOST=127.0.0.1\nV_PORT=3\n"
+                << "C1_PASSWORD=123456\nC1_KC=0x59ef3db7cb8c8d\n"
+                << "C2_PASSWORD=admin123\nC2_KC=0x6a73a4ebe9c564\n"
+                << "C3_PASSWORD=hehe12345\nC3_KC=0x57ef9d5f45ab7b\n"
+                << "C4_PASSWORD=&wxh@147\nC4_KC=0xec3eb766d59086\n"
+                << "KTGS=0x1c24deeecc136e\nKV=0x3398481d2a89f6\n"
+                << "PK_CA_N=0xACE9A881930A29215BA7306E49654BB851F86EC32FE4A8D2FF516D4FB937E8A3\n"
+                << "PK_CA_E=0x10001\n"
+                << "SK_CA_D=0xA1A84610F63E7E9BA04B9BBCD043B2D891C75316A7AC70BEC7C3CEB1477AFB69\n";
+        }
+        const cyber::Config config = cyber::Config::load(config_path);
+        cyber::AuthRuntime runtime = cyber::make_auth_runtime(config);
+        cyber::Packet v_request =
+            cyber::make_packet(cyber::MsgType::v_auth_req, cyber::EntityId::client1,
+                               cyber::EntityId::v, cyber::build_v_auth_req(v_auth_req));
+        cyber::Logger logger(std::filesystem::temp_directory_path() / "auth_payload_v_auth.log");
+        cyber::Packet v_response =
+            cyber::process_v_auth_request(v_request, config, runtime, logger, "AuthPayloadTest");
+        require(v_response.msg_type == cyber::MsgType::v_auth_rep, "V_AUTH response type mismatch");
+        require(v_response.src == cyber::EntityId::v, "V_AUTH response source mismatch");
+        require(v_response.dst == cyber::EntityId::client1, "V_AUTH response destination mismatch");
+        const cyber::VAuthRepBody parsed_v_response =
+            cyber::parse_v_auth_rep_body(cyber::des_decrypt_payload(v_response.payload, kc_v));
+        require(parsed_v_response.ts5_plus_1 == auth_v.ts + 1U,
+                "V_AUTH response timestamp mismatch");
+        require(runtime.v_sessions.get(cyber::EntityId::client1).v_auth_done,
+                "V_AUTH session was not stored");
 
         std::cout << "auth_payload_selftest: ok\n";
     }
