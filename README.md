@@ -36,6 +36,49 @@ http://127.0.0.1:5173/?client=ws://127.0.0.1:7001
 The browser connects only to the local C++ client bridge. The C++ client keeps
 the TCP game connection to V and forwards world-state snapshots to the browser.
 
+## Kerberos-Gated Plaintext Tank Battle
+
+This mode adds a browser login gate before the same plaintext tank application
+layer. The password is sent only to the local C++ client bridge, where it is used
+to derive the client long-term key `Kc`. AS/TGS/V Kerberos authentication must
+succeed before the browser can join the game. Tank gameplay messages after join
+remain plaintext `MsgType::app` payloads.
+
+Start AS and TGS:
+
+```powershell
+.\build-mingw\as_server.exe --serve
+.\build-mingw\tgs_server.exe --serve
+```
+
+Start the auth-gated V game server:
+
+```powershell
+.\build-mingw\v_server.exe --game-auth-plain
+```
+
+Start one local C++ client per player host:
+
+```powershell
+.\build-mingw\client.exe --game-auth-plain --ui-port 7001
+```
+
+Start the Web UI and open the same local client URL:
+
+```powershell
+cd web-ui
+npm install
+npm run dev -- --host 127.0.0.1
+```
+
+```text
+http://127.0.0.1:5173/?client=ws://127.0.0.1:7001
+```
+
+The browser first shows `Client1` through `Client4` plus password login. After
+Kerberos authentication succeeds, it shows a simple join screen with the
+authenticated client id and V server address.
+
 本工程用于实现课程设计报告中的多人联机坦克大战安全通信系统。
 
 当前重点是终端验收：已跑通四主机配置、日志、报文、监听、真实 Kerberos 正常链路、证书交换，以及 `GAME_JOIN_REQ / APP_ACK` 双向不可否认闭环；坦克大战应用层同步和可视化后置。

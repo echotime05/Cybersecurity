@@ -6,6 +6,7 @@
 #include "cyber/common/net_packet.hpp"
 #include "cyber/common/net_socket.hpp"
 #include "cyber/common/packet.hpp"
+#include "cyber/game/auth_plain_game_client.hpp"
 #include "cyber/game/plain_game_client.hpp"
 #include "cyber/game/plain_game_server.hpp"
 
@@ -62,7 +63,7 @@ void print_usage(const RoleSpec& spec)
     std::cout << "Usage: " << spec.binary
               << " [--config PATH] [--self-test] [--print-config] [--serve] [--once]"
                  " [--max-connections N] [--connect-test] [--auth-test]"
-                 " [--game-plain] [--ui-port PORT]\n";
+                 " [--game-plain] [--game-auth-plain] [--ui-port PORT]\n";
 }
 
 std::filesystem::path find_default_config()
@@ -460,6 +461,7 @@ int run_role_main(RoleKind role, int argc, char** argv)
     bool connect_test = false;
     bool auth_test = false;
     bool game_plain = false;
+    bool game_auth_plain = false;
     std::uint16_t ui_port = 0;
     int max_connections = 0;
     std::filesystem::path config_path;
@@ -508,6 +510,10 @@ int run_role_main(RoleKind role, int argc, char** argv)
         else if (arg == "--game-plain")
         {
             game_plain = true;
+        }
+        else if (arg == "--game-auth-plain")
+        {
+            game_auth_plain = true;
         }
         else if (arg == "--ui-port")
         {
@@ -571,6 +577,28 @@ int run_role_main(RoleKind role, int argc, char** argv)
             {
                 return 0;
             }
+        }
+
+        if (game_auth_plain)
+        {
+            if (role == RoleKind::v_server)
+            {
+                SocketRuntime runtime;
+                cyber::game::PlainGameServer server(bind_endpoint(config, spec), config, true);
+                server.run();
+                return 0;
+            }
+            if (role == RoleKind::client)
+            {
+                if (ui_port == 0)
+                {
+                    throw std::runtime_error("client --game-auth-plain requires --ui-port");
+                }
+                cyber::game::AuthPlainGameClient client(config, ui_port);
+                client.run();
+                return 0;
+            }
+            throw std::runtime_error("--game-auth-plain is only supported by v_server and client");
         }
 
         if (game_plain)
