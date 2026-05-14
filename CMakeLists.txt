@@ -17,6 +17,7 @@ else()
 endif()
 
 add_library(cyber_common
+    src/common/auth_credentials.cpp
     src/common/auth_flow.cpp
     src/common/config.cpp
     src/common/crypto.cpp
@@ -65,6 +66,9 @@ target_link_libraries(net_packet_selftest PRIVATE cyber_common)
 add_executable(crypto_selftest tests/crypto_selftest.cpp)
 target_link_libraries(crypto_selftest PRIVATE cyber_common)
 
+add_executable(auth_credentials_selftest tests/auth_credentials_selftest.cpp)
+target_link_libraries(auth_credentials_selftest PRIVATE cyber_common)
+
 add_executable(auth_payload_selftest tests/auth_payload_selftest.cpp)
 target_link_libraries(auth_payload_selftest PRIVATE cyber_common)
 
@@ -94,6 +98,7 @@ set_tests_properties(protocol_selftest PROPERTIES
 add_test(NAME log_selftest COMMAND log_selftest)
 add_test(NAME net_packet_selftest COMMAND net_packet_selftest)
 add_test(NAME crypto_selftest COMMAND crypto_selftest)
+add_test(NAME auth_credentials_selftest COMMAND auth_credentials_selftest)
 add_test(NAME auth_payload_selftest COMMAND auth_payload_selftest)
 add_test(NAME game_protocol_selftest COMMAND game_protocol_selftest)
 add_test(NAME game_world_selftest COMMAND game_world_selftest)
