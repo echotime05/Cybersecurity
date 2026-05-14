@@ -30,6 +30,15 @@ PlainGameServer::PlainGameServer(TcpEndpoint endpoint)
 {
 }
 
+PlainGameServer::PlainGameServer(TcpEndpoint endpoint, Config config, bool require_auth)
+    : endpoint_(std::move(endpoint)),
+      config_(std::move(config)),
+      require_auth_(require_auth),
+      auth_runtime_(make_auth_runtime(config_)),
+      logger_(std::filesystem::path("logs") / "v_plain_game.log")
+{
+}
+
 PlainGameServer::~PlainGameServer()
 {
     stop();
@@ -129,9 +138,20 @@ void PlainGameServer::client_loop(SocketHandle socket, std::string peer)
     logger_.write("V", "PlainClient", "THREAD_START", "client " + peer);
     try
     {
+        EntityId authenticated_client = EntityId::unknown;
+        if (require_auth_ && !authenticate_socket(socket, peer, authenticated_client))
+        {
+            close_socket(socket);
+            logger_.write("V", "PlainClient", "THREAD_EXIT", "client " + peer);
+            return;
+        }
         while (!stopping_)
         {
             const Packet packet = recv_packet_logged(socket, logger_, "V", "PlainClient");
+            if (require_auth_ && packet.src != authenticated_client)
+            {
+                throw std::runtime_error("authenticated client id mismatch");
+            }
             handle_packet(socket, packet);
         }
     }
@@ -183,6 +203,10 @@ void PlainGameServer::handle_packet(SocketHandle socket, const Packet& packet)
         {
             return;
         }
+        if (join.client_id != packet.src)
+        {
+            throw std::runtime_error("join client id must match packet source");
+        }
         room_.join(join.client_id, join.name, now_ms);
         std::lock_guard<std::mutex> lock(connections_mutex_);
         auto existing = connections_.find(join.client_id);
@@ -222,6 +246,23 @@ void PlainGameServer::handle_packet(SocketHandle socket, const Packet& packet)
         logger_.write("V", "PlainClient", "ERROR", "unknown game message ignored");
         break;
     }
+}
+
+bool PlainGameServer::authenticate_socket(SocketHandle socket, const std::string& peer,
+                                          EntityId& client_id)
+{
+    const Packet auth_packet = recv_packet_logged(socket, logger_, "V", "PlainGameAuth");
+    if (auth_packet.msg_type != MsgType::v_auth_req || !is_client(auth_packet.src))
+    {
+        logger_.write("V", "PlainGameAuth", "ERROR",
+                      "client " + peer + " sent app traffic before V_AUTH");
+        return false;
+    }
+    const Packet response =
+        process_v_auth_request(auth_packet, config_, auth_runtime_, logger_, "PlainGameAuth");
+    send_packet_logged(socket, response, logger_, "V", "PlainGameAuth");
+    client_id = auth_packet.src;
+    return true;
 }
 
 void PlainGameServer::game_loop()

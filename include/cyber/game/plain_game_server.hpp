@@ -1,5 +1,6 @@
 #pragma once
 
+#include "cyber/common/auth_flow.hpp"
 #include "cyber/common/config.hpp"
 #include "cyber/common/logger.hpp"
 #include "cyber/common/net_socket.hpp"
@@ -17,6 +18,7 @@ class PlainGameServer
 {
 public:
     explicit PlainGameServer(TcpEndpoint endpoint);
+    PlainGameServer(TcpEndpoint endpoint, Config config, bool require_auth);
     ~PlainGameServer();
 
     void run();
@@ -36,9 +38,13 @@ private:
     void game_loop();
     void broadcast(const BattleStateSnapshot& snapshot);
     void handle_packet(SocketHandle socket, const Packet& packet);
+    bool authenticate_socket(SocketHandle socket, const std::string& peer, EntityId& client_id);
     void join_client_threads();
 
     TcpEndpoint endpoint_;
+    Config config_;
+    bool require_auth_ = false;
+    AuthRuntime auth_runtime_;
     SocketHandle listener_ = 0;
     std::atomic<bool> stopping_{false};
     std::mutex connections_mutex_;
