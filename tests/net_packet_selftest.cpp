@@ -163,9 +163,9 @@ void verify_helper_sockets_enable_tcp_nodelay()
         throw;
     }
 
+    server.join();
     cyber::close_socket(client);
     cyber::close_socket(listener);
-    server.join();
     if (server_error)
     {
         std::rethrow_exception(server_error);
