@@ -12,11 +12,26 @@
 
 namespace cyber::ui
 {
+enum class UiCommandKind
+{
+    game,
+    login,
+    join_game,
+    error
+};
+
 struct UiCommand
 {
+    UiCommandKind kind = UiCommandKind::error;
     cyber::game::GameMsgType type = cyber::game::GameMsgType::error;
     cyber::Bytes payload;
+    cyber::EntityId client_id = cyber::EntityId::unknown;
+    std::string password;
 };
+
+std::string login_state_json(const std::string& status, cyber::EntityId client_id,
+                             const std::string& v_server, const std::string& message);
+std::string join_state_json(const std::string& status);
 
 class UiBridge
 {
@@ -28,6 +43,8 @@ public:
 
     void run();
     void stop();
+    void set_self(cyber::EntityId self);
+    void broadcast_text(const std::string& json);
     void broadcast_state(const cyber::game::BattleStateSnapshot& snapshot);
     UiCommand parse_json_command(const std::string& text) const;
 

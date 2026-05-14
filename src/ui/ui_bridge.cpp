@@ -71,7 +71,46 @@ bool extract_bool(const std::string& json, const std::string& key, bool fallback
     }
     return fallback;
 }
+
+std::string json_escape(const std::string& value)
+{
+    std::string out;
+    for (char ch : value)
+    {
+        if (ch == '"' || ch == '\\')
+        {
+            out.push_back('\\');
+        }
+        out.push_back(ch);
+    }
+    return out;
+}
 } // namespace
+
+std::string login_state_json(const std::string& status, cyber::EntityId client_id,
+                             const std::string& v_server, const std::string& message)
+{
+    std::string out = "{\"type\":\"loginState\",\"status\":\"" + json_escape(status) + "\"";
+    if (cyber::is_client(client_id))
+    {
+        out += ",\"clientId\":" + std::to_string(static_cast<int>(client_id));
+    }
+    if (!v_server.empty())
+    {
+        out += ",\"vServer\":\"" + json_escape(v_server) + "\"";
+    }
+    if (!message.empty())
+    {
+        out += ",\"message\":\"" + json_escape(message) + "\"";
+    }
+    out += "}";
+    return out;
+}
+
+std::string join_state_json(const std::string& status)
+{
+    return "{\"type\":\"joinState\",\"status\":\"" + json_escape(status) + "\"}";
+}
 
 UiBridge::UiBridge(std::uint16_t port, cyber::EntityId self, CommandHandler handler)
     : port_(port), self_(self), handler_(std::move(handler))
@@ -87,35 +126,46 @@ UiBridge::~UiBridge()
 UiCommand UiBridge::parse_json_command(const std::string& text) const
 {
     const std::string type = extract_string(text, "type");
+    if (type == "login")
+    {
+        const int id = extract_int(text, "clientId", -1);
+        cyber::EntityId client_id = cyber::EntityId::unknown;
+        if (id >= 1 && id <= 4)
+        {
+            client_id = static_cast<cyber::EntityId>(id);
+        }
+        return {UiCommandKind::login, cyber::game::GameMsgType::error, {}, client_id,
+                extract_string(text, "password")};
+    }
     if (type == "join")
     {
-        return {cyber::game::GameMsgType::join,
-                cyber::game::build_join({self_, extract_string(text, "name")})};
+        return {UiCommandKind::join_game, cyber::game::GameMsgType::error, {}, self_, ""};
     }
     if (type == "move")
     {
         const int x = std::max(-1, std::min(1, extract_int(text, "x", 0)));
         const int y = std::max(-1, std::min(1, extract_int(text, "y", 0)));
-        return {cyber::game::GameMsgType::move,
+        return {UiCommandKind::game, cyber::game::GameMsgType::move,
                 cyber::game::build_move({static_cast<std::int8_t>(x),
-                                         static_cast<std::int8_t>(y)})};
+                                         static_cast<std::int8_t>(y)}),
+                self_, ""};
     }
     if (type == "target")
     {
-        return {cyber::game::GameMsgType::target,
-                cyber::game::build_target({extract_float(text, "angle", 0.0F)})};
+        return {UiCommandKind::game, cyber::game::GameMsgType::target,
+                cyber::game::build_target({extract_float(text, "angle", 0.0F)}), self_, ""};
     }
     if (type == "shoot")
     {
-        return {cyber::game::GameMsgType::shoot,
-                cyber::game::build_shoot({extract_bool(text, "shooting", false)})};
+        return {UiCommandKind::game, cyber::game::GameMsgType::shoot,
+                cyber::game::build_shoot({extract_bool(text, "shooting", false)}), self_, ""};
     }
     if (type == "name")
     {
-        return {cyber::game::GameMsgType::name,
-                cyber::game::build_name({extract_string(text, "name")})};
+        return {UiCommandKind::game, cyber::game::GameMsgType::name,
+                cyber::game::build_name({extract_string(text, "name")}), self_, ""};
     }
-    return {cyber::game::GameMsgType::error, {}};
+    return {UiCommandKind::error, cyber::game::GameMsgType::error, {}, self_, ""};
 }
 
 void UiBridge::run()
@@ -152,7 +202,7 @@ void UiBridge::handle_client(cyber::SocketHandle socket)
         while (!stopping_)
         {
             const UiCommand command = parse_json_command(recv_ws_text(socket));
-            if (command.type != cyber::game::GameMsgType::error && handler_)
+            if (command.kind != UiCommandKind::error && handler_)
             {
                 handler_(command);
             }
@@ -171,13 +221,22 @@ void UiBridge::handle_client(cyber::SocketHandle socket)
 
 void UiBridge::broadcast_state(const cyber::game::BattleStateSnapshot& snapshot)
 {
+    broadcast_text(cyber::game::to_json(snapshot, self_));
+}
+
+void UiBridge::set_self(cyber::EntityId self)
+{
+    self_ = self;
+}
+
+void UiBridge::broadcast_text(const std::string& json)
+{
     std::vector<cyber::SocketHandle> clients;
     {
         std::lock_guard<std::mutex> lock(clients_mutex_);
         clients = clients_;
     }
 
-    const std::string json = cyber::game::to_json(snapshot, self_);
     std::vector<cyber::SocketHandle> failed;
     for (cyber::SocketHandle client : clients)
     {
