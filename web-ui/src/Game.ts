@@ -55,6 +55,7 @@ export class Game {
 
   mySessionId = "";
   connected = false;
+  joined = false;
   currentState?: BattleState;
   lastWinnerTeam = -1;
 
@@ -79,6 +80,16 @@ export class Game {
   winnerScreen!: HTMLElement;
   ammoDisplay!: HTMLElement;
   connectStatus!: HTMLElement;
+  authOverlay!: HTMLElement;
+  loginPanel!: HTMLElement;
+  joinPanel!: HTMLElement;
+  loginClient!: HTMLSelectElement;
+  loginPassword!: HTMLInputElement;
+  loginSubmit!: HTMLButtonElement;
+  loginMessage!: HTMLElement;
+  joinClientId!: HTMLElement;
+  joinVServer!: HTMLElement;
+  joinSubmit!: HTMLButtonElement;
 
   constructor() {
     this.scene = new THREE.Scene();
@@ -132,8 +143,19 @@ export class Game {
     this.winnerScreen = document.getElementById("winner-screen")!;
     this.ammoDisplay = document.getElementById("ammo-display")!;
     this.connectStatus = document.getElementById("connect-status")!;
+    this.authOverlay = document.getElementById("auth-overlay")!;
+    this.loginPanel = document.getElementById("login-panel")!;
+    this.joinPanel = document.getElementById("join-panel")!;
+    this.loginClient = document.getElementById("login-client") as HTMLSelectElement;
+    this.loginPassword = document.getElementById("login-password") as HTMLInputElement;
+    this.loginSubmit = document.getElementById("login-submit") as HTMLButtonElement;
+    this.loginMessage = document.getElementById("login-message")!;
+    this.joinClientId = document.getElementById("join-client-id")!;
+    this.joinVServer = document.getElementById("join-v-server")!;
+    this.joinSubmit = document.getElementById("join-submit") as HTMLButtonElement;
 
     this.setupInput();
+    this.setupAuthUi();
     window.addEventListener("resize", () => this.onResize());
   }
 
@@ -144,6 +166,29 @@ export class Game {
       this.mySessionId = String(this.network.self);
       this.connected = true;
       this.reconcileState(state);
+    };
+    this.network.onLoginState = (state) => {
+      if (state.status === "authenticating") {
+        this.loginSubmit.disabled = true;
+        this.loginMessage.textContent = "Authenticating";
+      } else if (state.status === "authenticated") {
+        this.loginSubmit.disabled = false;
+        this.loginPanel.classList.add("hidden");
+        this.joinPanel.classList.remove("hidden");
+        this.joinSubmit.disabled = false;
+        this.joinClientId.textContent = `Client${state.clientId ?? ""}`;
+        this.joinVServer.textContent = state.vServer ?? "";
+        this.loginPassword.value = "";
+      } else if (state.status === "failed") {
+        this.loginSubmit.disabled = false;
+        this.loginMessage.textContent = state.message ?? "Login failed";
+      }
+    };
+    this.network.onJoinState = (state) => {
+      if (state.status === "joined") {
+        this.joined = true;
+        this.authOverlay.classList.add("hidden");
+      }
     };
 
     try {
@@ -415,13 +460,13 @@ export class Game {
       this.mouseY = e.clientY;
     });
     window.addEventListener("mousedown", (e) => {
-      if (e.button === 0) {
+      if (e.button === 0 && this.joined) {
         this.mouseDown = true;
         this.network.sendShoot(true);
       }
     });
     window.addEventListener("mouseup", (e) => {
-      if (e.button === 0) {
+      if (e.button === 0 && this.joined) {
         this.mouseDown = false;
         this.network.sendShoot(false);
       }
@@ -429,8 +474,22 @@ export class Game {
     window.addEventListener("contextmenu", (e) => e.preventDefault());
   }
 
+  private setupAuthUi() {
+    this.loginPanel.addEventListener("submit", (event) => {
+      event.preventDefault();
+      const clientId = Number(this.loginClient.value);
+      this.loginSubmit.disabled = true;
+      this.loginMessage.textContent = "Authenticating";
+      this.network.sendLogin(clientId, this.loginPassword.value);
+    });
+    this.joinSubmit.addEventListener("click", () => {
+      this.joinSubmit.disabled = true;
+      this.network.sendJoin();
+    });
+  }
+
   private sendInput() {
-    if (!this.connected) return;
+    if (!this.connected || !this.joined) return;
 
     let rawX = 0;
     let rawY = 0;
