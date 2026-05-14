@@ -165,6 +165,11 @@ try {
         throw "Expected game state after join"
     }
 
+    & (Join-Path $BuildDir 'encrypted_plaintext_rejection_client.exe') $config
+    if ($LASTEXITCODE -ne 0) {
+        throw "encrypted_plaintext_rejection_client failed"
+    }
+
     Write-Host 'auth_encrypted_game_flow_selftest: ok'
 }
 finally {
