@@ -28,6 +28,7 @@ add_library(cyber_common
     src/common/packet.cpp
     src/common/protocol_payloads.cpp
     src/common/role_runtime.cpp
+    src/game/app_payload_codec.cpp
     src/game/game_protocol.cpp
     src/game/game_world.cpp
     src/game/battle_room.cpp
@@ -76,6 +77,9 @@ target_link_libraries(auth_payload_selftest PRIVATE cyber_common)
 add_executable(game_protocol_selftest tests/game_protocol_selftest.cpp)
 target_link_libraries(game_protocol_selftest PRIVATE cyber_common)
 
+add_executable(app_payload_codec_selftest tests/app_payload_codec_selftest.cpp)
+target_link_libraries(app_payload_codec_selftest PRIVATE cyber_common)
+
 add_executable(game_world_selftest tests/game_world_selftest.cpp)
 target_link_libraries(game_world_selftest PRIVATE cyber_common)
 
@@ -102,6 +106,7 @@ add_test(NAME crypto_selftest COMMAND crypto_selftest)
 add_test(NAME auth_credentials_selftest COMMAND auth_credentials_selftest)
 add_test(NAME auth_payload_selftest COMMAND auth_payload_selftest)
 add_test(NAME game_protocol_selftest COMMAND game_protocol_selftest)
+add_test(NAME app_payload_codec_selftest COMMAND app_payload_codec_selftest)
 add_test(NAME game_world_selftest COMMAND game_world_selftest)
 add_test(NAME battle_room_selftest COMMAND battle_room_selftest)
 add_test(NAME plain_game_flow_selftest COMMAND plain_game_flow_selftest)
