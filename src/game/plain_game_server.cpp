@@ -1,6 +1,7 @@
 #include "cyber/game/plain_game_server.hpp"
 
 #include "cyber/common/net_packet.hpp"
+#include "cyber/game/app_payload_codec.hpp"
 
 #include <chrono>
 #include <filesystem>
@@ -31,9 +32,16 @@ PlainGameServer::PlainGameServer(TcpEndpoint endpoint)
 }
 
 PlainGameServer::PlainGameServer(TcpEndpoint endpoint, Config config, bool require_auth)
+    : PlainGameServer(std::move(endpoint), std::move(config), require_auth, false)
+{
+}
+
+PlainGameServer::PlainGameServer(TcpEndpoint endpoint, Config config, bool require_auth,
+                                 bool encrypt_app_payloads)
     : endpoint_(std::move(endpoint)),
       config_(std::move(config)),
       require_auth_(require_auth),
+      encrypt_app_payloads_(encrypt_app_payloads),
       auth_runtime_(make_auth_runtime(config_)),
       logger_(std::filesystem::path("logs") / "v_plain_game.log")
 {
@@ -139,7 +147,8 @@ void PlainGameServer::client_loop(SocketHandle socket, std::string peer)
     try
     {
         EntityId authenticated_client = EntityId::unknown;
-        if (require_auth_ && !authenticate_socket(socket, peer, authenticated_client))
+        std::uint64_t kc_v = 0;
+        if (require_auth_ && !authenticate_socket(socket, peer, authenticated_client, kc_v))
         {
             close_socket(socket);
             logger_.write("V", "PlainClient", "THREAD_EXIT", "client " + peer);
@@ -152,7 +161,7 @@ void PlainGameServer::client_loop(SocketHandle socket, std::string peer)
             {
                 throw std::runtime_error("authenticated client id mismatch");
             }
-            handle_packet(socket, packet);
+            handle_packet(socket, packet, kc_v);
         }
     }
     catch (const std::exception& ex)
@@ -184,7 +193,8 @@ void PlainGameServer::client_loop(SocketHandle socket, std::string peer)
     logger_.write("V", "PlainClient", "THREAD_EXIT", "client " + peer);
 }
 
-void PlainGameServer::handle_packet(SocketHandle socket, const Packet& packet)
+void PlainGameServer::handle_packet(SocketHandle socket, const Packet& packet,
+                                    std::uint64_t kc_v)
 {
     if (packet.msg_type != MsgType::app)
     {
@@ -192,7 +202,9 @@ void PlainGameServer::handle_packet(SocketHandle socket, const Packet& packet)
         return;
     }
 
-    const GameMessage message = parse_game_message(packet.payload);
+    const Bytes plain_payload =
+        decode_app_payload(packet.payload, kc_v, encrypt_app_payloads_);
+    const GameMessage message = parse_game_message(plain_payload);
     const std::uint64_t now_ms = now_system_ms();
     switch (message.type)
     {
@@ -215,7 +227,7 @@ void PlainGameServer::handle_packet(SocketHandle socket, const Packet& packet)
         {
             close_socket(existing->second.socket);
         }
-        connections_[join.client_id] = {socket, join.client_id};
+        connections_[join.client_id] = {socket, join.client_id, kc_v};
         break;
     }
     case GameMsgType::move:
@@ -249,7 +261,7 @@ void PlainGameServer::handle_packet(SocketHandle socket, const Packet& packet)
 }
 
 bool PlainGameServer::authenticate_socket(SocketHandle socket, const std::string& peer,
-                                          EntityId& client_id)
+                                          EntityId& client_id, std::uint64_t& kc_v)
 {
     const Packet auth_packet = recv_packet_logged(socket, logger_, "V", "PlainGameAuth");
     if (auth_packet.msg_type != MsgType::v_auth_req || !is_client(auth_packet.src))
@@ -261,7 +273,9 @@ bool PlainGameServer::authenticate_socket(SocketHandle socket, const std::string
     const Packet response =
         process_v_auth_request(auth_packet, config_, auth_runtime_, logger_, "PlainGameAuth");
     send_packet_logged(socket, response, logger_, "V", "PlainGameAuth");
+    const AuthSession session = auth_runtime_.v_sessions.get(auth_packet.src);
     client_id = auth_packet.src;
+    kc_v = session.kc_v;
     return true;
 }
 
@@ -298,14 +312,17 @@ void PlainGameServer::broadcast(const BattleStateSnapshot& snapshot)
         return;
     }
 
-    const Bytes payload = build_game_message({GameMsgType::state, build_state(snapshot)});
+    const Bytes plain_payload = build_game_message({GameMsgType::state, build_state(snapshot)});
     std::vector<EntityId> failed;
     for (const ClientConnection& target : targets)
     {
         try
         {
+            const Bytes wire_payload =
+                encode_app_payload(plain_payload, target.kc_v, encrypt_app_payloads_);
             send_packet_logged(target.socket,
-                               make_packet(MsgType::app, EntityId::v, target.client_id, payload),
+                               make_packet(MsgType::app, EntityId::v, target.client_id,
+                                           wire_payload),
                                logger_, "V", "PlainGameLoop");
         }
         catch (const std::exception& ex)

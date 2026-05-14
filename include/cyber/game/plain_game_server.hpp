@@ -7,6 +7,7 @@
 #include "cyber/game/battle_room.hpp"
 
 #include <atomic>
+#include <cstdint>
 #include <map>
 #include <mutex>
 #include <thread>
@@ -19,6 +20,8 @@ class PlainGameServer
 public:
     explicit PlainGameServer(TcpEndpoint endpoint);
     PlainGameServer(TcpEndpoint endpoint, Config config, bool require_auth);
+    PlainGameServer(TcpEndpoint endpoint, Config config, bool require_auth,
+                    bool encrypt_app_payloads);
     ~PlainGameServer();
 
     void run();
@@ -31,19 +34,22 @@ private:
     {
         SocketHandle socket = 0;
         EntityId client_id = EntityId::unknown;
+        std::uint64_t kc_v = 0;
     };
 
     void accept_loop();
     void client_loop(SocketHandle socket, std::string peer);
     void game_loop();
     void broadcast(const BattleStateSnapshot& snapshot);
-    void handle_packet(SocketHandle socket, const Packet& packet);
-    bool authenticate_socket(SocketHandle socket, const std::string& peer, EntityId& client_id);
+    void handle_packet(SocketHandle socket, const Packet& packet, std::uint64_t kc_v);
+    bool authenticate_socket(SocketHandle socket, const std::string& peer, EntityId& client_id,
+                             std::uint64_t& kc_v);
     void join_client_threads();
 
     TcpEndpoint endpoint_;
     Config config_;
     bool require_auth_ = false;
+    bool encrypt_app_payloads_ = false;
     AuthRuntime auth_runtime_;
     SocketHandle listener_ = 0;
     std::atomic<bool> stopping_{false};

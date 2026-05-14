@@ -2,6 +2,7 @@
 #include "cyber/common/net_socket.hpp"
 #include "cyber/common/packet.hpp"
 #include "cyber/common/config.hpp"
+#include "cyber/game/app_payload_codec.hpp"
 #include "cyber/game/game_protocol.hpp"
 #include "cyber/game/plain_game_server.hpp"
 
@@ -43,6 +44,29 @@ cyber::Config make_test_config()
     out.close();
     return cyber::Config::load(config_path);
 }
+
+bool wait_for_state(cyber::SocketHandle client, cyber::Logger& logger, std::uint64_t kc_v,
+                    bool encrypted)
+{
+    for (int i = 0; i < 10; ++i)
+    {
+        const cyber::Packet packet =
+            cyber::recv_packet_logged(client, logger, "Client", "PlainGameTest");
+        const cyber::Bytes plain =
+            cyber::game::decode_app_payload(packet.payload, kc_v, encrypted);
+        const cyber::game::GameMessage message = cyber::game::parse_game_message(plain);
+        if (message.type == cyber::game::GameMsgType::state)
+        {
+            const cyber::game::BattleStateSnapshot state =
+                cyber::game::parse_state(message.payload);
+            if (!state.tanks.empty())
+            {
+                return true;
+            }
+        }
+    }
+    return false;
+}
 } // namespace
 
 int main()
@@ -65,20 +89,8 @@ int main()
                                                      cyber::EntityId::client1, cyber::EntityId::v,
                                                      join),
                                   client_logger, "Client", "PlainGameTest");
-        bool saw_state = false;
-        for (int i = 0; i < 10 && !saw_state; ++i)
-        {
-            const cyber::Packet packet =
-                cyber::recv_packet_logged(client, client_logger, "Client", "PlainGameTest");
-            const cyber::game::GameMessage message = cyber::game::parse_game_message(packet.payload);
-            if (message.type == cyber::game::GameMsgType::state)
-            {
-                const cyber::game::BattleStateSnapshot state =
-                    cyber::game::parse_state(message.payload);
-                saw_state = !state.tanks.empty();
-            }
-        }
-        require(saw_state, "did not receive state with joined tank");
+        require(wait_for_state(client, client_logger, 0, false),
+                "did not receive state with joined tank");
 
         cyber::close_socket(client);
         server.stop();
@@ -112,6 +124,54 @@ int main()
         cyber::close_socket(unauthenticated);
         auth_server.stop();
         auth_thread.join();
+
+        cyber::game::PlainGameServer encrypted_server({"127.0.0.1", 0}, config, false, true);
+        const std::uint16_t encrypted_port = encrypted_server.start_for_test();
+        std::thread encrypted_thread([&]() { encrypted_server.run_until_stopped(); });
+
+        cyber::SocketHandle encrypted_client = cyber::connect_tcp({"127.0.0.1", encrypted_port});
+        const auto encrypted_join_plain = cyber::game::build_game_message(
+            {cyber::game::GameMsgType::join,
+             cyber::game::build_join({cyber::EntityId::client1, "EncryptedClient"})});
+        const cyber::Bytes encrypted_join =
+            cyber::game::encode_app_payload(encrypted_join_plain, 0, true);
+        cyber::send_packet_logged(encrypted_client,
+                                  cyber::make_packet(cyber::MsgType::app,
+                                                     cyber::EntityId::client1, cyber::EntityId::v,
+                                                     encrypted_join),
+                                  client_logger, "Client", "EncryptedGameTest");
+        require(wait_for_state(encrypted_client, client_logger, 0, true),
+                "encrypted server did not return encrypted state");
+        cyber::close_socket(encrypted_client);
+        encrypted_server.stop();
+        encrypted_thread.join();
+
+        cyber::game::PlainGameServer reject_plain_server({"127.0.0.1", 0}, config, false, true);
+        const std::uint16_t reject_plain_port = reject_plain_server.start_for_test();
+        std::thread reject_plain_thread([&]() { reject_plain_server.run_until_stopped(); });
+
+        cyber::SocketHandle plaintext_client =
+            cyber::connect_tcp({"127.0.0.1", reject_plain_port});
+        cyber::send_packet_logged(plaintext_client,
+                                  cyber::make_packet(cyber::MsgType::app,
+                                                     cyber::EntityId::client1, cyber::EntityId::v,
+                                                     encrypted_join_plain),
+                                  client_logger, "Client", "EncryptedRejectPlainTest");
+        bool plaintext_closed_or_failed = false;
+        try
+        {
+            (void)cyber::recv_packet_logged(plaintext_client, client_logger, "Client",
+                                            "EncryptedRejectPlainTest");
+        }
+        catch (const std::exception&)
+        {
+            plaintext_closed_or_failed = true;
+        }
+        require(plaintext_closed_or_failed,
+                "encrypted server accepted plaintext game payload");
+        cyber::close_socket(plaintext_client);
+        reject_plain_server.stop();
+        reject_plain_thread.join();
 
         std::cout << "plain_game_flow_selftest: ok\n";
     }
