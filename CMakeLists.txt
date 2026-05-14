@@ -31,6 +31,7 @@ add_library(cyber_common
     src/game/game_world.cpp
     src/game/battle_room.cpp
     src/game/plain_game_server.cpp
+    src/ui/websocket.cpp
 )
 
 target_include_directories(cyber_common
@@ -38,7 +39,7 @@ target_include_directories(cyber_common
         ${CMAKE_CURRENT_SOURCE_DIR}/include
 )
 
-target_link_libraries(cyber_common PUBLIC ws2_32)
+target_link_libraries(cyber_common PUBLIC ws2_32 advapi32)
 
 function(add_role_target target_name source_file)
     add_executable(${target_name} ${source_file})
@@ -77,6 +78,9 @@ target_link_libraries(battle_room_selftest PRIVATE cyber_common)
 add_executable(plain_game_flow_selftest tests/plain_game_flow_selftest.cpp)
 target_link_libraries(plain_game_flow_selftest PRIVATE cyber_common)
 
+add_executable(websocket_selftest tests/websocket_selftest.cpp)
+target_link_libraries(websocket_selftest PRIVATE cyber_common)
+
 enable_testing()
 add_test(NAME protocol_selftest COMMAND protocol_selftest)
 set_tests_properties(protocol_selftest PROPERTIES
@@ -90,6 +94,7 @@ add_test(NAME game_protocol_selftest COMMAND game_protocol_selftest)
 add_test(NAME game_world_selftest COMMAND game_world_selftest)
 add_test(NAME battle_room_selftest COMMAND battle_room_selftest)
 add_test(NAME plain_game_flow_selftest COMMAND plain_game_flow_selftest)
+add_test(NAME websocket_selftest COMMAND websocket_selftest)
 
 add_test(
     NAME connect_probe_selftest
