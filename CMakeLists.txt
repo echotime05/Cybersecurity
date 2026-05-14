@@ -28,6 +28,7 @@ add_library(cyber_common
     src/common/protocol_payloads.cpp
     src/common/role_runtime.cpp
     src/game/game_protocol.cpp
+    src/game/game_world.cpp
 )
 
 target_include_directories(cyber_common
@@ -65,6 +66,9 @@ target_link_libraries(auth_payload_selftest PRIVATE cyber_common)
 add_executable(game_protocol_selftest tests/game_protocol_selftest.cpp)
 target_link_libraries(game_protocol_selftest PRIVATE cyber_common)
 
+add_executable(game_world_selftest tests/game_world_selftest.cpp)
+target_link_libraries(game_world_selftest PRIVATE cyber_common)
+
 enable_testing()
 add_test(NAME protocol_selftest COMMAND protocol_selftest)
 set_tests_properties(protocol_selftest PROPERTIES
@@ -75,6 +79,7 @@ add_test(NAME net_packet_selftest COMMAND net_packet_selftest)
 add_test(NAME crypto_selftest COMMAND crypto_selftest)
 add_test(NAME auth_payload_selftest COMMAND auth_payload_selftest)
 add_test(NAME game_protocol_selftest COMMAND game_protocol_selftest)
+add_test(NAME game_world_selftest COMMAND game_world_selftest)
 
 add_test(
     NAME connect_probe_selftest
