@@ -1,29 +1,67 @@
 # Cybersecurity Course Design
 
-## Phase A Plaintext Tank Battle
+## Current Tank Web UI Startup
 
-Phase A runs the tank battle application layer without Kerberos, DES, RSA
-signatures, ACK non-repudiation, or replay protection. It keeps the existing
-packet header and sends plaintext `MsgType::app` game messages between client
-and V.
+The current recommended mode is the Kerberos-gated encrypted tank battle:
 
-Start V on the V host:
-
-```powershell
-.\build-mingw\v_server.exe --game-plain
+```text
+Browser UI <-> local client.exe WebSocket bridge <-> AS/TGS/V over TCP
 ```
 
-Start one client per player host:
+Important rules:
+
+- The browser only connects to the local C++ client bridge.
+- `client.exe` must be running before the browser can log in.
+- AS, TGS, V, and `client.exe` must all use the same config file.
+- If the machine IP changes, update `AS_IP`, `TGS_IP`, and `V_IP` in the config used by `client.exe`.
+- The Web UI bridge stays plaintext on `ws://127.0.0.1:<ui-port>`.
+- The C++ client-to-V `MsgType::app` payload is encrypted in `--game-auth-encrypted` mode.
+
+### Single-Machine Demo
+
+Use this when AS, TGS, V, and client all run on one Windows machine.
+
+Create a runtime config for the current machine IP:
 
 ```powershell
-.\build-mingw\client.exe --game-plain --ui-port 7001
+cd E:\zhuomian\cybersecurity\code
+$ip = (Get-NetIPAddress -AddressFamily IPv4 |
+    Where-Object { $_.IPAddress -like '172.27.*' } |
+    Select-Object -First 1 -ExpandProperty IPAddress)
+$config = 'logs\runtime\local_ip_config.txt'
+New-Item -ItemType Directory -Force logs\runtime | Out-Null
+$content = Get-Content -Raw config\course_config.txt
+$content = $content -replace '^AS_BIND_IP=.*', "AS_BIND_IP=$ip"
+$content = $content -replace '^AS_IP=.*', "AS_IP=$ip"
+$content = $content -replace '^AS_HOST=.*', "AS_HOST=$ip"
+$content = $content -replace '^TGS_BIND_IP=.*', "TGS_BIND_IP=$ip"
+$content = $content -replace '^TGS_IP=.*', "TGS_IP=$ip"
+$content = $content -replace '^TGS_HOST=.*', "TGS_HOST=$ip"
+$content = $content -replace '^V_BIND_IP=.*', "V_BIND_IP=$ip"
+$content = $content -replace '^V_IP=.*', "V_IP=$ip"
+$content = $content -replace '^V_HOST=.*', "V_HOST=$ip"
+Set-Content -LiteralPath $config -Value $content -Encoding ASCII
+```
+
+Start AS, TGS, and encrypted V:
+
+```powershell
+.\build-mingw\as_server.exe --config $config --serve
+.\build-mingw\tgs_server.exe --config $config --serve
+.\build-mingw\v_server.exe --config $config --game-auth-encrypted
+```
+
+Start the local client bridge:
+
+```powershell
+.\build-mingw\client.exe --config $config --game-auth-encrypted --ui-port 7001
 ```
 
 Start the Web UI:
 
 ```powershell
-cd web-ui
-npm install
+cd E:\zhuomian\cybersecurity\code\web-ui
+$env:PATH='E:\zhuomian\tools\node-v24.15.0-win-x64;' + $env:PATH
 npm run dev -- --host 127.0.0.1
 ```
 
@@ -33,80 +71,57 @@ Open:
 http://127.0.0.1:5173/?client=ws://127.0.0.1:7001
 ```
 
-The browser connects only to the local C++ client bridge. The C++ client keeps
-the TCP game connection to V and forwards world-state snapshots to the browser.
+Login passwords:
 
-## Kerberos-Gated Plaintext Tank Battle
-
-This mode adds a browser login gate before the same plaintext tank application
-layer. The password is sent only to the local C++ client bridge, where it is used
-to derive the client long-term key `Kc`. AS/TGS/V Kerberos authentication must
-succeed before the browser can join the game. Tank gameplay messages after join
-remain plaintext `MsgType::app` payloads.
-
-Start AS and TGS:
-
-```powershell
-.\build-mingw\as_server.exe --serve
-.\build-mingw\tgs_server.exe --serve
+```text
+Client1: 123456
+Client2: admin123
+Client3: hehe12345
+Client4: &wxh@147
 ```
 
-Start the auth-gated V game server:
+### Four-Host Deployment
+
+Before starting any role, copy the matching host config into `config\course_config.txt`
+on that host, and make sure all four host config files agree on `AS_IP`, `TGS_IP`,
+and `V_IP`.
+
+Host 2 starts AS:
 
 ```powershell
-.\build-mingw\v_server.exe --game-auth-plain
+Copy-Item .\config\lan\host2_as_client2.txt .\config\course_config.txt -Force
+.\build-mingw\as_server.exe --config .\config\course_config.txt --serve
 ```
 
-Start one local C++ client per player host:
+Host 3 starts TGS:
 
 ```powershell
-.\build-mingw\client.exe --game-auth-plain --ui-port 7001
+Copy-Item .\config\lan\host3_tgs_client3.txt .\config\course_config.txt -Force
+.\build-mingw\tgs_server.exe --config .\config\course_config.txt --serve
 ```
 
-Start the Web UI and open the same local client URL:
+Host 4 starts encrypted V:
 
 ```powershell
-cd web-ui
-npm install
-npm run dev -- --host 127.0.0.1
+Copy-Item .\config\lan\host4_v_client4.txt .\config\course_config.txt -Force
+.\build-mingw\v_server.exe --config .\config\course_config.txt --game-auth-encrypted
 ```
+
+Each player host starts its own local client bridge:
+
+```powershell
+.\build-mingw\client.exe --config .\config\course_config.txt --game-auth-encrypted --ui-port 7001
+```
+
+Then start the Web UI on that same player host and open:
 
 ```text
 http://127.0.0.1:5173/?client=ws://127.0.0.1:7001
 ```
 
-The browser first shows `Client1` through `Client4` plus password login. After
-Kerberos authentication succeeds, it shows a simple join screen with the
-authenticated client id and V server address.
-
-## Kerberos-Gated Encrypted Tank Battle
-
-This mode keeps the same browser login and join flow as `--game-auth-plain`,
-but encrypts the C++ client-to-V `MsgType::app` game payload with the Kerberos
-`Kc_v` session key. The fixed packet header remains unchanged, and the
-browser-to-local-client WebSocket bridge remains plaintext.
-
-Start AS and TGS:
-
-```powershell
-.\build-mingw\as_server.exe --serve
-.\build-mingw\tgs_server.exe --serve
-```
-
-Start the encrypted auth-gated V game server:
-
-```powershell
-.\build-mingw\v_server.exe --game-auth-encrypted
-```
-
-Start one local C++ client per player host:
-
-```powershell
-.\build-mingw\client.exe --game-auth-encrypted --ui-port 7001
-```
-
-Then start the Web UI and open the same local client URL used by the plaintext
-authenticated mode.
+For the older authenticated plaintext mode, replace `--game-auth-encrypted` with
+`--game-auth-plain`. For the no-Kerberos development mode, use
+`v_server.exe --game-plain` and `client.exe --game-plain --ui-port 7001`.
 
 本工程用于实现课程设计报告中的多人联机坦克大战安全通信系统。
 
