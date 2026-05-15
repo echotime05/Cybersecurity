@@ -1,68 +1,80 @@
-# Cybersecurity Course Design
+# Cyber Tank Battle
 
-## Current Tank Web UI Startup
-
-The current recommended mode is the Kerberos-gated encrypted tank battle:
+This project is a Windows C++17 Kerberos-style tank battle demo with a browser
+UI. The supported deployment mode is:
 
 ```text
-Browser UI <-> local client.exe WebSocket bridge <-> AS/TGS/V over TCP
+Browser UI <-> local C++ client WebSocket bridge <-> AS/TGS/V over TCP
 ```
 
-Important rules:
+The browser never connects to V directly. It connects to the local `client.exe`
+bridge on `ws://127.0.0.1:<ui-port>`. The C++ client performs AS, TGS, and V
+authentication, then forwards game input to V. V owns the authoritative game
+state and broadcasts snapshots back to clients.
 
-- The browser only connects to the local C++ client bridge.
-- `client.exe` must be running before the browser can log in.
-- AS, TGS, V, and `client.exe` must all use the same config file.
-- If the machine IP changes, update `AS_IP`, `TGS_IP`, and `V_IP` in the config used by `client.exe`.
-- The Web UI bridge stays plaintext on `ws://127.0.0.1:<ui-port>`.
-- The C++ client-to-V `MsgType::app` payload is encrypted in `--game-auth-encrypted` mode.
+## Supported Runtime
 
-### Single-Machine Demo
+The public runtime uses Kerberos authentication plus encrypted game payloads:
 
-Use this when AS, TGS, V, and client all run on one Windows machine.
-
-Create a runtime config for the current machine IP:
-
-```powershell
-cd E:\zhuomian\cybersecurity\code
-$ip = (Get-NetIPAddress -AddressFamily IPv4 |
-    Where-Object { $_.IPAddress -like '172.27.*' } |
-    Select-Object -First 1 -ExpandProperty IPAddress)
-$config = 'logs\runtime\local_ip_config.txt'
-New-Item -ItemType Directory -Force logs\runtime | Out-Null
-$content = Get-Content -Raw config\course_config.txt
-$content = $content -replace '^AS_BIND_IP=.*', "AS_BIND_IP=$ip"
-$content = $content -replace '^AS_IP=.*', "AS_IP=$ip"
-$content = $content -replace '^AS_HOST=.*', "AS_HOST=$ip"
-$content = $content -replace '^TGS_BIND_IP=.*', "TGS_BIND_IP=$ip"
-$content = $content -replace '^TGS_IP=.*', "TGS_IP=$ip"
-$content = $content -replace '^TGS_HOST=.*', "TGS_HOST=$ip"
-$content = $content -replace '^V_BIND_IP=.*', "V_BIND_IP=$ip"
-$content = $content -replace '^V_IP=.*', "V_IP=$ip"
-$content = $content -replace '^V_HOST=.*', "V_HOST=$ip"
-Set-Content -LiteralPath $config -Value $content -Encoding ASCII
+```text
+as_server.exe --serve
+tgs_server.exe --serve
+v_server.exe --game-auth-encrypted
+client.exe --game-auth-encrypted --ui-port 7001
 ```
 
-Start AS, TGS, and encrypted V:
+Additional non-deployment modes are kept only for internal tests. Do not use
+them for normal deployment.
+
+## Prerequisites
+
+- Windows
+- CMake 3.16 or newer
+- Ninja and a C++17 compiler available on `PATH`
+- Node.js and npm available on `PATH`
+
+## Build
+
+From the repository root:
 
 ```powershell
-.\build-mingw\as_server.exe --config $config --serve
-.\build-mingw\tgs_server.exe --config $config --serve
-.\build-mingw\v_server.exe --config $config --game-auth-encrypted
+cmake -S . -B build-mingw -G Ninja
+cmake --build build-mingw
 ```
 
-Start the local client bridge:
+Run the C++ and integration tests:
 
 ```powershell
-.\build-mingw\client.exe --config $config --game-auth-encrypted --ui-port 7001
+ctest --test-dir build-mingw --output-on-failure
 ```
 
-Start the Web UI:
+## Single-Machine Demo
+
+The default `config/course_config.txt` is a single-machine config. It binds AS,
+TGS, and V to localhost and uses `Client1` as the local client.
+
+Start the C++ backend:
 
 ```powershell
-cd E:\zhuomian\cybersecurity\code\web-ui
-$env:PATH='E:\zhuomian\tools\node-v24.15.0-win-x64;' + $env:PATH
-npm run dev -- --host 127.0.0.1
+.\scripts\run_local.ps1
+```
+
+or:
+
+```cmd
+run_local.bat
+```
+
+Start the Web UI in another terminal:
+
+```powershell
+.\scripts\run_web.ps1
+```
+
+or:
+
+```cmd
+run_web.bat
 ```
 
 Open:
@@ -71,7 +83,54 @@ Open:
 http://127.0.0.1:5173/?client=ws://127.0.0.1:7001
 ```
 
-Login passwords:
+Stop the local C++ backend:
+
+```powershell
+.\scripts\stop_local.ps1
+```
+
+or:
+
+```cmd
+stop_local.bat
+```
+
+## Manual Startup
+
+Use these commands if you want to start each role yourself. Run each command
+from the repository root.
+
+Terminal 1:
+
+```powershell
+.\build-mingw\as_server.exe --config .\config\course_config.txt --serve
+```
+
+Terminal 2:
+
+```powershell
+.\build-mingw\tgs_server.exe --config .\config\course_config.txt --serve
+```
+
+Terminal 3:
+
+```powershell
+.\build-mingw\v_server.exe --config .\config\course_config.txt --game-auth-encrypted
+```
+
+Terminal 4:
+
+```powershell
+.\build-mingw\client.exe --config .\config\course_config.txt --game-auth-encrypted --ui-port 7001
+```
+
+Terminal 5:
+
+```powershell
+.\scripts\run_web.ps1
+```
+
+## Login Passwords
 
 ```text
 Client1: 123456
@@ -80,297 +139,103 @@ Client3: hehe12345
 Client4: &wxh@147
 ```
 
-### Four-Host Deployment
+## Four-Host Deployment
 
-Before starting any role, copy the matching host config into `config\course_config.txt`
-on that host, and make sure all four host config files agree on `AS_IP`, `TGS_IP`,
-and `V_IP`.
+Each host needs the same AS, TGS, and V addresses in its config file. The
+templates under `config/lan/` are examples. Edit the IP addresses for your LAN,
+then copy the matching file to `config/course_config.txt` on each host.
 
-Host 2 starts AS:
+Recommended role layout:
+
+```text
+Host 1: Client1
+Host 2: AS + Client2
+Host 3: TGS + Client3
+Host 4: V + Client4
+```
+
+On Host 2:
 
 ```powershell
 Copy-Item .\config\lan\host2_as_client2.txt .\config\course_config.txt -Force
 .\build-mingw\as_server.exe --config .\config\course_config.txt --serve
 ```
 
-Host 3 starts TGS:
+On Host 3:
 
 ```powershell
 Copy-Item .\config\lan\host3_tgs_client3.txt .\config\course_config.txt -Force
 .\build-mingw\tgs_server.exe --config .\config\course_config.txt --serve
 ```
 
-Host 4 starts encrypted V:
+On Host 4:
 
 ```powershell
 Copy-Item .\config\lan\host4_v_client4.txt .\config\course_config.txt -Force
 .\build-mingw\v_server.exe --config .\config\course_config.txt --game-auth-encrypted
 ```
 
-Each player host starts its own local client bridge:
+On each player host, including Host 1 if it is client-only:
 
 ```powershell
 .\build-mingw\client.exe --config .\config\course_config.txt --game-auth-encrypted --ui-port 7001
+.\scripts\run_web.ps1
 ```
 
-Then start the Web UI on that same player host and open:
+Open the same local URL on each player host:
 
 ```text
 http://127.0.0.1:5173/?client=ws://127.0.0.1:7001
 ```
 
-For the older authenticated plaintext mode, replace `--game-auth-encrypted` with
-`--game-auth-plain`. For the no-Kerberos development mode, use
-`v_server.exe --game-plain` and `client.exe --game-plain --ui-port 7001`.
+## Configuration Rules
 
-本工程用于实现课程设计报告中的多人联机坦克大战安全通信系统。
+- AS, TGS, V, and each client must agree on `AS_IP`, `TGS_IP`, `V_IP`, and the
+  corresponding ports.
+- `*_IP` values are the addresses clients connect to.
+- `*_BIND_IP` values are the addresses servers listen on. Use `127.0.0.1` for a
+  local demo and `0.0.0.0` for LAN servers.
+- Every local browser still connects to its own local client bridge at
+  `ws://127.0.0.1:7001`.
 
-当前重点是终端验收：已跑通四主机配置、日志、报文、监听、真实 Kerberos 正常链路、证书交换，以及 `GAME_JOIN_REQ / APP_ACK` 双向不可否认闭环；坦克大战应用层同步和可视化后置。
+## Logs
 
-## 当前四主机部署
-
-| 主机 | 运行进程 | `LOCAL_CLIENT_ID` | 关键日志 |
-| --- | --- | --- | --- |
-| 主机 1 | Client1 only | `0x01` | `logs/client_01.log` |
-| 主机 2 | AS + Client2 | `0x02` | `logs/as.log`、`logs/client_02.log` |
-| 主机 3 | TGS + Client3 | `0x03` | `logs/tgs.log`、`logs/client_03.log` |
-| 主机 4 | V + Client4 | `0x04` | `logs/v.log`、`logs/client_04.log` |
-
-当前 LAN 地址：
+Runtime logs are written under `logs/`:
 
 ```text
-AS  = 172.27.197.122:9001
-TGS = 172.27.123.205:9002
-V   = 172.27.39.248:9003
+logs/as.log
+logs/tgs.log
+logs/v_game.log
+logs/client_game.log
+logs/runtime/*.out
+logs/runtime/*.err
 ```
 
-## Host4 一键启动 V
-
-在主机 4 的仓库根目录运行：
-
-```powershell
-.\run_v.bat
-```
-
-这个命令会自动完成：
-
-- 复制 `config\lan\host4_v_client4.txt` 到 `config\course_config.txt`
-- 停掉旧的 `v_server.exe`，避免 9003 端口被占用
-- 如果能找到 `cmake.exe`，自动构建 `v_server`
-- 前台启动 V 并输出监听状态
-
-成功时终端会停在监听状态，并至少看到：
+## Project Layout
 
 ```text
-V listening on 0.0.0.0:9003
-log file: logs\v.log
+src/roles/       Role entry points for AS, TGS, V, and Client
+src/common/      Shared protocol, auth, crypto, network, config, and logging code
+src/game/        Tank battle protocol and authoritative game state
+src/ui/          Local WebSocket bridge used by client.exe
+include/cyber/   Public C++ headers
+config/          Default and LAN config files
+tests/           C++ and PowerShell selftests
+web-ui/          Browser UI
+scripts/         Portable startup helpers
 ```
 
-停止 V 使用 `Ctrl+C`。
+## Troubleshooting
 
-只检查配置和构建、不进入监听：
+If the browser says `ERR_CONNECTION_REFUSED` for `127.0.0.1:5173`, the Web UI
+dev server is not running. Start it with `.\scripts\run_web.ps1`.
+
+If login stays on `Authenticating`, check that AS, TGS, V, and `client.exe` are
+all running and using the same config file. Also check that V was started with
+`--game-auth-encrypted`.
+
+If `client.exe` cannot listen on port 7001, stop the old client process:
 
 ```powershell
-.\run_v.bat -PrintOnly
+.\scripts\stop_local.ps1
 ```
-
-## 构建
-
-从仓库根目录运行。确保 `cmake`、`ninja` 和 C++ 编译器已经在 `PATH` 中。
-
-```powershell
-cmake -S . -B build-mingw -G Ninja
-cmake --build build-mingw
-ctest --test-dir build-mingw --output-on-failure
-```
-
-如果使用 Visual Studio：
-
-```powershell
-cmake -S . -B build-vs -G "Visual Studio 17 2022" -A x64
-cmake --build build-vs --config Debug
-ctest --test-dir build-vs -C Debug --output-on-failure
-```
-
-## 代码目录
-
-当前仓库按“4 个角色 + 公共模块”组织：
-
-```text
-src/roles/client/   Client 入口
-src/roles/as/       AS 入口
-src/roles/tgs/      TGS 入口
-src/roles/v/        V 入口
-src/common/         四个角色共享的协议、日志、网络、加密和认证流程
-include/cyber/      公共头文件
-config/             本机配置和四主机 LAN 配置模板
-tests/              自测和本机集成测试
-docs/               设计、计划和联调说明
-scripts/            运行辅助脚本
-useless/            本地废弃/临时产物说明，不参与构建
-```
-
-每个角色负责人优先看自己的 `src/roles/<role>/main.cpp`，共用逻辑再进入 `src/common`。
-
-## 配置
-
-默认 `config/course_config.txt` 用于当前机器运行。四主机联调时，在每台机器上复制对应模板：
-
-```powershell
-# 主机 1：Client1 only
-Copy-Item .\config\lan\host1_client1.txt .\config\course_config.txt -Force
-
-# 主机 2：AS + Client2
-Copy-Item .\config\lan\host2_as_client2.txt .\config\course_config.txt -Force
-
-# 主机 3：TGS + Client3
-Copy-Item .\config\lan\host3_tgs_client3.txt .\config\course_config.txt -Force
-
-# 主机 4：V + Client4
-Copy-Item .\config\lan\host4_v_client4.txt .\config\course_config.txt -Force
-```
-
-查看当前配置：
-
-```powershell
-.\build-mingw\client.exe --print-config
-```
-
-## 本机自测
-
-```powershell
-.\build-mingw\protocol_selftest.exe
-.\build-mingw\log_selftest.exe
-.\build-mingw\net_packet_selftest.exe
-.\build-mingw\crypto_selftest.exe
-.\build-mingw\auth_payload_selftest.exe
-ctest --test-dir build-mingw --output-on-failure
-```
-
-## 四主机连接骨架联调
-
-主机 2 启动 AS：
-
-```powershell
-.\build-mingw\as_server.exe --serve
-```
-
-主机 3 启动 TGS：
-
-```powershell
-.\build-mingw\tgs_server.exe --serve
-```
-
-主机 4 启动 V：
-
-```powershell
-.\run_v.bat
-```
-
-四台主机都可以运行 Client 探测：
-
-```powershell
-.\build-mingw\client.exe --connect-test
-```
-
-成功时 Client 终端输出：
-
-```text
-connect-test: ok
-```
-
-Client 日志应出现：
-
-```text
-[Client][CAuthWorker][AUTH_STATE] AS_OK
-[Client][CAuthWorker][AUTH_STATE] TGS_OK
-[Client][CAuthWorker][AUTH_STATE] V_AUTH_OK
-[Client][CAuthWorker][AUTH_STATE] AUTH_DONE
-```
-
-更多四主机联调细节见 `docs/four-host-connect-test.md`。
-
-## 真实认证与双向不可否认验收
-
-启动 AS/TGS/V 后，任一 Client 主机运行：
-
-```powershell
-.\build-mingw\client.exe --auth-test
-```
-
-成功输出：
-
-```text
-AUTH_STATE AS_OK
-AUTH_STATE TGS_OK
-AUTH_STATE V_AUTH_OK
-AUTH_STATE AUTH_DONE
-APP_NON_REPUDIATION GAME_JOIN_REQ_SIGNED
-APP_NON_REPUDIATION APP_ACK_VERIFIED
-auth-test: ok
-```
-
-`--auth-test` 执行真实正常流程：
-
-```text
-AS_REQ / AS_REP
-TGS_REQ / TGS_REP
-V_AUTH_REQ / V_AUTH_REP
-CERT_C2V / CERT_V2C
-GAME_JOIN_REQ + signed APP_ACK
-```
-
-## 日志格式
-
-所有日志行固定为：
-
-```text
-[实体][线程名][事件] 具体内容
-```
-
-当前自测覆盖：
-
-- `log_selftest` 验证日志写入和结构化解析。
-- `net_packet_selftest` 验证本机 TCP 收发和 `PACKET_SEND` / `PACKET_RECV` 日志。
-- `crypto_selftest` 验证 DES 风格分组加密、hash、RSA 签名验签和证书验签。
-- `auth_payload_selftest` 验证 Kerberos、证书和 ACK payload 的 build/parse。
-- `connect_probe_selftest` 自动启动 AS/TGS/V 监听骨架，并让 Client 依次完成 `AS_REQ/AS_REP`、`TGS_REQ/TGS_REP`、`V_AUTH_REQ/V_AUTH_REP`、`CERT_C2V/CERT_V2C`。
-- `auth_flow_selftest` 自动启动 AS/TGS/V，并让 Client 完成 `--auth-test`。
-
-## 当前阶段边界
-
-已经完成：
-
-- 四主机 LAN 配置模板
-- AS/TGS/V 监听骨架
-- Client 连接探测骨架
-- 固定格式日志和日志解析
-- 报文序列化、反序列化和基础校验
-- 加密解密基础
-- 完整 Kerberos 正常票据流程
-- C/V 证书交换
-- `GAME_JOIN_REQ / APP_ACK` 双向不可否认正常闭环
-
-尚未完成：
-
-- Kerberos 错误处理和回退状态机
-- 篡改报文/ACK 的错误演示
-- 坦克大战应用层状态同步
-- Qt/Web 可视化
-
-## 低延迟修改记录
-
-为了给后续坦克大战实时同步降低抖动，当前已完成两项低延迟基础修改：
-
-1. 异步批量日志写入
-
-   原来的 `Logger::write()` 每写一条日志都会立即 `flush()` 到磁盘。网络收发线程在记录 `PACKET_SEND`、`PACKET_RECV`、应用层事件和 ACK 时，会被磁盘 I/O 阻塞。现在 `Logger::write()` 只负责格式化日志并放入内存队列，后台日志线程每 20ms 批量写入文件；当队列达到 64 条时会提前唤醒写线程。`Logger::flush()` 和 `Logger` 析构会等待队列落盘，保证认证验收、测试结束和程序退出时日志完整。
-
-2. 小包连接启用 `TCP_NODELAY`
-
-   坦克大战阶段会频繁发送 `KEY_DOWN`、`KEY_UP`、`AIM_EVENT`、`FIRE_EVENT`、`APP_ACK` 等小包。为了减少 Nagle 算法合并小包造成的额外等待，`connect_tcp()` 和 `accept_tcp()` 现在会在连接建立后自动调用 `set_tcp_nodelay()`，对连接两端开启 `TCP_NODELAY`。这样后续 Client 与 V 的游戏长连接天然使用低延迟小包发送策略。
-
-相关自测：
-
-- `log_selftest` 验证异步日志在 `flush()` 和析构后能完整落盘。
-- `net_packet_selftest` 验证 `connect_tcp()` 和 `accept_tcp()` 返回的 socket 已启用 `TCP_NODELAY`，并继续验证 `PACKET_SEND` / `PACKET_RECV` 日志。

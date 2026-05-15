@@ -27,7 +27,7 @@ std::uint64_t now_system_ms()
 } // namespace
 
 PlainGameServer::PlainGameServer(TcpEndpoint endpoint)
-    : endpoint_(std::move(endpoint)), logger_(std::filesystem::path("logs") / "v_plain_game.log")
+    : endpoint_(std::move(endpoint)), logger_(std::filesystem::path("logs") / "v_game.log")
 {
 }
 
@@ -43,7 +43,7 @@ PlainGameServer::PlainGameServer(TcpEndpoint endpoint, Config config, bool requi
       require_auth_(require_auth),
       encrypt_app_payloads_(encrypt_app_payloads),
       auth_runtime_(make_auth_runtime(config_)),
-      logger_(std::filesystem::path("logs") / "v_plain_game.log")
+      logger_(std::filesystem::path("logs") / "v_game.log")
 {
 }
 
@@ -56,8 +56,10 @@ PlainGameServer::~PlainGameServer()
 void PlainGameServer::run()
 {
     listener_ = listen_tcp(endpoint_);
-    std::cout << "V plaintext game listening on " << endpoint_.ip << ':' << endpoint_.port
-              << '\n';
+    const char* mode =
+        encrypt_app_payloads_ ? "encrypted" : (require_auth_ ? "auth-plain" : "plain");
+    std::cout << "V tank game listening on " << endpoint_.ip << ':' << endpoint_.port
+              << " mode=" << mode << '\n';
     run_until_stopped();
 }
 
@@ -68,7 +70,7 @@ std::uint16_t PlainGameServer::start_for_test()
     int len = sizeof(addr);
     if (getsockname(static_cast<SOCKET>(listener_), reinterpret_cast<sockaddr*>(&addr), &len) != 0)
     {
-        throw std::runtime_error("getsockname failed for plaintext game server");
+        throw std::runtime_error("getsockname failed for tank game server");
     }
     endpoint_.port = ntohs(addr.sin_port);
     return endpoint_.port;
@@ -285,7 +287,7 @@ void PlainGameServer::game_loop()
     auto next_tick = clock::now();
     while (!stopping_)
     {
-        next_tick += std::chrono::milliseconds(50);
+        next_tick += std::chrono::milliseconds(kServerTickIntervalMs);
         std::this_thread::sleep_until(next_tick);
         const std::uint64_t now_ms = now_system_ms();
         room_.tick(now_ms);

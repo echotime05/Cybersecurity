@@ -529,7 +529,7 @@ export class Game {
     myTank.targetAngle = serverAngleToVisual(angle);
 
     const now = performance.now();
-    if (Math.abs(angle - this.lastSentAngle) > 1 && now - this.lastTargetSendTime >= 100) {
+    if (Math.abs(angle - this.lastSentAngle) > 1 && now - this.lastTargetSendTime >= 33) {
       this.network.sendTarget(angle);
       this.lastSentAngle = angle;
       this.lastTargetSendTime = now;

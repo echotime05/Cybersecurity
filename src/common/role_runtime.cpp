@@ -63,8 +63,7 @@ void print_usage(const RoleSpec& spec)
     std::cout << "Usage: " << spec.binary
               << " [--config PATH] [--self-test] [--print-config] [--serve] [--once]"
                  " [--max-connections N] [--connect-test] [--auth-test]"
-                 " [--game-plain] [--game-auth-plain] [--game-auth-encrypted]"
-                 " [--ui-port PORT]\n";
+                 " [--game-auth-encrypted] [--ui-port PORT]\n";
 }
 
 std::filesystem::path find_default_config()
@@ -461,8 +460,6 @@ int run_role_main(RoleKind role, int argc, char** argv)
     bool once = false;
     bool connect_test = false;
     bool auth_test = false;
-    bool game_plain = false;
-    bool game_auth_plain = false;
     bool game_auth_encrypted = false;
     std::uint16_t ui_port = 0;
     int max_connections = 0;
@@ -509,14 +506,6 @@ int run_role_main(RoleKind role, int argc, char** argv)
         {
             auth_test = true;
         }
-        else if (arg == "--game-plain")
-        {
-            game_plain = true;
-        }
-        else if (arg == "--game-auth-plain")
-        {
-            game_auth_plain = true;
-        }
         else if (arg == "--game-auth-encrypted")
         {
             game_auth_encrypted = true;
@@ -552,14 +541,6 @@ int run_role_main(RoleKind role, int argc, char** argv)
         }
     }
 
-    const int selected_game_modes = (game_plain ? 1 : 0) + (game_auth_plain ? 1 : 0) +
-                                    (game_auth_encrypted ? 1 : 0);
-    if (selected_game_modes > 1)
-    {
-        std::cerr << "select only one game mode\n";
-        return 2;
-    }
-
     if (config_path.empty())
     {
         config_path = find_default_config();
@@ -593,16 +574,13 @@ int run_role_main(RoleKind role, int argc, char** argv)
             }
         }
 
-        if (game_auth_plain || game_auth_encrypted)
+        if (game_auth_encrypted)
         {
-            const bool encrypt_app_payloads = game_auth_encrypted;
-            const char* mode_name =
-                encrypt_app_payloads ? "--game-auth-encrypted" : "--game-auth-plain";
             if (role == RoleKind::v_server)
             {
                 SocketRuntime runtime;
                 cyber::game::PlainGameServer server(bind_endpoint(config, spec), config, true,
-                                                     encrypt_app_payloads);
+                                                     true);
                 server.run();
                 return 0;
             }
@@ -610,37 +588,14 @@ int run_role_main(RoleKind role, int argc, char** argv)
             {
                 if (ui_port == 0)
                 {
-                    throw std::runtime_error(std::string("client ") + mode_name +
-                                             " requires --ui-port");
+                    throw std::runtime_error("client --game-auth-encrypted requires --ui-port");
                 }
-                cyber::game::AuthPlainGameClient client(config, ui_port, encrypt_app_payloads);
+                cyber::game::AuthPlainGameClient client(config, ui_port, true);
                 client.run();
                 return 0;
             }
-            throw std::runtime_error(std::string(mode_name) +
-                                     " is only supported by v_server and client");
-        }
-
-        if (game_plain)
-        {
-            if (role == RoleKind::v_server)
-            {
-                SocketRuntime runtime;
-                cyber::game::PlainGameServer server(bind_endpoint(config, spec));
-                server.run();
-                return 0;
-            }
-            if (role == RoleKind::client)
-            {
-                if (ui_port == 0)
-                {
-                    throw std::runtime_error("client --game-plain requires --ui-port");
-                }
-                cyber::game::PlainGameClient client(config, ui_port);
-                client.run();
-                return 0;
-            }
-            throw std::runtime_error("--game-plain is only supported by v_server and client");
+            throw std::runtime_error(
+                "--game-auth-encrypted is only supported by v_server and client");
         }
 
         if (self_test)

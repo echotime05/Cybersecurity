@@ -38,7 +38,7 @@ void PlainGameClient::run()
 
     const std::string default_name = "player" + std::to_string(static_cast<int>(self_));
     send_game_message(GameMsgType::join, build_join({self_, default_name}));
-    std::cout << "Client plaintext game connected to V. UI ws://127.0.0.1:" << ui_port_
+    std::cout << "Client legacy tank game connected to V. UI ws://127.0.0.1:" << ui_port_
               << '\n';
 
     ui.join();

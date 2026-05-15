@@ -1,6 +1,7 @@
 #include "cyber/game/battle_room.hpp"
 
 #include <iostream>
+#include <cmath>
 #include <stdexcept>
 
 namespace
@@ -12,12 +13,27 @@ void require(bool condition, const char* message)
         throw std::runtime_error(message);
     }
 }
+
+void require_close(float actual, float expected, const char* message)
+{
+    if (std::fabs(actual - expected) > 0.0001F)
+    {
+        throw std::runtime_error(message);
+    }
+}
 } // namespace
 
 int main()
 {
     try
     {
+        require(cyber::game::kServerTickIntervalMs == 33U,
+                "server tick interval should be 33ms");
+        require_close(cyber::game::kTankSpeed, 0.2F,
+                      "tank speed should preserve roughly the old 50ms pace at 33ms ticks");
+        require_close(cyber::game::kBulletSpeed, 0.65F,
+                      "bullet speed should be 1.4x faster after 33ms tick scaling");
+
         cyber::game::BattleRoom room;
         require(room.join(cyber::EntityId::client1, "alpha", 1000),
                 "client1 join failed");

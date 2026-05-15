@@ -226,12 +226,12 @@ export class TankEntity {
     this.group.position.x = THREE.MathUtils.lerp(
       this.group.position.x,
       this.targetX,
-      0.2
+      0.3
     );
     this.group.position.z = THREE.MathUtils.lerp(
       this.group.position.z,
       this.targetZ,
-      0.2
+      0.3
     );
 
     // Rotate body toward movement direction

@@ -9,10 +9,11 @@
 
 namespace cyber::game
 {
-constexpr float kTankSpeed = 0.3F;
+constexpr std::uint64_t kServerTickIntervalMs = 33;
+constexpr float kTankSpeed = 0.2F;
 constexpr float kTankRange = 16.0F;
 constexpr float kTankRadius = 0.75F;
-constexpr float kBulletSpeed = 0.7F;
+constexpr float kBulletSpeed = 0.65F;
 constexpr float kBulletRadius = 0.25F;
 constexpr std::int8_t kBulletDamage = 3;
 constexpr float kPickableRadius = 0.3F;

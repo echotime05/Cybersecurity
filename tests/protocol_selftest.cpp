@@ -175,7 +175,7 @@ int main()
         require(config.get_entity_id("TGS_ID") == cyber::EntityId::tgs, "TGS_ID mismatch");
         require(config.get_entity_id("V_ID") == cyber::EntityId::v, "V_ID mismatch");
         require(config.get_u16("AS_PORT") == 9001, "AS_PORT mismatch");
-        require(config.get_string("AS_BIND_IP") == "0.0.0.0", "AS_BIND_IP mismatch");
+        require(config.get_string("AS_BIND_IP") == "127.0.0.1", "AS_BIND_IP mismatch");
         require(config.get_string("AS_IP") == config.get_string("AS_HOST"),
                 "AS_IP alias mismatch");
         require(cyber::is_client(config.get_entity_id("LOCAL_CLIENT_ID")),

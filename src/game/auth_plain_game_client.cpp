@@ -16,7 +16,7 @@ AuthPlainGameClient::AuthPlainGameClient(Config config, std::uint16_t ui_port,
     : config_(std::move(config)),
       ui_port_(ui_port),
       encrypt_app_payloads_(encrypt_app_payloads),
-      logger_(std::filesystem::path("logs") / "client_auth_plain_game.log")
+      logger_(std::filesystem::path("logs") / "client_game.log")
 {
 }
 
@@ -41,7 +41,9 @@ void AuthPlainGameClient::run()
         ui_port_, EntityId::unknown,
         [this](const cyber::ui::UiCommand& command) { handle_ui_command(command); });
 
-    std::cout << "Client auth plaintext game UI ws://127.0.0.1:" << ui_port_ << '\n';
+    const char* mode = encrypt_app_payloads_ ? "encrypted" : "auth-plain";
+    std::cout << "Client tank game UI ws://127.0.0.1:" << ui_port_ << " mode=" << mode
+              << '\n';
     bridge_->broadcast_text(cyber::ui::login_state_json("idle", EntityId::unknown, "", ""));
     bridge_->run();
     stopping_ = true;

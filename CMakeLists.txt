@@ -138,13 +138,6 @@ add_test(
 )
 
 add_test(
-    NAME auth_plain_game_flow_selftest
-    COMMAND powershell -NoProfile -ExecutionPolicy Bypass
-            -File ${CMAKE_CURRENT_SOURCE_DIR}/tests/auth_plain_game_flow_selftest.ps1
-            -BuildDir $<TARGET_FILE_DIR:client>
-)
-
-add_test(
     NAME auth_encrypted_game_flow_selftest
     COMMAND powershell -NoProfile -ExecutionPolicy Bypass
             -File ${CMAKE_CURRENT_SOURCE_DIR}/tests/auth_encrypted_game_flow_selftest.ps1
