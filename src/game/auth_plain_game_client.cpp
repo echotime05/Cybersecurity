@@ -2,6 +2,7 @@
 
 #include "cyber/common/auth_credentials.hpp"
 #include "cyber/common/net_packet.hpp"
+#include "cyber/common/protocol_event.hpp"
 #include "cyber/game/app_payload_codec.hpp"
 #include "cyber/game/game_non_repudiation.hpp"
 
@@ -172,6 +173,8 @@ void AuthPlainGameClient::send_game_message(GameMsgType type, const Bytes& paylo
         build_signed_game_packet(self_, EntityId::v, type, payload, kc_v_, encrypt_app_payloads_,
                                  client_key_pair_.private_key);
     send_packet_logged(v_socket_, packet, logger_, "Client", "AuthPlainGameTx");
+    write_protocol_event(ProtocolDirection::send, packet,
+                         protocol_app_message(app_code_for_game_message_type(type)));
 }
 
 void AuthPlainGameClient::receive_loop()
@@ -190,6 +193,8 @@ void AuthPlainGameClient::receive_loop()
                 decode_signed_app_packet(packet, kc_v_, encrypt_app_payloads_);
             if (signed_payload.app_code == AppCode::app_ack)
             {
+                write_protocol_event(ProtocolDirection::recv, packet,
+                                     protocol_app_message(AppCode::app_ack));
                 (void)parse_verified_ack_payload(signed_payload, v_public_key_);
                 log_verified_ack_packet(ack_logger_, "Client", "AuthPlainGameRx", packet);
                 continue;
@@ -197,6 +202,8 @@ void AuthPlainGameClient::receive_loop()
 
             const GameMessage message =
                 parse_verified_game_message(signed_payload, v_public_key_);
+            write_protocol_event(ProtocolDirection::recv, packet,
+                                 protocol_app_message(signed_payload.app_code));
             const Packet ack = build_signed_ack_packet(packet, signed_payload, self_, EntityId::v,
                                                        kc_v_, encrypt_app_payloads_,
                                                        client_key_pair_.private_key);
@@ -205,6 +212,8 @@ void AuthPlainGameClient::receive_loop()
                 if (v_socket_ != 0)
                 {
                     send_packet_logged(v_socket_, ack, logger_, "Client", "AuthPlainGameAck");
+                    write_protocol_event(ProtocolDirection::send, ack,
+                                         protocol_app_message(AppCode::app_ack));
                 }
             }
             if (message.type == GameMsgType::state && bridge_)

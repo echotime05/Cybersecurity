@@ -26,6 +26,7 @@ add_library(cyber_common
     src/common/net_packet.cpp
     src/common/net_socket.cpp
     src/common/packet.cpp
+    src/common/protocol_event.cpp
     src/common/protocol_payloads.cpp
     src/common/role_runtime.cpp
     src/game/app_payload_codec.cpp
@@ -36,6 +37,7 @@ add_library(cyber_common
     src/game/plain_game_server.cpp
     src/game/plain_game_client.cpp
     src/game/auth_plain_game_client.cpp
+    src/monitor/protocol_monitor.cpp
     src/ui/websocket.cpp
     src/ui/ui_bridge.cpp
 )
@@ -56,6 +58,7 @@ add_role_target(as_server src/roles/as/main.cpp)
 add_role_target(tgs_server src/roles/tgs/main.cpp)
 add_role_target(v_server src/roles/v/main.cpp)
 add_role_target(client src/roles/client/main.cpp)
+add_role_target(monitor src/roles/monitor/main.cpp)
 
 add_executable(protocol_selftest tests/protocol_selftest.cpp)
 target_link_libraries(protocol_selftest PRIVATE cyber_common)
@@ -80,6 +83,12 @@ target_link_libraries(game_protocol_selftest PRIVATE cyber_common)
 
 add_executable(app_payload_codec_selftest tests/app_payload_codec_selftest.cpp)
 target_link_libraries(app_payload_codec_selftest PRIVATE cyber_common)
+
+add_executable(protocol_event_selftest tests/protocol_event_selftest.cpp)
+target_link_libraries(protocol_event_selftest PRIVATE cyber_common)
+
+add_executable(protocol_monitor_tail_selftest tests/protocol_monitor_tail_selftest.cpp)
+target_link_libraries(protocol_monitor_tail_selftest PRIVATE cyber_common)
 
 add_executable(game_world_selftest tests/game_world_selftest.cpp)
 target_link_libraries(game_world_selftest PRIVATE cyber_common)
@@ -116,6 +125,8 @@ add_test(NAME auth_credentials_selftest COMMAND auth_credentials_selftest)
 add_test(NAME auth_payload_selftest COMMAND auth_payload_selftest)
 add_test(NAME game_protocol_selftest COMMAND game_protocol_selftest)
 add_test(NAME app_payload_codec_selftest COMMAND app_payload_codec_selftest)
+add_test(NAME protocol_event_selftest COMMAND protocol_event_selftest)
+add_test(NAME protocol_monitor_tail_selftest COMMAND protocol_monitor_tail_selftest)
 add_test(NAME game_world_selftest COMMAND game_world_selftest)
 add_test(NAME battle_room_selftest COMMAND battle_room_selftest)
 add_test(NAME plain_game_flow_selftest COMMAND plain_game_flow_selftest)

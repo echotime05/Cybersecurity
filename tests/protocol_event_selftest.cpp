@@ -1,0 +1,84 @@
+#include "cyber/common/protocol_event.hpp"
+
+#include "cyber/common/packet.hpp"
+
+#include <iostream>
+#include <stdexcept>
+#include <string>
+
+namespace
+{
+void require(bool condition, const char* message)
+{
+    if (!condition)
+    {
+        throw std::runtime_error(message);
+    }
+}
+} // namespace
+
+int main()
+{
+    try
+    {
+        const cyber::Packet app =
+            cyber::make_packet(cyber::MsgType::app, cyber::EntityId::client1,
+                               cyber::EntityId::v, cyber::Bytes{0xAA, 0xBB});
+        const std::string app_message = cyber::format_protocol_event_message(
+            cyber::ProtocolDirection::send, app, "MSG_APP.GAME_MOVE", "12:03:15.044");
+        require(app_message ==
+                    "ts=12:03:15.044 direction=SEND endpoint=Client1->V "
+                    "message=MSG_APP.GAME_MOVE category=app msg_type=MSG_APP "
+                    "msg_type_raw=0x66 src=Client1 src_raw=0x01 dst=V dst_raw=0x13 "
+                    "payload_len=2 payload_len_raw=0x00000002 reserved=0 "
+                    "reserved_raw=0x00000000 payload_hex=aabb",
+                "protocol event message mismatch");
+
+        const cyber::ProtocolEvent parsed = cyber::parse_protocol_event_line(
+            "[Client1][ProtocolMonitor][PACKET_SEND] " + app_message);
+        require(parsed.role == "Client1", "parsed role mismatch");
+        require(parsed.direction == "SEND", "parsed direction mismatch");
+        require(parsed.endpoint == "Client1->V", "parsed endpoint mismatch");
+        require(parsed.message == "MSG_APP.GAME_MOVE", "parsed message mismatch");
+        require(parsed.category == "app", "parsed category mismatch");
+        require(parsed.header.msg_type.label == "MSG_APP", "parsed msg type label mismatch");
+        require(parsed.header.msg_type.raw == "0x66", "parsed msg type raw mismatch");
+        require(parsed.header.src.label == "Client1", "parsed src label mismatch");
+        require(parsed.header.dst.label == "V", "parsed dst label mismatch");
+        require(parsed.header.payload_len.label == "2", "parsed payload len mismatch");
+        require(parsed.header.payload_len.raw == "0x00000002",
+                "parsed payload len raw mismatch");
+        require(parsed.payload_hex == "aabb", "parsed payload hex mismatch");
+
+        const std::string json = cyber::protocol_event_json(parsed, 7);
+        require(json.find("\"type\":\"protocolEvent\"") != std::string::npos,
+                "json type missing");
+        require(json.find("\"id\":7") != std::string::npos, "json id missing");
+        require(json.find("\"message\":\"MSG_APP.GAME_MOVE\"") != std::string::npos,
+                "json message missing");
+        require(json.find("\"category\":\"app\"") != std::string::npos,
+                "json category missing");
+        require(json.find("\"payloadHex\":\"aabb\"") != std::string::npos,
+                "json payload missing");
+
+        const cyber::Packet error =
+            cyber::make_packet(cyber::MsgType::error, cyber::EntityId::as,
+                               cyber::EntityId::client1,
+                               cyber::make_error_payload(cyber::ErrorCode::password_wrong,
+                                                         "bad password"));
+        const std::string error_message = cyber::format_protocol_event_message(
+            cyber::ProtocolDirection::recv, error, "", "12:03:16.001");
+        require(error_message.find("message=MSG_ERROR.ERR_PASSWORD_WRONG") != std::string::npos,
+                "error suffix missing");
+        require(error_message.find("category=error") != std::string::npos,
+                "error category missing");
+
+        std::cout << "protocol_event_selftest: ok\n";
+    }
+    catch (const std::exception& ex)
+    {
+        std::cerr << "protocol_event_selftest failed: " << ex.what() << '\n';
+        return 1;
+    }
+    return 0;
+}

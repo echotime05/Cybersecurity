@@ -9,6 +9,7 @@ import {
 } from "./Network";
 import { TankEntity, preloadTankModel } from "./Tank";
 import { MapRenderer } from "./MapRenderer";
+import { ProtocolMonitorUi } from "./ProtocolMonitor";
 import { Sound } from "./Sound";
 
 const TEAM_COLORS = [0xff4444, 0x4488ff, 0x44ff44, 0xffff44];
@@ -46,6 +47,7 @@ export class Game {
   renderer: THREE.WebGLRenderer;
 
   network: Network;
+  protocolMonitor: ProtocolMonitorUi;
   sound: Sound;
   map!: MapRenderer;
 
@@ -134,7 +136,9 @@ export class Game {
 
     const params = new URLSearchParams(window.location.search);
     const serverUrl = params.get("client") || "ws://127.0.0.1:7001";
+    const monitorUrl = params.get("monitor") || "ws://127.0.0.1:7010";
     this.network = new Network(serverUrl);
+    this.protocolMonitor = new ProtocolMonitorUi(monitorUrl);
 
     this.healthFill = document.getElementById("health-fill")!;
     this.shieldFill = document.getElementById("shield-fill")!;
@@ -192,6 +196,7 @@ export class Game {
     };
 
     try {
+      this.protocolMonitor.connect();
       await this.network.connect();
       this.connectStatus.style.display = "none";
     } catch (e) {

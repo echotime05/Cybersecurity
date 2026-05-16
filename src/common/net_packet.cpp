@@ -5,6 +5,7 @@
 #include "cyber/common/net_packet.hpp"
 
 #include "cyber/common/crypto.hpp"
+#include "cyber/common/protocol_event.hpp"
 
 #include <algorithm>
 #include <iomanip>
@@ -158,6 +159,16 @@ bool send_packet_logged(SocketHandle socket, const Packet& packet, Logger& logge
 {
     send_all(socket, serialize_packet(packet));
     logger.write(entity, thread_name, "PACKET_SEND", format_packet_log_message(packet));
+    if (packet.msg_type != MsgType::app)
+    {
+        try
+        {
+            write_protocol_event(ProtocolDirection::send, packet);
+        }
+        catch (const std::exception&)
+        {
+        }
+    }
     return true;
 }
 
@@ -181,6 +192,16 @@ Packet recv_packet_logged(SocketHandle socket, Logger& logger, std::string_view 
 
     Packet packet = parse_packet(raw);
     logger.write(entity, thread_name, "PACKET_RECV", format_packet_log_message(packet));
+    if (packet.msg_type != MsgType::app)
+    {
+        try
+        {
+            write_protocol_event(ProtocolDirection::recv, packet);
+        }
+        catch (const std::exception&)
+        {
+        }
+    }
     return packet;
 }
 

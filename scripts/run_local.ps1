@@ -1,6 +1,7 @@
 param(
     [string]$Config = 'config\course_config.txt',
     [uint16]$UiPort = 7001,
+    [uint16]$MonitorPort = 7010,
     [switch]$NoBuild,
     [switch]$NoStop
 )
@@ -27,7 +28,7 @@ function Require-Command {
 }
 
 function Stop-RoleProcesses {
-    $names = @('as_server', 'tgs_server', 'v_server', 'client')
+    $names = @('as_server', 'tgs_server', 'v_server', 'client', 'monitor')
     foreach ($name in $names) {
         $processes = Get-Process -Name $name -ErrorAction SilentlyContinue
         if ($processes) {
@@ -62,10 +63,12 @@ $scriptDir = Split-Path -Parent $MyInvocation.MyCommand.Path
 $repoRoot = Resolve-Path (Join-Path $scriptDir '..')
 $buildDir = Join-Path $repoRoot 'build-mingw'
 $runtimeDir = Join-Path $repoRoot 'logs\runtime'
+$protocolEventsDir = Join-Path $repoRoot 'logs\protocol_events'
 $configPath = Resolve-RepoPath $Config
 
 Set-Location $repoRoot
 New-Item -ItemType Directory -Force $runtimeDir | Out-Null
+New-Item -ItemType Directory -Force $protocolEventsDir | Out-Null
 
 if (-not (Test-Path -LiteralPath $configPath)) {
     throw "Missing config file: $configPath"
@@ -81,7 +84,7 @@ if (-not $NoBuild) {
         }
     }
 
-    & cmake --build $buildDir --target as_server tgs_server v_server client
+    & cmake --build $buildDir --target as_server tgs_server v_server client monitor
     if ($LASTEXITCODE -ne 0) {
         exit $LASTEXITCODE
     }
@@ -97,6 +100,7 @@ $processes += Start-RoleProcess 'as_server.exe' @('--config', $configPath, '--se
 $processes += Start-RoleProcess 'tgs_server.exe' @('--config', $configPath, '--serve') 'tgs_server'
 $processes += Start-RoleProcess 'v_server.exe' @('--config', $configPath, '--game-auth-encrypted') 'v_server'
 $processes += Start-RoleProcess 'client.exe' @('--config', $configPath, '--game-auth-encrypted', '--ui-port', "$UiPort") 'client'
+$processes += Start-RoleProcess 'monitor.exe' @('--ui-port', "$MonitorPort", '--events-dir', $protocolEventsDir) 'monitor'
 
 Start-Sleep -Milliseconds 700
 
@@ -105,5 +109,6 @@ foreach ($process in $processes) {
     Write-Host ("  {0} pid={1}" -f $process.ProcessName, $process.Id)
 }
 Write-Host ("Client bridge: ws://127.0.0.1:{0}" -f $UiPort)
-Write-Host ("Open UI after starting web-ui: http://127.0.0.1:5173/?client=ws://127.0.0.1:{0}" -f $UiPort)
+Write-Host ("Protocol monitor: ws://127.0.0.1:{0}" -f $MonitorPort)
+Write-Host ("Open UI after starting web-ui: http://127.0.0.1:5173/?client=ws://127.0.0.1:{0}&monitor=ws://127.0.0.1:{1}" -f $UiPort, $MonitorPort)
 Write-Host 'Logs: logs\runtime\*.out and logs\runtime\*.err'

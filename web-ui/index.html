@@ -219,10 +219,132 @@
       position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%);
       font-size: 18px; color: #aaa;
     }
+
+    #view-tabs {
+      position: absolute; top: 12px; left: 12px; z-index: 16;
+      display: flex; gap: 6px; pointer-events: auto;
+    }
+    .view-tab {
+      height: 30px; padding: 0 12px; cursor: pointer;
+      color: #b9d9ff; background: rgba(8, 18, 31, 0.78);
+      border: 1px solid rgba(139, 185, 236, 0.38); border-radius: 4px;
+      font-family: 'Courier New', monospace; font-size: 14px; font-weight: 700;
+    }
+    .view-tab.active {
+      color: #06131f; background: #72d6ff; border-color: #72d6ff;
+    }
+
+    #protocol-panel {
+      position: absolute; inset: 48px 16px 16px 16px; z-index: 15;
+      display: grid; grid-template-columns: minmax(290px, 360px) minmax(0, 1fr);
+      background: #07111e; border: 1px solid #52799c;
+      box-shadow: 0 16px 42px rgba(0, 0, 0, 0.48);
+      color: #eaf6ff; pointer-events: auto; cursor: default; overflow: hidden;
+    }
+    #protocol-panel.hidden { display: none; }
+    #protocol-sidebar {
+      min-width: 0; border-right: 1px solid #31506f; background: #0a1625;
+      padding: 12px 12px 0 12px; overflow: hidden;
+      display: flex; flex-direction: column;
+    }
+    #protocol-filters { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 10px; }
+    .protocol-filter {
+      height: 30px; padding: 0 9px; cursor: pointer;
+      color: #c7e5ff; background: #081524; border: 1px solid #395d7b;
+      border-radius: 0; font-family: 'Courier New', monospace; font-size: 14px;
+    }
+    .protocol-filter.active {
+      color: #06131f; background: #90d8ff; border-color: #90d8ff;
+    }
+    #protocol-events { overflow: auto; padding-right: 2px; }
+    .protocol-event-item {
+      width: 100%; padding: 12px 10px; margin: 0 0 7px 0; cursor: pointer;
+      color: #e9f7ff; background: transparent; border: 0; border-left: 3px solid transparent;
+      border-bottom: 1px solid rgba(133, 177, 216, 0.18);
+      text-align: left; font-family: 'Courier New', monospace; font-size: 15px; line-height: 1.55;
+    }
+    .protocol-event-item.active { background: #1d4169; border-left-color: #65d6ff; }
+    .protocol-event-item .line { display: block; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .protocol-event-item .message { font-weight: 700; }
+    .protocol-category-app { color: #74f0a2; }
+    .protocol-category-kerberos { color: #ffe17a; }
+    .protocol-category-error { color: #ff8f86; }
+
+    #protocol-detail {
+      min-width: 0; padding: 20px 20px 24px 20px; overflow: auto;
+      background: #06101d;
+    }
+    .protocol-detail-top {
+      display: flex; align-items: start; justify-content: space-between; gap: 16px;
+      margin-bottom: 26px;
+    }
+    #protocol-title { font-size: 24px; font-weight: 800; margin-bottom: 8px; }
+    #protocol-meta { font-size: 16px; color: #a7d6ff; line-height: 1.5; }
+    #protocol-selected { color: #9ddcff; border: 1px solid #226fff; padding: 8px 10px; font-size: 13px; }
+    .protocol-section-title { font-size: 22px; font-weight: 800; margin: 0 0 16px 0; }
+    .protocol-bit-row {
+      display: grid; grid-template-columns: 1fr 1fr 1fr 4fr 4fr;
+      color: #8fc9ff; font-size: 14px; margin-bottom: 6px;
+    }
+    .protocol-header-grid {
+      display: grid; grid-template-columns: 1fr 1fr 1fr 4fr 4fr;
+      border: 1px solid #78a7d0; margin-bottom: 24px;
+    }
+    .protocol-header-cell {
+      min-width: 0; min-height: 96px; padding: 14px 10px;
+      display: flex; flex-direction: column; justify-content: center; align-items: center;
+      background: #10243a; border-right: 1px solid #78a7d0; text-align: center;
+    }
+    .protocol-header-cell:last-child { border-right: 0; }
+    .field-name { color: #65d6ff; font-size: 13px; font-weight: 700; margin-bottom: 10px; }
+    .field-label { color: #f2fbff; font-size: 21px; font-weight: 800; margin-bottom: 10px; }
+    .field-raw { color: #a7d6ff; font-size: 16px; }
+    #protocol-payload {
+      min-height: 160px; border: 1px solid #78a7d0; background: #102033;
+      padding: 22px; color: #b9dcff; font-size: 17px; line-height: 1.75;
+      white-space: pre-wrap; overflow-wrap: anywhere;
+    }
+
+    @media (max-width: 900px) {
+      #protocol-panel { grid-template-columns: 1fr; inset: 48px 10px 10px 10px; }
+      #protocol-sidebar { max-height: 34vh; border-right: 0; border-bottom: 1px solid #31506f; }
+      #protocol-detail { padding: 16px; }
+      .protocol-header-cell { min-height: 88px; padding: 10px 6px; }
+      .field-label { font-size: 17px; }
+      .field-raw { font-size: 13px; }
+    }
   </style>
 </head>
 <body>
   <div id="hud">
+    <div id="view-tabs">
+      <button id="tab-game" class="view-tab active" type="button">Game</button>
+      <button id="tab-protocol" class="view-tab" type="button">Protocol</button>
+    </div>
+
+    <div id="protocol-panel" class="hidden">
+      <aside id="protocol-sidebar">
+        <div id="protocol-filters"></div>
+        <div id="protocol-events"></div>
+      </aside>
+      <section id="protocol-detail">
+        <div class="protocol-detail-top">
+          <div>
+            <div id="protocol-title"></div>
+            <div id="protocol-meta"></div>
+          </div>
+          <div id="protocol-selected"></div>
+        </div>
+        <div class="protocol-section-title">Header</div>
+        <div class="protocol-bit-row">
+          <span>0</span><span>1</span><span>2</span><span>3</span><span>7</span>
+        </div>
+        <div id="protocol-header-grid" class="protocol-header-grid"></div>
+        <div class="protocol-section-title">Payload</div>
+        <pre id="protocol-payload"></pre>
+      </section>
+    </div>
+
     <div id="connect-status">Connecting...</div>
 
     <div id="auth-overlay">

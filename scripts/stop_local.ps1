@@ -1,6 +1,6 @@
 $ErrorActionPreference = 'Stop'
 
-$names = @('as_server', 'tgs_server', 'v_server', 'client')
+$names = @('as_server', 'tgs_server', 'v_server', 'client', 'monitor')
 $stopped = 0
 
 foreach ($name in $names) {

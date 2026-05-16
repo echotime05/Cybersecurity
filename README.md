@@ -5,12 +5,18 @@ UI. The supported deployment mode is:
 
 ```text
 Browser UI <-> local C++ client WebSocket bridge <-> AS/TGS/V over TCP
+Protocol panel <-> local monitor.exe WebSocket bridge <-> local packet logs
 ```
 
 The browser never connects to V directly. It connects to the local `client.exe`
 bridge on `ws://127.0.0.1:<ui-port>`. The C++ client performs AS, TGS, and V
 authentication, then forwards game input to V. V owns the authoritative game
 state and broadcasts snapshots back to clients.
+
+The optional protocol panel connects only to local `monitor.exe` on
+`ws://127.0.0.1:<monitor-port>`. `monitor.exe` tails local text logs under
+`logs/protocol_events/`, so each physical machine displays only packets sent
+and received by processes running on that machine.
 
 ## Supported Runtime
 
@@ -22,6 +28,7 @@ as_server.exe --serve
 tgs_server.exe --serve
 v_server.exe --game-auth-encrypted
 client.exe --game-auth-encrypted --ui-port 7001
+monitor.exe --ui-port 7010
 ```
 
 Additional non-deployment modes are kept only for internal tests. Do not use
@@ -99,7 +106,7 @@ run_web.bat
 Open:
 
 ```text
-http://127.0.0.1:5173/?client=ws://127.0.0.1:7001
+http://127.0.0.1:5173/?client=ws://127.0.0.1:7001&monitor=ws://127.0.0.1:7010
 ```
 
 Stop the local C++ backend:
@@ -144,6 +151,12 @@ Terminal 4:
 ```
 
 Terminal 5:
+
+```powershell
+.\build-mingw\monitor.exe --ui-port 7010 --events-dir .\logs\protocol_events
+```
+
+Terminal 6:
 
 ```powershell
 .\scripts\run_web.ps1
@@ -198,14 +211,18 @@ On each player host, including Host 1 if it is client-only:
 
 ```powershell
 .\build-mingw\client.exe --config .\config\course_config.txt --game-auth-encrypted --ui-port 7001
+.\build-mingw\monitor.exe --ui-port 7010 --events-dir .\logs\protocol_events
 .\scripts\run_web.ps1
 ```
 
 Open the same local URL on each player host:
 
 ```text
-http://127.0.0.1:5173/?client=ws://127.0.0.1:7001
+http://127.0.0.1:5173/?client=ws://127.0.0.1:7001&monitor=ws://127.0.0.1:7010
 ```
+
+Start `monitor.exe` on AS/TGS/V-only hosts too if you want a browser on that
+host to inspect that host's local packet send/receive events.
 
 ## Configuration Rules
 
@@ -228,6 +245,7 @@ logs/v_game.log
 logs/client_game.log
 logs/v_ack.log
 logs/client_ack.log
+logs/protocol_events/*.txt
 logs/runtime/*.out
 logs/runtime/*.err
 ```
@@ -236,6 +254,12 @@ logs/runtime/*.err
 logs. Each verified ACK is recorded as `APP_NON_REPUDIATION_ACK packet_hex=...`,
 where `packet_hex` is the complete ACK packet including header and encrypted
 signed payload.
+
+`logs/protocol_events/*.txt` are local protocol monitor logs. Each line keeps
+the existing text-log style and includes structured packet fields such as
+timestamp, direction, endpoint, message name, fixed header fields, and payload
+hex. `monitor.exe` tails these files and sends `protocolEvent` messages to the
+browser Protocol panel.
 
 ## Project Layout
 

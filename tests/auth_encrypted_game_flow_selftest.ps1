@@ -91,6 +91,23 @@ function Assert-Contains {
     }
 }
 
+function Assert-DirectoryContains {
+    param(
+        [string]$Path,
+        [string]$Needle
+    )
+    if (-not (Test-Path -LiteralPath $Path)) {
+        throw "Missing expected directory $Path"
+    }
+    $text = ''
+    Get-ChildItem -LiteralPath $Path -Filter '*.txt' -File | ForEach-Object {
+        $text += Get-Content -LiteralPath $_.FullName -Raw
+    }
+    if (-not $text.Contains($Needle)) {
+        throw "Expected $Path text files to contain '$Needle'"
+    }
+}
+
 $tmp = Join-Path ([System.IO.Path]::GetTempPath()) ("cyber_auth_encrypted_game_" + [Guid]::NewGuid().ToString('N'))
 New-Item -ItemType Directory -Path $tmp | Out-Null
 
@@ -184,6 +201,9 @@ try {
     Assert-Contains (Join-Path $tmp 'logs\client_ack.log') 'packet_hex='
     Assert-Contains (Join-Path $tmp 'logs\v_ack.log') 'APP_NON_REPUDIATION_ACK'
     Assert-Contains (Join-Path $tmp 'logs\v_ack.log') 'packet_hex='
+    Assert-DirectoryContains (Join-Path $tmp 'logs\protocol_events') 'message=MSG_AS_REQ'
+    Assert-DirectoryContains (Join-Path $tmp 'logs\protocol_events') 'message=MSG_APP.GAME_JOIN_REQ'
+    Assert-DirectoryContains (Join-Path $tmp 'logs\protocol_events') 'message=MSG_APP.GAME_STATE'
 
     & (Join-Path $BuildDir 'encrypted_plaintext_rejection_client.exe') $config
     if ($LASTEXITCODE -ne 0) {

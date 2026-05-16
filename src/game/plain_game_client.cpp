@@ -1,6 +1,8 @@
 #include "cyber/game/plain_game_client.hpp"
 
 #include "cyber/common/net_packet.hpp"
+#include "cyber/common/protocol_event.hpp"
+#include "cyber/game/game_non_repudiation.hpp"
 
 #include <filesystem>
 #include <iostream>
@@ -64,6 +66,8 @@ void PlainGameClient::send_game_message(GameMsgType type, const Bytes& payload)
     const Bytes message = build_game_message({type, payload});
     const Packet packet = make_packet(MsgType::app, self_, EntityId::v, message);
     send_packet_logged(v_socket_, packet, logger_, "Client", "PlainGameTx");
+    write_protocol_event(ProtocolDirection::send, packet,
+                         protocol_app_message(app_code_for_game_message_type(type)));
 }
 
 void PlainGameClient::handle_ui_command(const cyber::ui::UiCommand& command)
@@ -87,6 +91,8 @@ void PlainGameClient::receive_loop()
                 continue;
             }
             const GameMessage message = parse_game_message(packet.payload);
+            write_protocol_event(ProtocolDirection::recv, packet,
+                                 protocol_app_message(app_code_for_game_message_type(message.type)));
             if (message.type == GameMsgType::state && bridge_)
             {
                 bridge_->broadcast_state(parse_state(message.payload));
