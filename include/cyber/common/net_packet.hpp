@@ -10,6 +10,7 @@
 namespace cyber
 {
 using SocketHandle = std::uintptr_t;
+struct ProtocolPayloadView;
 
 constexpr std::uint32_t kMaxPacketPayloadSize = 16U * 1024U * 1024U;
 
@@ -27,6 +28,9 @@ void close_socket(SocketHandle socket);
 
 bool send_packet_logged(SocketHandle socket, const Packet& packet, Logger& logger,
                         std::string_view entity, std::string_view thread_name);
+bool send_packet_logged(SocketHandle socket, const Packet& packet, Logger& logger,
+                        std::string_view entity, std::string_view thread_name,
+                        const ProtocolPayloadView& payload_view);
 Packet recv_packet_logged(SocketHandle socket, Logger& logger, std::string_view entity,
                           std::string_view thread_name);
 

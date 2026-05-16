@@ -108,6 +108,25 @@ function Assert-DirectoryContains {
     }
 }
 
+function Assert-ProtocolEventLineContains {
+    param(
+        [string]$Path,
+        [string]$Message,
+        [string]$Needle
+    )
+    if (-not (Test-Path -LiteralPath $Path)) {
+        throw "Missing expected directory $Path"
+    }
+    foreach ($file in Get-ChildItem -LiteralPath $Path -Filter '*.txt' -File) {
+        foreach ($line in Get-Content -LiteralPath $file.FullName) {
+            if ($line.Contains("message=$Message") -and $line.Contains($Needle)) {
+                return
+            }
+        }
+    }
+    throw "Expected a protocol event line for '$Message' to contain '$Needle'"
+}
+
 $tmp = Join-Path ([System.IO.Path]::GetTempPath()) ("cyber_auth_encrypted_game_" + [Guid]::NewGuid().ToString('N'))
 New-Item -ItemType Directory -Path $tmp | Out-Null
 
@@ -206,6 +225,12 @@ try {
     Assert-DirectoryContains (Join-Path $tmp 'logs\protocol_events') 'message=MSG_APP.GAME_STATE'
     Assert-DirectoryContains (Join-Path $tmp 'logs\protocol_events') 'payload_plain_hex='
     Assert-DirectoryContains (Join-Path $tmp 'logs\protocol_events') 'payload_encrypted_hex='
+    Assert-DirectoryContains (Join-Path $tmp 'logs\protocol_events') 'field0_name=ticket_tgs'
+    Assert-DirectoryContains (Join-Path $tmp 'logs\protocol_events') 'field1_name=authenticator_tgs'
+    Assert-DirectoryContains (Join-Path $tmp 'logs\protocol_events') 'field0_name=ticket_v'
+    Assert-DirectoryContains (Join-Path $tmp 'logs\protocol_events') 'field1_name=authenticator_v'
+    Assert-ProtocolEventLineContains (Join-Path $tmp 'logs\protocol_events') 'MSG_V_AUTH_REP' 'payload_plain_hex='
+    Assert-ProtocolEventLineContains (Join-Path $tmp 'logs\protocol_events') 'MSG_CERT_V2C' 'payload_plain_hex='
 
     & (Join-Path $BuildDir 'encrypted_plaintext_rejection_client.exe') $config
     if ($LASTEXITCODE -ne 0) {

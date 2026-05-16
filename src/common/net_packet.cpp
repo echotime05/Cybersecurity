@@ -157,13 +157,20 @@ void close_socket(SocketHandle socket)
 bool send_packet_logged(SocketHandle socket, const Packet& packet, Logger& logger,
                         std::string_view entity, std::string_view thread_name)
 {
+    return send_packet_logged(socket, packet, logger, entity, thread_name, {});
+}
+
+bool send_packet_logged(SocketHandle socket, const Packet& packet, Logger& logger,
+                        std::string_view entity, std::string_view thread_name,
+                        const ProtocolPayloadView& payload_view)
+{
     send_all(socket, serialize_packet(packet));
     logger.write(entity, thread_name, "PACKET_SEND", format_packet_log_message(packet));
     if (packet.msg_type != MsgType::app)
     {
         try
         {
-            write_protocol_event(ProtocolDirection::send, packet);
+            write_protocol_event(ProtocolDirection::send, packet, {}, payload_view);
         }
         catch (const std::exception&)
         {

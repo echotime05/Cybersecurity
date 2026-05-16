@@ -182,6 +182,13 @@ std::string required_value(const std::map<std::string, std::string>& values,
     return it->second;
 }
 
+std::string optional_value(const std::map<std::string, std::string>& values,
+                           const std::string& key)
+{
+    const auto it = values.find(key);
+    return it == values.end() ? std::string() : it->second;
+}
+
 std::filesystem::path event_log_path(EntityId role)
 {
     const DWORD pid = GetCurrentProcessId();
@@ -266,6 +273,23 @@ std::string format_protocol_event_message(ProtocolDirection direction, const Pac
     {
         oss << " payload_encrypted_hex=" << payload_view.encrypted_hex;
     }
+    if (!payload_view.fields.empty())
+    {
+        oss << " field_count=" << payload_view.fields.size();
+        for (std::size_t i = 0; i < payload_view.fields.size(); ++i)
+        {
+            const ProtocolPayloadView::Field& field = payload_view.fields[i];
+            oss << " field" << i << "_name=" << field.name;
+            if (!field.plain_hex.empty())
+            {
+                oss << " field" << i << "_plain_hex=" << field.plain_hex;
+            }
+            if (!field.encrypted_hex.empty())
+            {
+                oss << " field" << i << "_encrypted_hex=" << field.encrypted_hex;
+            }
+        }
+    }
     return oss.str();
 }
 
@@ -318,6 +342,19 @@ ProtocolEvent parse_protocol_event_line(const std::string& line)
     {
         event.payload_encrypted_hex = it->second;
     }
+    if (const auto it = values.find("field_count"); it != values.end())
+    {
+        const std::size_t count = static_cast<std::size_t>(std::stoul(it->second));
+        for (std::size_t i = 0; i < count; ++i)
+        {
+            ProtocolPayloadView::Field field;
+            field.name = required_value(values, ("field" + std::to_string(i) + "_name").c_str());
+            field.plain_hex = optional_value(values, "field" + std::to_string(i) + "_plain_hex");
+            field.encrypted_hex =
+                optional_value(values, "field" + std::to_string(i) + "_encrypted_hex");
+            event.payload_fields.push_back(std::move(field));
+        }
+    }
     return event;
 }
 
@@ -326,6 +363,12 @@ std::string protocol_event_json(const ProtocolEvent& event, std::uint64_t id)
     auto field_json = [](const ProtocolFieldView& field) {
         return std::string("{\"label\":\"") + json_escape(field.label) + "\",\"raw\":\"" +
                json_escape(field.raw) + "\"}";
+    };
+
+    auto payload_field_json = [](const ProtocolPayloadView::Field& field) {
+        return std::string("{\"name\":\"") + json_escape(field.name) + "\",\"plainHex\":\"" +
+               json_escape(field.plain_hex) + "\",\"encryptedHex\":\"" +
+               json_escape(field.encrypted_hex) + "\"}";
     };
 
     std::ostringstream oss;
@@ -341,7 +384,16 @@ std::string protocol_event_json(const ProtocolEvent& event, std::uint64_t id)
         << ",\"reserved\":" << field_json(event.header.reserved) << "},\"payloadHex\":\""
         << json_escape(event.payload_hex) << "\",\"payloadPlainHex\":\""
         << json_escape(event.payload_plain_hex) << "\",\"payloadEncryptedHex\":\""
-        << json_escape(event.payload_encrypted_hex) << "\"}";
+        << json_escape(event.payload_encrypted_hex) << "\",\"payloadFields\":[";
+    for (std::size_t i = 0; i < event.payload_fields.size(); ++i)
+    {
+        if (i != 0U)
+        {
+            oss << ',';
+        }
+        oss << payload_field_json(event.payload_fields[i]);
+    }
+    oss << "]}";
     return oss.str();
 }
 

@@ -1,5 +1,6 @@
 #include "cyber/game/plain_game_server.hpp"
 
+#include "cyber/common/crypto.hpp"
 #include "cyber/common/net_packet.hpp"
 #include "cyber/common/protocol_event.hpp"
 #include "cyber/game/app_payload_codec.hpp"
@@ -39,6 +40,41 @@ ProtocolPayloadView app_payload_view(const Packet& packet, std::uint64_t kc_v, b
     {
         view.plain_hex = bytes_to_hex(packet.payload);
     }
+    return view;
+}
+
+ProtocolPayloadView encrypted_payload_view(const Bytes& plain, const Bytes& encrypted)
+{
+    ProtocolPayloadView view;
+    view.plain_hex = bytes_to_hex(plain);
+    view.encrypted_hex = bytes_to_hex(encrypted);
+    return view;
+}
+
+ProtocolPayloadView decrypted_payload_view(const Packet& packet, std::uint64_t key)
+{
+    return encrypted_payload_view(des_decrypt_payload(packet.payload, key), packet.payload);
+}
+
+void add_encrypted_field(ProtocolPayloadView& view, std::string name, const Bytes& encrypted,
+                         const Bytes& plain = {})
+{
+    ProtocolPayloadView::Field field;
+    field.name = std::move(name);
+    field.plain_hex = bytes_to_hex(plain);
+    field.encrypted_hex = bytes_to_hex(encrypted);
+    view.fields.push_back(std::move(field));
+}
+
+ProtocolPayloadView v_auth_req_payload_view(const Packet& packet, const Config& config)
+{
+    const VAuthReq request = parse_v_auth_req(packet.payload);
+    const TicketVBody ticket = decrypt_ticket_v(request.ticket_v, config.get_u64("KV"));
+    const AuthenticatorBody auth = decrypt_authenticator(request.authenticator_v, ticket.kc_v);
+    ProtocolPayloadView view;
+    add_encrypted_field(view, "ticket_v", request.ticket_v, build_ticket_v_body(ticket));
+    add_encrypted_field(view, "authenticator_v", request.authenticator_v,
+                        build_authenticator_body(auth));
     return view;
 }
 } // namespace
@@ -332,7 +368,11 @@ bool PlainGameServer::authenticate_socket(SocketHandle socket, const std::string
     }
     const Packet response =
         process_v_auth_request(auth_packet, config_, auth_runtime_, logger_, "PlainGameAuth");
-    send_packet_logged(socket, response, logger_, "V", "PlainGameAuth");
+    write_protocol_event(ProtocolDirection::recv, auth_packet, {},
+                         v_auth_req_payload_view(auth_packet, config_));
+    const AuthSession auth_session = auth_runtime_.v_sessions.get(auth_packet.src);
+    send_packet_logged(socket, response, logger_, "V", "PlainGameAuth",
+                       decrypted_payload_view(response, auth_session.kc_v));
     const Packet cert_packet = recv_packet_logged(socket, logger_, "V", "PlainGameCert");
     if (cert_packet.msg_type != MsgType::cert_c2v || cert_packet.src != auth_packet.src)
     {
@@ -340,9 +380,13 @@ bool PlainGameServer::authenticate_socket(SocketHandle socket, const std::string
                       "client " + peer + " did not complete CERT_C2V");
         return false;
     }
+    const AuthSession cert_session = auth_runtime_.v_sessions.get(cert_packet.src);
+    write_protocol_event(ProtocolDirection::recv, cert_packet, {},
+                         decrypted_payload_view(cert_packet, cert_session.kc_v));
     const Packet cert_response =
         process_cert_c2v_request(cert_packet, auth_runtime_, logger_, "PlainGameCert");
-    send_packet_logged(socket, cert_response, logger_, "V", "PlainGameCert");
+    send_packet_logged(socket, cert_response, logger_, "V", "PlainGameCert",
+                       decrypted_payload_view(cert_response, cert_session.kc_v));
 
     const AuthSession session = auth_runtime_.v_sessions.get(auth_packet.src);
     client_id = auth_packet.src;

@@ -6,6 +6,13 @@ export type ProtocolPayloadEvent = {
   payloadHex: string;
   payloadPlainHex?: string;
   payloadEncryptedHex?: string;
+  payloadFields?: ProtocolPayloadField[];
+};
+
+export type ProtocolPayloadField = {
+  name: string;
+  plainHex?: string;
+  encryptedHex?: string;
 };
 
 export type ProtocolPayloadRow = {
@@ -24,6 +31,14 @@ export type ProtocolPayloadView = {
   rows: ProtocolPayloadRow[];
   hexBlocks: ProtocolPayloadHexBlock[];
 };
+
+const outerEncryptedMessages = new Set([
+  "MSG_AS_REP",
+  "MSG_TGS_REP",
+  "MSG_V_AUTH_REP",
+  "MSG_CERT_C2V",
+  "MSG_CERT_V2C",
+]);
 
 const entityLabels = new Map<number, string>([
   [0x01, "Client1"],
@@ -147,9 +162,8 @@ class ByteReader {
 }
 
 export function buildProtocolPayloadView(event: ProtocolPayloadEvent): ProtocolPayloadView {
-  const parseHex = event.payloadPlainHex || event.payloadHex;
   return {
-    rows: parsePayloadRows(event.message, parseHex),
+    rows: parsePayloadRows(event),
     hexBlocks: buildHexBlocks(event),
   };
 }
@@ -162,6 +176,11 @@ export function formatHexString(hex: string) {
 function buildHexBlocks(event: ProtocolPayloadEvent): ProtocolPayloadHexBlock[] {
   const plain = event.payloadPlainHex ?? "";
   const encrypted = event.payloadEncryptedHex ?? "";
+  const parseHex = payloadParseHex(event);
+  const fieldBlocks = buildFieldHexBlocks([
+    ...(event.payloadFields ?? []),
+    ...(parseHex ? deriveEncryptedFields(event.message, parseHex) : []),
+  ]);
   if (plain && encrypted) {
     const plainBlock = { title: "payload plain hex", hex: plain, tone: "plain" as const };
     const encryptedBlock = {
@@ -169,33 +188,63 @@ function buildHexBlocks(event: ProtocolPayloadEvent): ProtocolPayloadHexBlock[] 
       hex: encrypted,
       tone: "cipher" as const,
     };
-    return event.direction === "RECV"
+    const outerBlocks = event.direction === "RECV"
       ? [encryptedBlock, plainBlock]
       : [plainBlock, encryptedBlock];
+    return [...outerBlocks, ...fieldBlocks];
   }
-  return [{ title: "payload hex", hex: event.payloadHex, tone: "plain" }];
+  if (plain) {
+    return [{ title: "payload plain hex", hex: plain, tone: "plain" }, ...fieldBlocks];
+  }
+  const wireHex = encrypted || event.payloadHex;
+  const encryptedOnWire = isOuterPayloadEncrypted(event);
+  return [
+    {
+      title: encryptedOnWire ? "payload encrypted hex" : "payload hex",
+      hex: wireHex,
+      tone: encryptedOnWire ? "cipher" : "plain",
+    },
+    ...fieldBlocks,
+  ];
 }
 
-function parsePayloadRows(message: string, hex: string): ProtocolPayloadRow[] {
+function parsePayloadRows(event: ProtocolPayloadEvent): ProtocolPayloadRow[] {
+  const hex = payloadParseHex(event);
+  if (!hex && isOuterPayloadEncrypted(event) && cleanHex(event.payloadHex).length > 0) {
+    return [{ key: "payload_state", value: "encrypted", tone: "cipher" }];
+  }
   const bytes = hexToBytes(hex);
   if (bytes.length === 0) {
     return [];
   }
   try {
+    const message = event.message;
     if (message.startsWith("MSG_APP")) {
       return parseSignedAppRows(bytes);
     }
     if (message === "MSG_AS_REQ") {
       return parseAsReqRows(bytes);
     }
+    if (message === "MSG_AS_REP") {
+      return parseAsRepRows(bytes);
+    }
     if (message === "MSG_TGS_REQ") {
       return parseTgsReqRows(bytes);
+    }
+    if (message === "MSG_TGS_REP") {
+      return parseTgsRepRows(bytes);
     }
     if (message === "MSG_V_AUTH_REQ") {
       return parseVAuthReqRows(bytes);
     }
+    if (message === "MSG_V_AUTH_REP") {
+      return parseVAuthRepRows(bytes);
+    }
     if (message === "MSG_CERT_C2V") {
       return parseCertC2VRows(bytes);
+    }
+    if (message === "MSG_CERT_V2C") {
+      return parseCertV2CRows(bytes);
     }
     if (message.startsWith("MSG_ERROR")) {
       return parseErrorRows(bytes);
@@ -204,6 +253,122 @@ function parsePayloadRows(message: string, hex: string): ProtocolPayloadRow[] {
     return [{ key: "payload_len", value: `${bytes.length}` }];
   }
   return [{ key: "payload_len", value: `${bytes.length}` }];
+}
+
+function payloadParseHex(event: ProtocolPayloadEvent) {
+  if (event.payloadPlainHex) {
+    return event.payloadPlainHex;
+  }
+  return isOuterPayloadEncrypted(event) ? "" : event.payloadHex;
+}
+
+function isOuterPayloadEncrypted(event: ProtocolPayloadEvent) {
+  if (event.payloadEncryptedHex) {
+    return true;
+  }
+  if (outerEncryptedMessages.has(event.message)) {
+    return true;
+  }
+  return event.message.startsWith("MSG_APP");
+}
+
+function buildFieldHexBlocks(fields: ProtocolPayloadField[]): ProtocolPayloadHexBlock[] {
+  const seen = new Set<string>();
+  const blocks: ProtocolPayloadHexBlock[] = [];
+  for (const field of fields) {
+    const encrypted = field.encryptedHex ?? "";
+    const plain = field.plainHex ?? "";
+    if (encrypted) {
+      const key = `${field.name}:encrypted:${cleanHex(encrypted)}`;
+      if (!seen.has(key)) {
+        seen.add(key);
+        blocks.push({
+          title: `${field.name} encrypted hex`,
+          hex: encrypted,
+          tone: "cipher",
+        });
+      }
+    }
+    if (plain) {
+      const key = `${field.name}:plain:${cleanHex(plain)}`;
+      if (!seen.has(key)) {
+        seen.add(key);
+        blocks.push({
+          title: `${field.name} plain hex`,
+          hex: plain,
+          tone: "plain",
+        });
+      }
+    }
+  }
+  return blocks;
+}
+
+function deriveEncryptedFields(message: string, hex: string): ProtocolPayloadField[] {
+  const bytes = hexToBytes(hex);
+  try {
+    if (message === "MSG_AS_REP") {
+      return deriveAsRepFields(bytes);
+    }
+    if (message === "MSG_TGS_REQ") {
+      return deriveTgsReqFields(bytes);
+    }
+    if (message === "MSG_TGS_REP") {
+      return deriveTgsRepFields(bytes);
+    }
+    if (message === "MSG_V_AUTH_REQ") {
+      return deriveVAuthReqFields(bytes);
+    }
+  } catch {
+    return [];
+  }
+  return [];
+}
+
+function deriveAsRepFields(bytes: number[]): ProtocolPayloadField[] {
+  const reader = new ByteReader(bytes);
+  reader.readBytes(8);
+  reader.readU8();
+  reader.readBytes(8);
+  reader.readBytes(8);
+  const ticketLen = reader.readU16();
+  const ticket = reader.readBytes(ticketLen);
+  return [{ name: "ticket_tgs", encryptedHex: bytesToHex(ticket) }];
+}
+
+function deriveTgsReqFields(bytes: number[]): ProtocolPayloadField[] {
+  const reader = new ByteReader(bytes);
+  reader.readU8();
+  const ticketLen = reader.readU16();
+  const ticket = reader.readBytes(ticketLen);
+  const authLen = reader.readU16();
+  const authenticator = reader.readBytes(authLen);
+  return [
+    { name: "ticket_tgs", encryptedHex: bytesToHex(ticket) },
+    { name: "authenticator_tgs", encryptedHex: bytesToHex(authenticator) },
+  ];
+}
+
+function deriveTgsRepFields(bytes: number[]): ProtocolPayloadField[] {
+  const reader = new ByteReader(bytes);
+  reader.readBytes(8);
+  reader.readU8();
+  reader.readBytes(8);
+  const ticketLen = reader.readU16();
+  const ticket = reader.readBytes(ticketLen);
+  return [{ name: "ticket_v", encryptedHex: bytesToHex(ticket) }];
+}
+
+function deriveVAuthReqFields(bytes: number[]): ProtocolPayloadField[] {
+  const reader = new ByteReader(bytes);
+  const ticketLen = reader.readU16();
+  const ticket = reader.readBytes(ticketLen);
+  const authLen = reader.readU16();
+  const authenticator = reader.readBytes(authLen);
+  return [
+    { name: "ticket_v", encryptedHex: bytesToHex(ticket) },
+    { name: "authenticator_v", encryptedHex: bytesToHex(authenticator) },
+  ];
 }
 
 function parseAsReqRows(bytes: number[]): ProtocolPayloadRow[] {
@@ -215,30 +380,67 @@ function parseAsReqRows(bytes: number[]): ProtocolPayloadRow[] {
   ];
 }
 
+function parseAsRepRows(bytes: number[]): ProtocolPayloadRow[] {
+  const reader = new ByteReader(bytes);
+  const kcTgs = reader.readU64Hex();
+  const idtgs = reader.readU8();
+  const ts2 = reader.readU64Hex();
+  const lifetime2 = reader.readU64Hex();
+  const ticketLen = reader.readU16();
+  reader.readBytes(ticketLen);
+  return [
+    { key: "kc_tgs", value: kcTgs },
+    { key: "idtgs", value: entityLabel(idtgs), tone: "kerberos" },
+    { key: "ts2", value: ts2 },
+    { key: "lifetime2", value: lifetime2 },
+    { key: "ticket_tgs", value: "encrypted field", tone: "cipher" },
+  ];
+}
+
 function parseTgsReqRows(bytes: number[]): ProtocolPayloadRow[] {
   const reader = new ByteReader(bytes);
   const idv = reader.readU8();
   const ticketLen = reader.readU16();
-  const ticket = reader.readBytes(ticketLen);
+  reader.readBytes(ticketLen);
   const authLen = reader.readU16();
-  const authenticator = reader.readBytes(authLen);
+  reader.readBytes(authLen);
   return [
     { key: "idv", value: entityLabel(idv), tone: "kerberos" },
-    { key: "ticket_tgs", value: summarizeBytes(ticket) },
-    { key: "authenticator_tgs", value: summarizeBytes(authenticator) },
+    { key: "ticket_tgs", value: "encrypted field", tone: "cipher" },
+    { key: "authenticator_tgs", value: "encrypted field", tone: "cipher" },
+  ];
+}
+
+function parseTgsRepRows(bytes: number[]): ProtocolPayloadRow[] {
+  const reader = new ByteReader(bytes);
+  const kcV = reader.readU64Hex();
+  const idv = reader.readU8();
+  const ts4 = reader.readU64Hex();
+  const ticketLen = reader.readU16();
+  reader.readBytes(ticketLen);
+  return [
+    { key: "kc_v", value: kcV },
+    { key: "idv", value: entityLabel(idv), tone: "kerberos" },
+    { key: "ts4", value: ts4 },
+    { key: "ticket_v", value: "encrypted field", tone: "cipher" },
   ];
 }
 
 function parseVAuthReqRows(bytes: number[]): ProtocolPayloadRow[] {
   const reader = new ByteReader(bytes);
   const ticketLen = reader.readU16();
-  const ticket = reader.readBytes(ticketLen);
+  reader.readBytes(ticketLen);
   const authLen = reader.readU16();
-  const authenticator = reader.readBytes(authLen);
+  reader.readBytes(authLen);
   return [
-    { key: "ticket_v", value: summarizeBytes(ticket) },
-    { key: "authenticator_v", value: summarizeBytes(authenticator) },
+    { key: "ticket_v", value: "encrypted field", tone: "cipher" },
+    { key: "authenticator_v", value: "encrypted field", tone: "cipher" },
   ];
+}
+
+function parseVAuthRepRows(bytes: number[]): ProtocolPayloadRow[] {
+  const reader = new ByteReader(bytes);
+  return [{ key: "ts5_plus_1", value: reader.readU64Hex() }];
 }
 
 function parseCertC2VRows(bytes: number[]): ProtocolPayloadRow[] {
@@ -248,6 +450,17 @@ function parseCertC2VRows(bytes: number[]): ProtocolPayloadRow[] {
   const cert = reader.readBytes(certLen);
   return [
     { key: "client_id", value: entityLabel(clientId), tone: "kerberos" },
+    { key: "cert", value: summarizeBytes(cert) },
+  ];
+}
+
+function parseCertV2CRows(bytes: number[]): ProtocolPayloadRow[] {
+  const reader = new ByteReader(bytes);
+  const vId = reader.readU8();
+  const certLen = reader.readU16();
+  const cert = reader.readBytes(certLen);
+  return [
+    { key: "v_id", value: entityLabel(vId), tone: "kerberos" },
     { key: "cert", value: summarizeBytes(cert) },
   ];
 }
@@ -353,6 +566,10 @@ function cleanHex(hex: string) {
 function summarizeBytes(bytes: number[]) {
   const shown = bytes.slice(0, 16).map(byteHex).join(" ");
   return bytes.length > 16 ? `${shown} ...` : shown;
+}
+
+function bytesToHex(bytes: number[]) {
+  return bytes.map(byteHex).join("");
 }
 
 function byteHex(value: number) {

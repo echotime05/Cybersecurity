@@ -85,6 +85,41 @@ int main()
         require(encrypted_json.find("\"payloadEncryptedHex\":\"aabbccdd\"") != std::string::npos,
                 "json encrypted payload view missing");
 
+        cyber::ProtocolPayloadView kerberos_view;
+        kerberos_view.fields.push_back(
+            {"ticket_tgs", "010203040506", "a1b2c3d4"});
+        const std::string kerberos_message = cyber::format_protocol_event_message(
+            cyber::ProtocolDirection::send, app, "MSG_TGS_REQ", "12:03:17.000",
+            kerberos_view);
+        require(kerberos_message.find("field_count=1") != std::string::npos,
+                "field count missing");
+        require(kerberos_message.find("field0_name=ticket_tgs") != std::string::npos,
+                "field name missing");
+        require(kerberos_message.find("field0_plain_hex=010203040506") != std::string::npos,
+                "field plain hex missing");
+        require(kerberos_message.find("field0_encrypted_hex=a1b2c3d4") != std::string::npos,
+                "field encrypted hex missing");
+
+        const cyber::ProtocolEvent parsed_kerberos = cyber::parse_protocol_event_line(
+            "[Client1][ProtocolMonitor][PACKET_SEND] " + kerberos_message);
+        require(parsed_kerberos.payload_fields.size() == 1U,
+                "parsed payload field count mismatch");
+        require(parsed_kerberos.payload_fields[0].name == "ticket_tgs",
+                "parsed payload field name mismatch");
+        require(parsed_kerberos.payload_fields[0].plain_hex == "010203040506",
+                "parsed payload field plain mismatch");
+        require(parsed_kerberos.payload_fields[0].encrypted_hex == "a1b2c3d4",
+                "parsed payload field encrypted mismatch");
+
+        const std::string kerberos_json = cyber::protocol_event_json(parsed_kerberos, 9);
+        require(kerberos_json.find("\"payloadFields\":[{\"name\":\"ticket_tgs\"") !=
+                    std::string::npos,
+                "json payload fields missing");
+        require(kerberos_json.find("\"plainHex\":\"010203040506\"") != std::string::npos,
+                "json field plain missing");
+        require(kerberos_json.find("\"encryptedHex\":\"a1b2c3d4\"") != std::string::npos,
+                "json field encrypted missing");
+
         const cyber::Packet error =
             cyber::make_packet(cyber::MsgType::error, cyber::EntityId::as,
                                cyber::EntityId::client1,

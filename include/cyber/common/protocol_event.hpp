@@ -5,6 +5,7 @@
 #include <cstdint>
 #include <string>
 #include <string_view>
+#include <vector>
 
 namespace cyber
 {
@@ -33,6 +34,13 @@ struct ProtocolPayloadView
 {
     std::string plain_hex;
     std::string encrypted_hex;
+    struct Field
+    {
+        std::string name;
+        std::string plain_hex;
+        std::string encrypted_hex;
+    };
+    std::vector<Field> fields;
 };
 
 struct ProtocolEvent
@@ -47,6 +55,7 @@ struct ProtocolEvent
     std::string payload_hex;
     std::string payload_plain_hex;
     std::string payload_encrypted_hex;
+    std::vector<ProtocolPayloadView::Field> payload_fields;
 };
 
 std::string protocol_timestamp_now();

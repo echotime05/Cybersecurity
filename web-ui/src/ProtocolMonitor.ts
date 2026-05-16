@@ -28,6 +28,11 @@ export type ProtocolEvent = {
   payloadHex: string;
   payloadPlainHex?: string;
   payloadEncryptedHex?: string;
+  payloadFields?: Array<{
+    name: string;
+    plainHex?: string;
+    encryptedHex?: string;
+  }>;
 };
 
 class ProtocolMonitorNetwork {
