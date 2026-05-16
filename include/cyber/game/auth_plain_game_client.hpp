@@ -47,12 +47,15 @@ private:
     EntityId self_ = EntityId::unknown;
     SocketHandle v_socket_ = 0;
     std::uint64_t kc_v_ = 0;
+    RsaKeyPair client_key_pair_;
+    RsaPublicKey v_public_key_;
     bool encrypt_app_payloads_ = false;
     State state_ = State::waiting_for_login;
     std::mutex state_mutex_;
     std::mutex send_mutex_;
     std::atomic<bool> stopping_{false};
     Logger logger_;
+    Logger ack_logger_;
     std::unique_ptr<cyber::ui::UiBridge> bridge_;
     std::thread rx_thread_;
 };

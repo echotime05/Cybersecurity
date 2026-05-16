@@ -77,6 +77,20 @@ function Wait-ForMessage {
     throw "Timed out waiting for $Description"
 }
 
+function Assert-Contains {
+    param(
+        [string]$Path,
+        [string]$Needle
+    )
+    if (-not (Test-Path -LiteralPath $Path)) {
+        throw "Missing expected log file $Path"
+    }
+    $text = Get-Content -LiteralPath $Path -Raw
+    if (-not $text.Contains($Needle)) {
+        throw "Expected $Path to contain '$Needle'"
+    }
+}
+
 $tmp = Join-Path ([System.IO.Path]::GetTempPath()) ("cyber_auth_encrypted_game_" + [Guid]::NewGuid().ToString('N'))
 New-Item -ItemType Directory -Path $tmp | Out-Null
 
@@ -164,6 +178,12 @@ try {
     if ($state.type -ne 'state') {
         throw "Expected game state after join"
     }
+
+    Start-Sleep -Milliseconds 250
+    Assert-Contains (Join-Path $tmp 'logs\client_ack.log') 'APP_NON_REPUDIATION_ACK'
+    Assert-Contains (Join-Path $tmp 'logs\client_ack.log') 'packet_hex='
+    Assert-Contains (Join-Path $tmp 'logs\v_ack.log') 'APP_NON_REPUDIATION_ACK'
+    Assert-Contains (Join-Path $tmp 'logs\v_ack.log') 'packet_hex='
 
     & (Join-Path $BuildDir 'encrypted_plaintext_rejection_client.exe') $config
     if ($LASTEXITCODE -ne 0) {

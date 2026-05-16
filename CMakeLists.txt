@@ -30,6 +30,7 @@ add_library(cyber_common
     src/common/role_runtime.cpp
     src/game/app_payload_codec.cpp
     src/game/game_protocol.cpp
+    src/game/game_non_repudiation.cpp
     src/game/game_world.cpp
     src/game/battle_room.cpp
     src/game/plain_game_server.cpp

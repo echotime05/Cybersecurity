@@ -136,28 +136,7 @@ void handle_v_auth_packet(SocketHandle socket, const Packet& request, const Conf
 void handle_cert_packet(SocketHandle socket, const Packet& request, AuthRuntime& runtime,
                         Logger& logger, const std::string& thread_name)
 {
-    const AuthSession session = runtime.v_sessions.get(request.src);
-    const CertC2VBody body =
-        parse_cert_c2v_body(des_decrypt_payload(request.payload, session.kc_v));
-    if (body.client_id != request.src)
-    {
-        throw std::runtime_error("CERT_C2V client id mismatch");
-    }
-    const Certificate client_cert = parse_certificate(body.cert);
-    if (!verify_certificate(client_cert, runtime.ca_key_pair.public_key) ||
-        client_cert.subject_id != request.src)
-    {
-        throw std::runtime_error("client certificate verification failed");
-    }
-    runtime.v_sessions.put_client_public_key(request.src, client_cert.subject_pk);
-
-    const Certificate v_cert =
-        make_certificate(EntityId::v, runtime.v_key_pair.public_key, runtime.ca_key_pair.private_key);
-    const CertV2CBody response_body{EntityId::v, serialize_certificate(v_cert)};
-    const Packet response = encrypted_packet(MsgType::cert_v2c, EntityId::v, request.src,
-                                             build_cert_v2c_body(response_body), session.kc_v);
-    logger.write("V", thread_name, "AUTH_STATE",
-                 "CERT_V2C_SENT client=" + entity_log_name(request.src));
+    const Packet response = process_cert_c2v_request(request, runtime, logger, thread_name);
     send_packet_logged(socket, response, logger, "V", thread_name);
 }
 
@@ -292,6 +271,39 @@ Packet process_v_auth_request(const Packet& request, const Config& config, AuthR
                             build_v_auth_rep_body({auth.ts + 1U}), ticket.kc_v);
 }
 
+Packet process_cert_c2v_request(const Packet& request, AuthRuntime& runtime, Logger& logger,
+                                const std::string& thread_name)
+{
+    ensure_msg(request, MsgType::cert_c2v);
+    if (!is_client(request.src))
+    {
+        throw std::runtime_error("CERT_C2V source must be a client");
+    }
+
+    const AuthSession session = runtime.v_sessions.get(request.src);
+    const CertC2VBody body =
+        parse_cert_c2v_body(des_decrypt_payload(request.payload, session.kc_v));
+    if (body.client_id != request.src)
+    {
+        throw std::runtime_error("CERT_C2V client id mismatch");
+    }
+    const Certificate client_cert = parse_certificate(body.cert);
+    if (!verify_certificate(client_cert, runtime.ca_key_pair.public_key) ||
+        client_cert.subject_id != request.src)
+    {
+        throw std::runtime_error("client certificate verification failed");
+    }
+    runtime.v_sessions.put_client_public_key(request.src, client_cert.subject_pk);
+
+    const Certificate v_cert =
+        make_certificate(EntityId::v, runtime.v_key_pair.public_key, runtime.ca_key_pair.private_key);
+    const CertV2CBody response_body{EntityId::v, serialize_certificate(v_cert)};
+    logger.write("V", thread_name, "AUTH_STATE",
+                 "CERT_V2C_SENT client=" + entity_log_name(request.src));
+    return encrypted_packet(MsgType::cert_v2c, EntityId::v, request.src,
+                            build_cert_v2c_body(response_body), session.kc_v);
+}
+
 VAuthenticatedSocket authenticate_client_to_v_socket(const Config& config, EntityId client_id,
                                                      std::uint64_t kc, Logger& logger,
                                                      const std::string& thread_name)
@@ -301,6 +313,7 @@ VAuthenticatedSocket authenticate_client_to_v_socket(const Config& config, Entit
     state.adc = kDefaultAdc;
     state.kc = kc;
     state.client_key_pair = demo_rsa_key_pair_for(client_id);
+    const AuthRuntime cert_runtime = make_auth_runtime(config);
 
     const std::uint64_t ts1 = now_ms();
     const Packet as_req =
@@ -349,6 +362,28 @@ VAuthenticatedSocket authenticate_client_to_v_socket(const Config& config, Entit
             throw std::runtime_error("V_AUTH TS5+1 check failed");
         }
         logger.write("Client", thread_name, "AUTH_STATE", "V_AUTH_OK");
+
+        const Certificate client_cert =
+            make_certificate(state.client_id, state.client_key_pair.public_key,
+                             cert_runtime.ca_key_pair.private_key);
+        const CertC2VBody cert_body{state.client_id, serialize_certificate(client_cert)};
+        const Packet cert_req =
+            encrypted_packet(MsgType::cert_c2v, state.client_id, EntityId::v,
+                             build_cert_c2v_body(cert_body), state.kc_v);
+        send_packet_logged(socket, cert_req, logger, "Client", thread_name);
+        const Packet cert_rep = recv_packet_logged(socket, logger, "Client", thread_name);
+        ensure_msg(cert_rep, MsgType::cert_v2c);
+        const CertV2CBody cert_v =
+            parse_cert_v2c_body(des_decrypt_payload(cert_rep.payload, state.kc_v));
+        const Certificate v_cert = parse_certificate(cert_v.cert);
+        if (cert_v.v_id != EntityId::v ||
+            !verify_certificate(v_cert, cert_runtime.ca_key_pair.public_key) ||
+            v_cert.subject_id != EntityId::v)
+        {
+            throw std::runtime_error("V certificate verification failed");
+        }
+        state.v_public_key = v_cert.subject_pk;
+        logger.write("Client", thread_name, "AUTH_STATE", "AUTH_DONE");
         return {state, socket};
     }
     catch (const std::exception&)

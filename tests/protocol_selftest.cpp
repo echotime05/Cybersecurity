@@ -55,14 +55,17 @@ int main()
         require(!cyber::is_known(static_cast<cyber::MsgType>(0xEE)),
                 "unknown msg type unexpectedly recognized");
 
-        const std::array<cyber::AppCode, 8> app_codes = {
+        const std::array<cyber::AppCode, 12> app_codes = {
             cyber::AppCode::key_down,      cyber::AppCode::key_up,
             cyber::AppCode::aim_event,     cyber::AppCode::fire_event,
             cyber::AppCode::game_join_req, cyber::AppCode::game_start,
-            cyber::AppCode::game_state,    cyber::AppCode::app_ack};
-        const std::array<std::string, 8> app_names = {
+            cyber::AppCode::game_state,    cyber::AppCode::app_ack,
+            cyber::AppCode::game_move,     cyber::AppCode::game_target,
+            cyber::AppCode::game_shoot,    cyber::AppCode::game_name};
+        const std::array<std::string, 12> app_names = {
             "KEY_DOWN", "KEY_UP", "AIM_EVENT", "FIRE_EVENT", "GAME_JOIN_REQ",
-            "GAME_START", "GAME_STATE", "APP_ACK"};
+            "GAME_START", "GAME_STATE", "APP_ACK", "GAME_MOVE", "GAME_TARGET",
+            "GAME_SHOOT", "GAME_NAME"};
         for (std::size_t i = 0; i < app_codes.size(); ++i)
         {
             require(cyber::is_known(app_codes[i]), "known app code not recognized");

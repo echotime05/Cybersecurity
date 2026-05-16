@@ -35,15 +35,17 @@ private:
         SocketHandle socket = 0;
         EntityId client_id = EntityId::unknown;
         std::uint64_t kc_v = 0;
+        RsaPublicKey client_public_key;
     };
 
     void accept_loop();
     void client_loop(SocketHandle socket, std::string peer);
     void game_loop();
     void broadcast(const BattleStateSnapshot& snapshot);
-    void handle_packet(SocketHandle socket, const Packet& packet, std::uint64_t kc_v);
+    void handle_packet(SocketHandle socket, const Packet& packet, std::uint64_t kc_v,
+                       const RsaPublicKey& client_public_key);
     bool authenticate_socket(SocketHandle socket, const std::string& peer, EntityId& client_id,
-                             std::uint64_t& kc_v);
+                             std::uint64_t& kc_v, RsaPublicKey& client_public_key);
     void join_client_threads();
 
     TcpEndpoint endpoint_;
@@ -58,5 +60,6 @@ private:
     std::vector<std::thread> client_threads_;
     BattleRoom room_;
     Logger logger_;
+    Logger ack_logger_;
 };
 } // namespace cyber::game

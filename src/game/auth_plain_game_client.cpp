@@ -3,6 +3,7 @@
 #include "cyber/common/auth_credentials.hpp"
 #include "cyber/common/net_packet.hpp"
 #include "cyber/game/app_payload_codec.hpp"
+#include "cyber/game/game_non_repudiation.hpp"
 
 #include <filesystem>
 #include <iostream>
@@ -16,7 +17,8 @@ AuthPlainGameClient::AuthPlainGameClient(Config config, std::uint16_t ui_port,
     : config_(std::move(config)),
       ui_port_(ui_port),
       encrypt_app_payloads_(encrypt_app_payloads),
-      logger_(std::filesystem::path("logs") / "client_game.log")
+      logger_(std::filesystem::path("logs") / "client_game.log"),
+      ack_logger_(std::filesystem::path("logs") / "client_ack.log")
 {
 }
 
@@ -105,6 +107,8 @@ void AuthPlainGameClient::handle_login(const cyber::ui::UiCommand& command)
             std::lock_guard<std::mutex> lock(state_mutex_);
             self_ = command.client_id;
             kc_v_ = auth.state.kc_v;
+            client_key_pair_ = auth.state.client_key_pair;
+            v_public_key_ = auth.state.v_public_key;
             v_socket_ = auth.socket;
             state_ = State::authenticated;
         }
@@ -120,6 +124,8 @@ void AuthPlainGameClient::handle_login(const cyber::ui::UiCommand& command)
         {
             std::lock_guard<std::mutex> lock(state_mutex_);
             kc_v_ = 0;
+            client_key_pair_ = {};
+            v_public_key_ = {};
             state_ = State::waiting_for_login;
         }
         bridge_->broadcast_text(cyber::ui::login_state_json(
@@ -162,9 +168,9 @@ void AuthPlainGameClient::send_game_message(GameMsgType type, const Bytes& paylo
     {
         return;
     }
-    const Bytes message = build_game_message({type, payload});
-    const Bytes wire_payload = encode_app_payload(message, kc_v_, encrypt_app_payloads_);
-    const Packet packet = make_packet(MsgType::app, self_, EntityId::v, wire_payload);
+    const Packet packet =
+        build_signed_game_packet(self_, EntityId::v, type, payload, kc_v_, encrypt_app_payloads_,
+                                 client_key_pair_.private_key);
     send_packet_logged(v_socket_, packet, logger_, "Client", "AuthPlainGameTx");
 }
 
@@ -180,9 +186,27 @@ void AuthPlainGameClient::receive_loop()
             {
                 continue;
             }
-            const Bytes plain_payload =
-                decode_app_payload(packet.payload, kc_v_, encrypt_app_payloads_);
-            const GameMessage message = parse_game_message(plain_payload);
+            const SignedAppPayload signed_payload =
+                decode_signed_app_packet(packet, kc_v_, encrypt_app_payloads_);
+            if (signed_payload.app_code == AppCode::app_ack)
+            {
+                (void)parse_verified_ack_payload(signed_payload, v_public_key_);
+                log_verified_ack_packet(ack_logger_, "Client", "AuthPlainGameRx", packet);
+                continue;
+            }
+
+            const GameMessage message =
+                parse_verified_game_message(signed_payload, v_public_key_);
+            const Packet ack = build_signed_ack_packet(packet, signed_payload, self_, EntityId::v,
+                                                       kc_v_, encrypt_app_payloads_,
+                                                       client_key_pair_.private_key);
+            {
+                std::lock_guard<std::mutex> lock(send_mutex_);
+                if (v_socket_ != 0)
+                {
+                    send_packet_logged(v_socket_, ack, logger_, "Client", "AuthPlainGameAck");
+                }
+            }
             if (message.type == GameMsgType::state && bridge_)
             {
                 bridge_->broadcast_state(parse_state(message.payload));

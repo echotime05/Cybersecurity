@@ -14,7 +14,8 @@ state and broadcasts snapshots back to clients.
 
 ## Supported Runtime
 
-The public runtime uses Kerberos authentication plus encrypted game payloads:
+The public runtime uses Kerberos authentication, encrypted game payloads, and
+application-level non-repudiation:
 
 ```text
 as_server.exe --serve
@@ -25,6 +26,24 @@ client.exe --game-auth-encrypted --ui-port 7001
 
 Additional non-deployment modes are kept only for internal tests. Do not use
 them for normal deployment.
+
+## Security Model
+
+`--game-auth-encrypted` runs the complete application chain:
+
+1. `client.exe` obtains `Kc_tgs` from AS.
+2. `client.exe` obtains `Kc_v` and `Ticket_v` from TGS.
+3. `client.exe` authenticates to V and completes the client/V certificate
+   exchange.
+4. Client-to-V and V-to-client game `MSG_APP` payloads are signed and encrypted
+   with `Kc_v`.
+5. Every non-ACK game packet is acknowledged by the receiver with a signed and
+   encrypted `APP_ACK`. ACK packets are evidence only and are not acknowledged
+   again.
+
+The browser UI connection is local development traffic between the browser and
+`client.exe`; it is not encrypted. Security is applied on the C++ client-to-V
+game channel.
 
 ## Prerequisites
 
@@ -207,9 +226,16 @@ logs/as.log
 logs/tgs.log
 logs/v_game.log
 logs/client_game.log
+logs/v_ack.log
+logs/client_ack.log
 logs/runtime/*.out
 logs/runtime/*.err
 ```
+
+`logs/v_ack.log` and `logs/client_ack.log` are the non-repudiation evidence
+logs. Each verified ACK is recorded as `APP_NON_REPUDIATION_ACK packet_hex=...`,
+where `packet_hex` is the complete ACK packet including header and encrypted
+signed payload.
 
 ## Project Layout
 
