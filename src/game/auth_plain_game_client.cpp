@@ -13,6 +13,24 @@
 
 namespace cyber::game
 {
+namespace
+{
+ProtocolPayloadView app_payload_view(const Packet& packet, std::uint64_t kc_v, bool encrypted)
+{
+    ProtocolPayloadView view;
+    if (encrypted)
+    {
+        view.plain_hex = bytes_to_hex(decode_app_payload(packet.payload, kc_v, true));
+        view.encrypted_hex = bytes_to_hex(packet.payload);
+    }
+    else
+    {
+        view.plain_hex = bytes_to_hex(packet.payload);
+    }
+    return view;
+}
+} // namespace
+
 AuthPlainGameClient::AuthPlainGameClient(Config config, std::uint16_t ui_port,
                                          bool encrypt_app_payloads)
     : config_(std::move(config)),
@@ -174,7 +192,8 @@ void AuthPlainGameClient::send_game_message(GameMsgType type, const Bytes& paylo
                                  client_key_pair_.private_key);
     send_packet_logged(v_socket_, packet, logger_, "Client", "AuthPlainGameTx");
     write_protocol_event(ProtocolDirection::send, packet,
-                         protocol_app_message(app_code_for_game_message_type(type)));
+                         protocol_app_message(app_code_for_game_message_type(type)),
+                         app_payload_view(packet, kc_v_, encrypt_app_payloads_));
 }
 
 void AuthPlainGameClient::receive_loop()
@@ -194,7 +213,8 @@ void AuthPlainGameClient::receive_loop()
             if (signed_payload.app_code == AppCode::app_ack)
             {
                 write_protocol_event(ProtocolDirection::recv, packet,
-                                     protocol_app_message(AppCode::app_ack));
+                                     protocol_app_message(AppCode::app_ack),
+                                     app_payload_view(packet, kc_v_, encrypt_app_payloads_));
                 (void)parse_verified_ack_payload(signed_payload, v_public_key_);
                 log_verified_ack_packet(ack_logger_, "Client", "AuthPlainGameRx", packet);
                 continue;
@@ -203,7 +223,8 @@ void AuthPlainGameClient::receive_loop()
             const GameMessage message =
                 parse_verified_game_message(signed_payload, v_public_key_);
             write_protocol_event(ProtocolDirection::recv, packet,
-                                 protocol_app_message(signed_payload.app_code));
+                                 protocol_app_message(signed_payload.app_code),
+                                 app_payload_view(packet, kc_v_, encrypt_app_payloads_));
             const Packet ack = build_signed_ack_packet(packet, signed_payload, self_, EntityId::v,
                                                        kc_v_, encrypt_app_payloads_,
                                                        client_key_pair_.private_key);
@@ -213,7 +234,8 @@ void AuthPlainGameClient::receive_loop()
                 {
                     send_packet_logged(v_socket_, ack, logger_, "Client", "AuthPlainGameAck");
                     write_protocol_event(ProtocolDirection::send, ack,
-                                         protocol_app_message(AppCode::app_ack));
+                                         protocol_app_message(AppCode::app_ack),
+                                         app_payload_view(ack, kc_v_, encrypt_app_payloads_));
                 }
             }
             if (message.type == GameMsgType::state && bridge_)

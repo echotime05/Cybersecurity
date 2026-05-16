@@ -26,6 +26,21 @@ std::uint64_t now_system_ms()
             std::chrono::system_clock::now().time_since_epoch())
             .count());
 }
+
+ProtocolPayloadView app_payload_view(const Packet& packet, std::uint64_t kc_v, bool encrypted)
+{
+    ProtocolPayloadView view;
+    if (encrypted)
+    {
+        view.plain_hex = bytes_to_hex(decode_app_payload(packet.payload, kc_v, true));
+        view.encrypted_hex = bytes_to_hex(packet.payload);
+    }
+    else
+    {
+        view.plain_hex = bytes_to_hex(packet.payload);
+    }
+    return view;
+}
 } // namespace
 
 PlainGameServer::PlainGameServer(TcpEndpoint endpoint)
@@ -221,20 +236,23 @@ void PlainGameServer::handle_packet(SocketHandle socket, const Packet& packet,
         {
             (void)parse_verified_ack_payload(signed_payload, client_public_key);
             write_protocol_event(ProtocolDirection::recv, packet,
-                                 protocol_app_message(AppCode::app_ack));
+                                 protocol_app_message(AppCode::app_ack),
+                                 app_payload_view(packet, kc_v, encrypt_app_payloads_));
             log_verified_ack_packet(ack_logger_, "V", "PlainClient", packet);
             return;
         }
 
         message = parse_verified_game_message(signed_payload, client_public_key);
         write_protocol_event(ProtocolDirection::recv, packet,
-                             protocol_app_message(signed_payload.app_code));
+                             protocol_app_message(signed_payload.app_code),
+                             app_payload_view(packet, kc_v, encrypt_app_payloads_));
         const Packet ack = build_signed_ack_packet(packet, signed_payload, EntityId::v,
                                                    packet.src, kc_v, encrypt_app_payloads_,
                                                    auth_runtime_.v_key_pair.private_key);
         send_packet_logged(socket, ack, logger_, "V", "PlainClientAck");
         write_protocol_event(ProtocolDirection::send, ack,
-                             protocol_app_message(AppCode::app_ack));
+                             protocol_app_message(AppCode::app_ack),
+                             app_payload_view(ack, kc_v, encrypt_app_payloads_));
     }
     else
     {
@@ -242,7 +260,8 @@ void PlainGameServer::handle_packet(SocketHandle socket, const Packet& packet,
             decode_app_payload(packet.payload, kc_v, encrypt_app_payloads_);
         message = parse_game_message(plain_payload);
         write_protocol_event(ProtocolDirection::recv, packet,
-                             protocol_app_message(app_code_for_game_message_type(message.type)));
+                             protocol_app_message(app_code_for_game_message_type(message.type)),
+                             app_payload_view(packet, kc_v, encrypt_app_payloads_));
     }
 
     const std::uint64_t now_ms = now_system_ms();
@@ -388,7 +407,8 @@ void PlainGameServer::broadcast(const BattleStateSnapshot& snapshot)
             }
             send_packet_logged(target.socket, packet, logger_, "V", "PlainGameLoop");
             write_protocol_event(ProtocolDirection::send, packet,
-                                 protocol_app_message(AppCode::game_state));
+                                 protocol_app_message(AppCode::game_state),
+                                 app_payload_view(packet, target.kc_v, encrypt_app_payloads_));
         }
         catch (const std::exception& ex)
         {

@@ -29,6 +29,12 @@ struct ProtocolHeaderView
     ProtocolFieldView reserved;
 };
 
+struct ProtocolPayloadView
+{
+    std::string plain_hex;
+    std::string encrypted_hex;
+};
+
 struct ProtocolEvent
 {
     std::string role;
@@ -39,15 +45,24 @@ struct ProtocolEvent
     std::string category;
     ProtocolHeaderView header;
     std::string payload_hex;
+    std::string payload_plain_hex;
+    std::string payload_encrypted_hex;
 };
 
 std::string protocol_timestamp_now();
 std::string format_protocol_event_message(ProtocolDirection direction, const Packet& packet,
                                           std::string_view message_override = {},
                                           std::string_view timestamp_override = {});
+std::string format_protocol_event_message(ProtocolDirection direction, const Packet& packet,
+                                          std::string_view message_override,
+                                          std::string_view timestamp_override,
+                                          const ProtocolPayloadView& payload_view);
 ProtocolEvent parse_protocol_event_line(const std::string& line);
 std::string protocol_event_json(const ProtocolEvent& event, std::uint64_t id);
 void write_protocol_event(ProtocolDirection direction, const Packet& packet,
                           std::string_view message_override = {});
+void write_protocol_event(ProtocolDirection direction, const Packet& packet,
+                          std::string_view message_override,
+                          const ProtocolPayloadView& payload_view);
 std::string protocol_app_message(AppCode code);
 } // namespace cyber

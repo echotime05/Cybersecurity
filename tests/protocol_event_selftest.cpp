@@ -61,6 +61,30 @@ int main()
         require(json.find("\"payloadHex\":\"aabb\"") != std::string::npos,
                 "json payload missing");
 
+        cyber::ProtocolPayloadView payload_view;
+        payload_view.plain_hex = "010203";
+        payload_view.encrypted_hex = "aabbccdd";
+        const std::string encrypted_message = cyber::format_protocol_event_message(
+            cyber::ProtocolDirection::send, app, "MSG_APP.GAME_MOVE", "12:03:15.045",
+            payload_view);
+        require(encrypted_message.find("payload_plain_hex=010203") != std::string::npos,
+                "plain payload view missing");
+        require(encrypted_message.find("payload_encrypted_hex=aabbccdd") != std::string::npos,
+                "encrypted payload view missing");
+
+        const cyber::ProtocolEvent parsed_encrypted = cyber::parse_protocol_event_line(
+            "[Client1][ProtocolMonitor][PACKET_SEND] " + encrypted_message);
+        require(parsed_encrypted.payload_plain_hex == "010203",
+                "parsed plain payload view mismatch");
+        require(parsed_encrypted.payload_encrypted_hex == "aabbccdd",
+                "parsed encrypted payload view mismatch");
+
+        const std::string encrypted_json = cyber::protocol_event_json(parsed_encrypted, 8);
+        require(encrypted_json.find("\"payloadPlainHex\":\"010203\"") != std::string::npos,
+                "json plain payload view missing");
+        require(encrypted_json.find("\"payloadEncryptedHex\":\"aabbccdd\"") != std::string::npos,
+                "json encrypted payload view missing");
+
         const cyber::Packet error =
             cyber::make_packet(cyber::MsgType::error, cyber::EntityId::as,
                                cyber::EntityId::client1,

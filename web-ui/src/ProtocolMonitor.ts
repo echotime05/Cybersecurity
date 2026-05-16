@@ -1,3 +1,5 @@
+import { buildProtocolPayloadView, formatHexString, type ProtocolPayloadRow } from "./protocolPayload";
+
 type ProtocolCategory = "app" | "kerberos" | "error";
 
 type ProtocolField = {
@@ -24,6 +26,8 @@ export type ProtocolEvent = {
   category: ProtocolCategory;
   header: ProtocolHeader;
   payloadHex: string;
+  payloadPlainHex?: string;
+  payloadEncryptedHex?: string;
 };
 
 class ProtocolMonitorNetwork {
@@ -49,16 +53,24 @@ class ProtocolMonitorNetwork {
 
 export class ProtocolMonitorUi {
   private readonly network: ProtocolMonitorNetwork;
-  private readonly events: ProtocolEvent[] = [];
-  private readonly maxEvents = 500;
+  private readonly eventsByRole = new Map<string, ProtocolEvent[]>();
+  private readonly noisyEventsByRole = new Map<string, ProtocolEvent[]>();
+  private readonly seenRoles = new Set<string>();
+  private readonly maxEventsPerRole = 500;
+  private readonly maxNoisyEventsPerRole = 120;
 
   private selectedId?: number;
   private activeRole = "All";
   private connected = false;
+  private paused = false;
+  private showNoisy = false;
+  private pendingRender = false;
 
   private readonly gameTab = document.getElementById("tab-game") as HTMLButtonElement;
   private readonly protocolTab = document.getElementById("tab-protocol") as HTMLButtonElement;
   private readonly panel = document.getElementById("protocol-panel")!;
+  private readonly pauseButton = document.getElementById("protocol-pause") as HTMLButtonElement;
+  private readonly noisyButton = document.getElementById("protocol-noisy") as HTMLButtonElement;
   private readonly filtersEl = document.getElementById("protocol-filters")!;
   private readonly eventsEl = document.getElementById("protocol-events")!;
   private readonly titleEl = document.getElementById("protocol-title")!;
@@ -66,6 +78,7 @@ export class ProtocolMonitorUi {
   private readonly selectedEl = document.getElementById("protocol-selected")!;
   private readonly headerGridEl = document.getElementById("protocol-header-grid")!;
   private readonly payloadEl = document.getElementById("protocol-payload")!;
+  private readonly payloadHexEl = document.getElementById("protocol-payload-hex")!;
 
   constructor(monitorUrl: string) {
     this.network = new ProtocolMonitorNetwork(monitorUrl);
@@ -76,6 +89,8 @@ export class ProtocolMonitorUi {
     };
     this.gameTab.addEventListener("click", () => this.setVisible(false));
     this.protocolTab.addEventListener("click", () => this.setVisible(true));
+    this.pauseButton.addEventListener("click", () => this.togglePause());
+    this.noisyButton.addEventListener("click", () => this.toggleNoisy());
     this.render();
   }
 
@@ -95,19 +110,42 @@ export class ProtocolMonitorUi {
   }
 
   private addEvent(event: ProtocolEvent) {
-    this.events.push(event);
-    if (this.events.length > this.maxEvents) {
-      this.events.shift();
+    this.seenRoles.add(event.role);
+    const buffer = this.isNoisy(event) ? this.noisyBufferFor(event.role) : this.bufferFor(event.role);
+    buffer.push(event);
+    const max = this.isNoisy(event) ? this.maxNoisyEventsPerRole : this.maxEventsPerRole;
+    if (buffer.length > max) {
+      buffer.shift();
     }
-    this.selectedId = event.id;
+
+    const eventIsVisible = this.eventMatchesCurrentView(event);
+    if (!this.paused && eventIsVisible) {
+      this.selectedId = event.id;
+    }
+    if (this.paused) {
+      this.pendingRender = true;
+      return;
+    }
+    if (!eventIsVisible && this.selectedId !== undefined) {
+      return;
+    }
     this.render();
   }
 
   private filteredEvents() {
-    if (this.activeRole === "All") {
-      return this.events;
+    const roles =
+      this.activeRole === "All" ? Array.from(this.seenRoles) : [this.activeRole];
+    const events = roles.flatMap((role) => this.eventsForRole(role));
+    events.sort((a, b) => a.id - b.id);
+    return events;
+  }
+
+  private eventsForRole(role: string) {
+    const normal = this.eventsByRole.get(role) ?? [];
+    if (!this.showNoisy) {
+      return normal;
     }
-    return this.events.filter((event) => event.role === this.activeRole);
+    return [...normal, ...(this.noisyEventsByRole.get(role) ?? [])];
   }
 
   private render() {
@@ -117,10 +155,13 @@ export class ProtocolMonitorUi {
   }
 
   private renderFilters() {
-    const roles = ["All", ...Array.from(new Set(this.events.map((event) => event.role))).sort()];
+    const roles = ["All", ...Array.from(this.seenRoles).sort()];
     if (!roles.includes(this.activeRole)) {
       this.activeRole = "All";
     }
+    this.pauseButton.textContent = this.paused ? "Resume" : "Pause";
+    this.pauseButton.classList.toggle("active", this.paused);
+    this.noisyButton.classList.toggle("active", this.showNoisy);
 
     this.filtersEl.replaceChildren(
       ...roles.map((role) => {
@@ -176,13 +217,14 @@ export class ProtocolMonitorUi {
 
   private renderDetail() {
     const selected =
-      this.events.find((event) => event.id === this.selectedId) ?? this.latestFilteredEvent();
+      this.findVisibleEvent(this.selectedId) ?? this.latestFilteredEvent();
     if (!selected) {
       this.titleEl.textContent = this.connected ? "" : "Monitor disconnected";
       this.metaEl.textContent = "";
       this.selectedEl.textContent = "";
       this.headerGridEl.replaceChildren();
-      this.payloadEl.textContent = "";
+      this.payloadEl.replaceChildren();
+      this.payloadHexEl.replaceChildren();
       return;
     }
 
@@ -198,7 +240,7 @@ export class ProtocolMonitorUi {
       this.headerCell("PAYLOAD_LEN", selected.header.payloadLen),
       this.headerCell("RESERVED", selected.header.reserved)
     );
-    this.payloadEl.textContent = this.formatPayload(selected.payloadHex);
+    this.renderPayload(selected);
   }
 
   private headerCell(name: string, field: ProtocolField) {
@@ -223,12 +265,104 @@ export class ProtocolMonitorUi {
     return endpoint.replace("->", " -> ");
   }
 
-  private formatPayload(payloadHex: string) {
-    return payloadHex.match(/.{1,2}/g)?.join(" ") ?? "";
-  }
-
   private categoryClass(category: ProtocolCategory) {
     return `protocol-category-${category}`;
+  }
+
+  private renderPayload(event: ProtocolEvent) {
+    const view = buildProtocolPayloadView(event);
+    this.payloadEl.replaceChildren(
+      ...view.rows.map((row) => this.payloadRow(row))
+    );
+
+    this.payloadHexEl.className =
+      view.hexBlocks.length === 1 ? "protocol-hex-grid single" : "protocol-hex-grid";
+    this.payloadHexEl.replaceChildren(
+      ...view.hexBlocks.map((block) => {
+        const box = document.createElement("div");
+        box.className = "protocol-hex-box";
+
+        const title = document.createElement("div");
+        title.className = `protocol-hex-head protocol-tone-${block.tone}`;
+        title.textContent = block.title;
+
+        const body = document.createElement("div");
+        body.className = `protocol-hex-body protocol-tone-${block.tone}`;
+        body.textContent = formatHexString(block.hex);
+
+        box.append(title, body);
+        return box;
+      })
+    );
+  }
+
+  private payloadRow(row: ProtocolPayloadRow) {
+    const key = document.createElement("div");
+    key.className = "protocol-payload-key";
+    key.textContent = row.key;
+
+    const value = document.createElement("div");
+    value.className = `protocol-payload-value${row.tone ? ` protocol-tone-${row.tone}` : ""}`;
+    value.textContent = row.value;
+
+    const fragment = document.createDocumentFragment();
+    fragment.append(key, value);
+    return fragment;
+  }
+
+  private togglePause() {
+    this.paused = !this.paused;
+    if (!this.paused && this.pendingRender) {
+      this.selectedId = this.latestFilteredEvent()?.id;
+      this.pendingRender = false;
+    }
+    this.render();
+  }
+
+  private toggleNoisy() {
+    this.showNoisy = !this.showNoisy;
+    this.selectedId = this.latestFilteredEvent()?.id;
+    this.render();
+  }
+
+  private bufferFor(role: string) {
+    let buffer = this.eventsByRole.get(role);
+    if (!buffer) {
+      buffer = [];
+      this.eventsByRole.set(role, buffer);
+    }
+    return buffer;
+  }
+
+  private noisyBufferFor(role: string) {
+    let buffer = this.noisyEventsByRole.get(role);
+    if (!buffer) {
+      buffer = [];
+      this.noisyEventsByRole.set(role, buffer);
+    }
+    return buffer;
+  }
+
+  private eventMatchesCurrentView(event: ProtocolEvent) {
+    if (this.activeRole !== "All" && event.role !== this.activeRole) {
+      return false;
+    }
+    return this.showNoisy || !this.isNoisy(event);
+  }
+
+  private isNoisy(event: ProtocolEvent) {
+    return (
+      event.message === "MSG_APP.GAME_STATE" ||
+      event.message === "MSG_APP.APP_ACK" ||
+      event.message === "MSG_APP.GAME_TARGET"
+    );
+  }
+
+  private findVisibleEvent(id?: number) {
+    if (id === undefined) {
+      return undefined;
+    }
+    return this.filteredEvents().find((event) => event.id === id);
   }
 
   private latestFilteredEvent() {

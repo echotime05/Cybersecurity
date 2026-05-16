@@ -247,7 +247,9 @@
       padding: 12px 12px 0 12px; overflow: hidden;
       display: flex; flex-direction: column;
     }
-    #protocol-filters { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 10px; }
+    #protocol-controls, #protocol-filters {
+      display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 10px;
+    }
     .protocol-filter {
       height: 30px; padding: 0 9px; cursor: pointer;
       color: #c7e5ff; background: #081524; border: 1px solid #395d7b;
@@ -278,10 +280,10 @@
       display: flex; align-items: start; justify-content: space-between; gap: 16px;
       margin-bottom: 26px;
     }
-    #protocol-title { font-size: 24px; font-weight: 800; margin-bottom: 8px; }
-    #protocol-meta { font-size: 16px; color: #a7d6ff; line-height: 1.5; }
-    #protocol-selected { color: #9ddcff; border: 1px solid #226fff; padding: 8px 10px; font-size: 13px; }
-    .protocol-section-title { font-size: 22px; font-weight: 800; margin: 0 0 16px 0; }
+    #protocol-title { font-size: 28px; font-weight: 800; margin-bottom: 10px; }
+    #protocol-meta { font-size: 18px; color: #a7d6ff; line-height: 1.5; }
+    #protocol-selected { color: #9ddcff; border: 1px solid #226fff; padding: 8px 10px; font-size: 15px; }
+    .protocol-section-title { font-size: 24px; font-weight: 800; margin: 0 0 16px 0; }
     .protocol-bit-row {
       display: grid; grid-template-columns: 1fr 1fr 1fr 4fr 4fr;
       color: #8fc9ff; font-size: 14px; margin-bottom: 6px;
@@ -296,13 +298,34 @@
       background: #10243a; border-right: 1px solid #78a7d0; text-align: center;
     }
     .protocol-header-cell:last-child { border-right: 0; }
-    .field-name { color: #65d6ff; font-size: 13px; font-weight: 700; margin-bottom: 10px; }
-    .field-label { color: #f2fbff; font-size: 21px; font-weight: 800; margin-bottom: 10px; }
+    .field-name { color: #65d6ff; font-size: 14px; font-weight: 700; margin-bottom: 10px; }
+    .field-label { color: #f2fbff; font-size: 22px; font-weight: 800; margin-bottom: 10px; }
     .field-raw { color: #a7d6ff; font-size: 16px; }
     #protocol-payload {
-      min-height: 160px; border: 1px solid #78a7d0; background: #102033;
-      padding: 22px; color: #b9dcff; font-size: 17px; line-height: 1.75;
-      white-space: pre-wrap; overflow-wrap: anywhere;
+      min-height: 110px; border: 1px solid #78a7d0; background: #102033;
+      padding: 18px; margin-bottom: 24px; color: #b9dcff; font-size: 17px; line-height: 1.55;
+      display: grid; grid-template-columns: 150px minmax(0, 1fr); gap: 9px 12px;
+    }
+    .protocol-payload-key { color: #8ea7bd; overflow-wrap: anywhere; }
+    .protocol-payload-value { color: #eaf6ff; overflow-wrap: anywhere; }
+    .protocol-tone-app { color: #74f0a2; }
+    .protocol-tone-kerberos { color: #ffe17a; }
+    .protocol-tone-error { color: #ff8f86; }
+    .protocol-tone-plain { color: #8fe6b2; }
+    .protocol-tone-cipher { color: #ffcf75; }
+    .protocol-hex-grid {
+      display: grid; grid-template-columns: 1fr 1fr; gap: 12px;
+    }
+    .protocol-hex-grid.single { grid-template-columns: 1fr; }
+    .protocol-hex-box {
+      min-width: 0; border: 1px solid #456d8f; background: #0b1d30;
+    }
+    .protocol-hex-head {
+      padding: 12px 14px; background: #0f2943; font-weight: 800; font-size: 17px;
+    }
+    .protocol-hex-body {
+      padding: 16px; min-height: 130px; line-height: 1.75; font-size: 17px;
+      overflow-wrap: anywhere;
     }
 
     @media (max-width: 900px) {
@@ -324,6 +347,10 @@
 
     <div id="protocol-panel" class="hidden">
       <aside id="protocol-sidebar">
+        <div id="protocol-controls">
+          <button id="protocol-pause" class="protocol-filter" type="button">Pause</button>
+          <button id="protocol-noisy" class="protocol-filter" type="button">Noisy</button>
+        </div>
         <div id="protocol-filters"></div>
         <div id="protocol-events"></div>
       </aside>
@@ -341,7 +368,9 @@
         </div>
         <div id="protocol-header-grid" class="protocol-header-grid"></div>
         <div class="protocol-section-title">Payload</div>
-        <pre id="protocol-payload"></pre>
+        <div id="protocol-payload"></div>
+        <div class="protocol-section-title">Payload Hex</div>
+        <div id="protocol-payload-hex" class="protocol-hex-grid single"></div>
       </section>
     </div>
 

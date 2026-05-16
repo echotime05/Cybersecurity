@@ -204,6 +204,8 @@ try {
     Assert-DirectoryContains (Join-Path $tmp 'logs\protocol_events') 'message=MSG_AS_REQ'
     Assert-DirectoryContains (Join-Path $tmp 'logs\protocol_events') 'message=MSG_APP.GAME_JOIN_REQ'
     Assert-DirectoryContains (Join-Path $tmp 'logs\protocol_events') 'message=MSG_APP.GAME_STATE'
+    Assert-DirectoryContains (Join-Path $tmp 'logs\protocol_events') 'payload_plain_hex='
+    Assert-DirectoryContains (Join-Path $tmp 'logs\protocol_events') 'payload_encrypted_hex='
 
     & (Join-Path $BuildDir 'encrypted_plaintext_rejection_client.exe') $config
     if ($LASTEXITCODE -ne 0) {

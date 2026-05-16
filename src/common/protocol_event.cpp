@@ -228,6 +228,15 @@ std::string format_protocol_event_message(ProtocolDirection direction, const Pac
                                           std::string_view message_override,
                                           std::string_view timestamp_override)
 {
+    return format_protocol_event_message(direction, packet, message_override, timestamp_override,
+                                         {});
+}
+
+std::string format_protocol_event_message(ProtocolDirection direction, const Packet& packet,
+                                          std::string_view message_override,
+                                          std::string_view timestamp_override,
+                                          const ProtocolPayloadView& payload_view)
+{
     const PacketHeader header = packet_header(packet);
     const std::string timestamp =
         timestamp_override.empty() ? protocol_timestamp_now() : std::string(timestamp_override);
@@ -249,6 +258,14 @@ std::string format_protocol_event_message(ProtocolDirection direction, const Pac
         << " payload_len_raw=" << hex_u32(header.payload_len)
         << " reserved=" << header.reserved << " reserved_raw=" << hex_u32(header.reserved)
         << " payload_hex=" << bytes_to_hex(packet.payload);
+    if (!payload_view.plain_hex.empty())
+    {
+        oss << " payload_plain_hex=" << payload_view.plain_hex;
+    }
+    if (!payload_view.encrypted_hex.empty())
+    {
+        oss << " payload_encrypted_hex=" << payload_view.encrypted_hex;
+    }
     return oss.str();
 }
 
@@ -293,6 +310,14 @@ ProtocolEvent parse_protocol_event_line(const std::string& line)
     event.header.reserved = {required_value(values, "reserved"),
                              required_value(values, "reserved_raw")};
     event.payload_hex = required_value(values, "payload_hex");
+    if (const auto it = values.find("payload_plain_hex"); it != values.end())
+    {
+        event.payload_plain_hex = it->second;
+    }
+    if (const auto it = values.find("payload_encrypted_hex"); it != values.end())
+    {
+        event.payload_encrypted_hex = it->second;
+    }
     return event;
 }
 
@@ -314,12 +339,21 @@ std::string protocol_event_json(const ProtocolEvent& event, std::uint64_t id)
         << ",\"dst\":" << field_json(event.header.dst)
         << ",\"payloadLen\":" << field_json(event.header.payload_len)
         << ",\"reserved\":" << field_json(event.header.reserved) << "},\"payloadHex\":\""
-        << json_escape(event.payload_hex) << "\"}";
+        << json_escape(event.payload_hex) << "\",\"payloadPlainHex\":\""
+        << json_escape(event.payload_plain_hex) << "\",\"payloadEncryptedHex\":\""
+        << json_escape(event.payload_encrypted_hex) << "\"}";
     return oss.str();
 }
 
 void write_protocol_event(ProtocolDirection direction, const Packet& packet,
                           std::string_view message_override)
+{
+    write_protocol_event(direction, packet, message_override, {});
+}
+
+void write_protocol_event(ProtocolDirection direction, const Packet& packet,
+                          std::string_view message_override,
+                          const ProtocolPayloadView& payload_view)
 {
     const EntityId role = role_for_direction(direction, packet);
     if (!is_known(role))
@@ -335,6 +369,7 @@ void write_protocol_event(ProtocolDirection direction, const Packet& packet,
         it = loggers.emplace(role, std::make_unique<Logger>(event_log_path(role))).first;
     }
     it->second->write(entity_label(role), "ProtocolMonitor", event_label(direction),
-                      format_protocol_event_message(direction, packet, message_override));
+                      format_protocol_event_message(direction, packet, message_override, {},
+                                                    payload_view));
 }
 } // namespace cyber
