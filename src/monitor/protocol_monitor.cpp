@@ -7,6 +7,8 @@
 #include <chrono>
 #include <fstream>
 #include <iostream>
+#include <map>
+#include <sstream>
 #include <stdexcept>
 #include <thread>
 
@@ -23,6 +25,31 @@ struct PendingProtocolEvent
     std::filesystem::path file;
     std::uint64_t sequence = 0;
 };
+
+std::string dedupe_key(const ProtocolEvent& event)
+{
+    std::ostringstream oss;
+    oss << event.role << '|' << event.direction << '|' << event.endpoint << '|'
+        << event.message << '|' << event.header.msg_type.raw << '|' << event.header.src.raw
+        << '|' << event.header.dst.raw << '|' << event.header.payload_len.raw << '|'
+        << event.header.reserved.raw << '|' << event.payload_hex;
+    return oss.str();
+}
+
+std::size_t detail_score(const ProtocolEvent& event)
+{
+    std::size_t score = 0;
+    if (!event.payload_plain_hex.empty())
+    {
+        ++score;
+    }
+    if (!event.payload_encrypted_hex.empty())
+    {
+        ++score;
+    }
+    score += event.payload_fields.size();
+    return score;
+}
 } // namespace
 
 ProtocolEventTailer::ProtocolEventTailer(std::filesystem::path events_dir)
@@ -46,6 +73,7 @@ std::vector<std::string> ProtocolEventTailer::poll_json_events()
     std::sort(files.begin(), files.end());
 
     std::vector<PendingProtocolEvent> pending;
+    std::map<std::string, std::size_t> pending_by_packet;
     std::uint64_t sequence = 0;
     for (const std::filesystem::path& file : files)
     {
@@ -72,7 +100,24 @@ std::vector<std::string> ProtocolEventTailer::poll_json_events()
             }
             try
             {
-                pending.push_back({parse_protocol_event_line(line), file, sequence++});
+                PendingProtocolEvent item{parse_protocol_event_line(line), file, sequence++};
+                const std::string key = dedupe_key(item.event);
+                const auto existing = pending_by_packet.find(key);
+                if (existing == pending_by_packet.end())
+                {
+                    pending_by_packet[key] = pending.size();
+                    pending.push_back(std::move(item));
+                }
+                else
+                {
+                    PendingProtocolEvent& stored = pending[existing->second];
+                    if (detail_score(item.event) > detail_score(stored.event))
+                    {
+                        item.event.timestamp = stored.event.timestamp;
+                        item.sequence = stored.sequence;
+                        stored = std::move(item);
+                    }
+                }
             }
             catch (const std::exception&)
             {

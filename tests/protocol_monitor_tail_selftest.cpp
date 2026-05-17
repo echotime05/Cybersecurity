@@ -93,6 +93,35 @@ int main()
                 "second ordered event mismatch");
 
         std::filesystem::remove_all(ordered_dir);
+
+        const std::filesystem::path duplicate_dir =
+            std::filesystem::temp_directory_path() / "protocol_monitor_tail_duplicate_selftest";
+        std::filesystem::remove_all(duplicate_dir);
+        std::filesystem::create_directories(duplicate_dir);
+        {
+            std::ofstream client_out(duplicate_dir / "client_01_1234.txt");
+            client_out << "[Client1][ProtocolMonitor][PACKET_RECV] "
+                       << "ts=12:03:15.200 direction=RECV endpoint=AS->Client1 "
+                       << "message=MSG_AS_REP category=kerberos msg_type=MSG_AS_REP "
+                       << "msg_type_raw=0x02 src=AS src_raw=0x11 dst=Client1 dst_raw=0x01 "
+                       << "payload_len=1 payload_len_raw=0x00000001 reserved=0 "
+                       << "reserved_raw=0x00000000 payload_hex=aa\n";
+            client_out << "[Client1][ProtocolMonitor][PACKET_RECV] "
+                       << "ts=12:03:15.210 direction=RECV endpoint=AS->Client1 "
+                       << "message=MSG_AS_REP category=kerberos msg_type=MSG_AS_REP "
+                       << "msg_type_raw=0x02 src=AS src_raw=0x11 dst=Client1 dst_raw=0x01 "
+                       << "payload_len=1 payload_len_raw=0x00000001 reserved=0 "
+                       << "reserved_raw=0x00000000 payload_hex=aa payload_plain_hex=bb "
+                       << "payload_encrypted_hex=aa\n";
+        }
+
+        cyber::monitor::ProtocolEventTailer duplicate_tailer(duplicate_dir);
+        const auto deduped = duplicate_tailer.poll_json_events();
+        require(deduped.size() == 1U, "expected duplicate protocol events to be merged");
+        require(deduped[0].find("\"payloadPlainHex\":\"bb\"") != std::string::npos,
+                "dedupe should keep enriched payload view");
+
+        std::filesystem::remove_all(duplicate_dir);
         std::filesystem::remove_all(dir);
         std::cout << "protocol_monitor_tail_selftest: ok\n";
     }
