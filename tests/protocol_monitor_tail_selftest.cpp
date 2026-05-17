@@ -122,6 +122,32 @@ int main()
                 "dedupe should keep enriched payload view");
 
         std::filesystem::remove_all(duplicate_dir);
+
+        const std::filesystem::path repeated_dir =
+            std::filesystem::temp_directory_path() / "protocol_monitor_tail_repeated_selftest";
+        std::filesystem::remove_all(repeated_dir);
+        std::filesystem::create_directories(repeated_dir);
+        {
+            std::ofstream client_out(repeated_dir / "client_01_1234.txt");
+            client_out << "[Client1][ProtocolMonitor][PACKET_SEND] "
+                       << "ts=12:03:15.300 direction=SEND endpoint=Client1->V "
+                       << "message=MSG_APP.GAME_MOVE category=app msg_type=MSG_APP "
+                       << "msg_type_raw=0x66 src=Client1 src_raw=0x01 dst=V dst_raw=0x13 "
+                       << "payload_len=3 payload_len_raw=0x00000003 reserved=0 "
+                       << "reserved_raw=0x00000000 payload_hex=020100\n";
+            client_out << "[Client1][ProtocolMonitor][PACKET_SEND] "
+                       << "ts=12:03:15.350 direction=SEND endpoint=Client1->V "
+                       << "message=MSG_APP.GAME_MOVE category=app msg_type=MSG_APP "
+                       << "msg_type_raw=0x66 src=Client1 src_raw=0x01 dst=V dst_raw=0x13 "
+                       << "payload_len=3 payload_len_raw=0x00000003 reserved=0 "
+                       << "reserved_raw=0x00000000 payload_hex=020100\n";
+        }
+
+        cyber::monitor::ProtocolEventTailer repeated_tailer(repeated_dir);
+        const auto repeated = repeated_tailer.poll_json_events();
+        require(repeated.size() == 2U, "actual repeated identical packets should be preserved");
+
+        std::filesystem::remove_all(repeated_dir);
         std::filesystem::remove_all(dir);
         std::cout << "protocol_monitor_tail_selftest: ok\n";
     }

@@ -111,11 +111,18 @@ std::vector<std::string> ProtocolEventTailer::poll_json_events()
                 else
                 {
                     PendingProtocolEvent& stored = pending[existing->second];
-                    if (detail_score(item.event) > detail_score(stored.event))
+                    const bool adjacent_same_file =
+                        existing->second + 1U == pending.size() && stored.file == item.file;
+                    if (adjacent_same_file && detail_score(item.event) > detail_score(stored.event))
                     {
                         item.event.timestamp = stored.event.timestamp;
                         item.sequence = stored.sequence;
                         stored = std::move(item);
+                    }
+                    else
+                    {
+                        pending_by_packet[key] = pending.size();
+                        pending.push_back(std::move(item));
                     }
                 }
             }
