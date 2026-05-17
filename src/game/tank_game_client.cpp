@@ -190,7 +190,7 @@ void TankGameClient::send_game_message(GameMsgType type, const Bytes& payload)
     const Packet packet =
         build_signed_game_packet(self_, EntityId::v, type, payload, kc_v_, encrypt_app_payloads_,
                                  client_key_pair_.private_key);
-    send_packet_logged(v_socket_, packet, logger_, "Client", "AuthPlainGameTx");
+    send_packet_logged(v_socket_, packet, logger_, "Client", "TankGameTx");
     write_protocol_event(ProtocolDirection::send, packet,
                          protocol_app_message(app_code_for_game_message_type(type)),
                          app_payload_view(packet, kc_v_, encrypt_app_payloads_));
@@ -203,7 +203,7 @@ void TankGameClient::receive_loop()
         while (!stopping_)
         {
             const Packet packet = recv_packet_logged(v_socket_, logger_, "Client",
-                                                     "AuthPlainGameRx");
+                                                     "TankGameRx");
             if (packet.msg_type != MsgType::app)
             {
                 continue;
@@ -216,7 +216,7 @@ void TankGameClient::receive_loop()
                                      protocol_app_message(AppCode::app_ack),
                                      app_payload_view(packet, kc_v_, encrypt_app_payloads_));
                 (void)parse_verified_ack_payload(signed_payload, v_public_key_);
-                log_verified_ack_packet(ack_logger_, "Client", "AuthPlainGameRx", packet);
+                log_verified_ack_packet(ack_logger_, "Client", "TankGameRx", packet);
                 continue;
             }
 
@@ -232,7 +232,7 @@ void TankGameClient::receive_loop()
                 std::lock_guard<std::mutex> lock(send_mutex_);
                 if (v_socket_ != 0)
                 {
-                    send_packet_logged(v_socket_, ack, logger_, "Client", "AuthPlainGameAck");
+                    send_packet_logged(v_socket_, ack, logger_, "Client", "TankGameAck");
                     write_protocol_event(ProtocolDirection::send, ack,
                                          protocol_app_message(AppCode::app_ack),
                                          app_payload_view(ack, kc_v_, encrypt_app_payloads_));
@@ -248,7 +248,7 @@ void TankGameClient::receive_loop()
     {
         if (!stopping_)
         {
-            logger_.write("Client", "AuthPlainGameRx", "ERROR", ex.what());
+            logger_.write("Client", "TankGameRx", "ERROR", ex.what());
             bridge_->broadcast_text(cyber::ui::login_state_json(
                 "failed", EntityId::unknown, "", "V connection closed"));
         }

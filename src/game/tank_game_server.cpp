@@ -184,7 +184,7 @@ void TankGameServer::accept_loop()
         {
             std::string peer;
             SocketHandle accepted = accept_tcp(listener_, &peer);
-            logger_.write("V", "PlainAccept", "ACCEPT", "accept " + peer);
+            logger_.write("V", "TankAccept", "ACCEPT", "accept " + peer);
             client_threads_.emplace_back(&TankGameServer::client_loop, this, accepted, peer);
         }
         catch (const std::exception& ex)
@@ -193,7 +193,7 @@ void TankGameServer::accept_loop()
             {
                 return;
             }
-            logger_.write("V", "PlainAccept", "ERROR", ex.what());
+            logger_.write("V", "TankAccept", "ERROR", ex.what());
             throw;
         }
     }
@@ -201,7 +201,7 @@ void TankGameServer::accept_loop()
 
 void TankGameServer::client_loop(SocketHandle socket, std::string peer)
 {
-    logger_.write("V", "PlainClient", "THREAD_START", "client " + peer);
+    logger_.write("V", "TankClient", "THREAD_START", "client " + peer);
     try
     {
         EntityId authenticated_client = EntityId::unknown;
@@ -211,12 +211,12 @@ void TankGameServer::client_loop(SocketHandle socket, std::string peer)
             !authenticate_socket(socket, peer, authenticated_client, kc_v, client_public_key))
         {
             close_socket(socket);
-            logger_.write("V", "PlainClient", "THREAD_EXIT", "client " + peer);
+            logger_.write("V", "TankClient", "THREAD_EXIT", "client " + peer);
             return;
         }
         while (!stopping_)
         {
-            const Packet packet = recv_packet_logged(socket, logger_, "V", "PlainClient");
+            const Packet packet = recv_packet_logged(socket, logger_, "V", "TankClient");
             if (require_auth_ && packet.src != authenticated_client)
             {
                 throw std::runtime_error("authenticated client id mismatch");
@@ -228,7 +228,7 @@ void TankGameServer::client_loop(SocketHandle socket, std::string peer)
     {
         if (!stopping_)
         {
-            logger_.write("V", "PlainClient", "ERROR", ex.what());
+            logger_.write("V", "TankClient", "ERROR", ex.what());
         }
     }
 
@@ -250,7 +250,7 @@ void TankGameServer::client_loop(SocketHandle socket, std::string peer)
         room_.leave(leaving);
     }
     close_socket(socket);
-    logger_.write("V", "PlainClient", "THREAD_EXIT", "client " + peer);
+    logger_.write("V", "TankClient", "THREAD_EXIT", "client " + peer);
 }
 
 void TankGameServer::handle_packet(SocketHandle socket, const Packet& packet,
@@ -259,7 +259,7 @@ void TankGameServer::handle_packet(SocketHandle socket, const Packet& packet,
 {
     if (packet.msg_type != MsgType::app)
     {
-        logger_.write("V", "PlainClient", "ERROR", "non-app packet ignored");
+        logger_.write("V", "TankClient", "ERROR", "non-app packet ignored");
         return;
     }
 
@@ -274,7 +274,7 @@ void TankGameServer::handle_packet(SocketHandle socket, const Packet& packet,
             write_protocol_event(ProtocolDirection::recv, packet,
                                  protocol_app_message(AppCode::app_ack),
                                  app_payload_view(packet, kc_v, encrypt_app_payloads_));
-            log_verified_ack_packet(ack_logger_, "V", "PlainClient", packet);
+            log_verified_ack_packet(ack_logger_, "V", "TankClient", packet);
             return;
         }
 
@@ -285,7 +285,7 @@ void TankGameServer::handle_packet(SocketHandle socket, const Packet& packet,
         const Packet ack = build_signed_ack_packet(packet, signed_payload, EntityId::v,
                                                    packet.src, kc_v, encrypt_app_payloads_,
                                                    auth_runtime_.v_key_pair.private_key);
-        send_packet_logged(socket, ack, logger_, "V", "PlainClientAck");
+        send_packet_logged(socket, ack, logger_, "V", "TankClientAck");
         write_protocol_event(ProtocolDirection::send, ack,
                              protocol_app_message(AppCode::app_ack),
                              app_payload_view(ack, kc_v, encrypt_app_payloads_));
@@ -350,7 +350,7 @@ void TankGameServer::handle_packet(SocketHandle socket, const Packet& packet,
         break;
     }
     default:
-        logger_.write("V", "PlainClient", "ERROR", "unknown game message ignored");
+        logger_.write("V", "TankClient", "ERROR", "unknown game message ignored");
         break;
     }
 }
@@ -359,24 +359,24 @@ bool TankGameServer::authenticate_socket(SocketHandle socket, const std::string&
                                           EntityId& client_id, std::uint64_t& kc_v,
                                           RsaPublicKey& client_public_key)
 {
-    const Packet auth_packet = recv_packet_logged(socket, logger_, "V", "PlainGameAuth");
+    const Packet auth_packet = recv_packet_logged(socket, logger_, "V", "TankAuth");
     if (auth_packet.msg_type != MsgType::v_auth_req || !is_client(auth_packet.src))
     {
-        logger_.write("V", "PlainGameAuth", "ERROR",
+        logger_.write("V", "TankAuth", "ERROR",
                       "client " + peer + " sent app traffic before V_AUTH");
         return false;
     }
     const Packet response =
-        process_v_auth_request(auth_packet, config_, auth_runtime_, logger_, "PlainGameAuth");
+        process_v_auth_request(auth_packet, config_, auth_runtime_, logger_, "TankAuth");
     write_protocol_event(ProtocolDirection::recv, auth_packet, {},
                          v_auth_req_payload_view(auth_packet, config_));
     const AuthSession auth_session = auth_runtime_.v_sessions.get(auth_packet.src);
-    send_packet_logged(socket, response, logger_, "V", "PlainGameAuth",
+    send_packet_logged(socket, response, logger_, "V", "TankAuth",
                        decrypted_payload_view(response, auth_session.kc_v));
-    const Packet cert_packet = recv_packet_logged(socket, logger_, "V", "PlainGameCert");
+    const Packet cert_packet = recv_packet_logged(socket, logger_, "V", "TankCert");
     if (cert_packet.msg_type != MsgType::cert_c2v || cert_packet.src != auth_packet.src)
     {
-        logger_.write("V", "PlainGameCert", "ERROR",
+        logger_.write("V", "TankCert", "ERROR",
                       "client " + peer + " did not complete CERT_C2V");
         return false;
     }
@@ -384,8 +384,8 @@ bool TankGameServer::authenticate_socket(SocketHandle socket, const std::string&
     write_protocol_event(ProtocolDirection::recv, cert_packet, {},
                          decrypted_payload_view(cert_packet, cert_session.kc_v));
     const Packet cert_response =
-        process_cert_c2v_request(cert_packet, auth_runtime_, logger_, "PlainGameCert");
-    send_packet_logged(socket, cert_response, logger_, "V", "PlainGameCert",
+        process_cert_c2v_request(cert_packet, auth_runtime_, logger_, "TankCert");
+    send_packet_logged(socket, cert_response, logger_, "V", "TankCert",
                        decrypted_payload_view(cert_response, cert_session.kc_v));
 
     const AuthSession session = auth_runtime_.v_sessions.get(auth_packet.src);
@@ -449,14 +449,14 @@ void TankGameServer::broadcast(const BattleStateSnapshot& snapshot)
                     encode_app_payload(plain_payload, target.kc_v, encrypt_app_payloads_);
                 packet = make_packet(MsgType::app, EntityId::v, target.client_id, wire_payload);
             }
-            send_packet_logged(target.socket, packet, logger_, "V", "PlainGameLoop");
+            send_packet_logged(target.socket, packet, logger_, "V", "TankGameLoop");
             write_protocol_event(ProtocolDirection::send, packet,
                                  protocol_app_message(AppCode::game_state),
                                  app_payload_view(packet, target.kc_v, encrypt_app_payloads_));
         }
         catch (const std::exception& ex)
         {
-            logger_.write("V", "PlainGameLoop", "ERROR", ex.what());
+            logger_.write("V", "TankGameLoop", "ERROR", ex.what());
             failed.push_back(target.client_id);
             close_socket(target.socket);
         }
