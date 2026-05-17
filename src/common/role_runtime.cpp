@@ -7,7 +7,6 @@
 #include "cyber/common/net_socket.hpp"
 #include "cyber/common/packet.hpp"
 #include "cyber/game/auth_plain_game_client.hpp"
-#include "cyber/game/plain_game_client.hpp"
 #include "cyber/game/plain_game_server.hpp"
 
 #include <filesystem>

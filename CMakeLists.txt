@@ -35,7 +35,6 @@ add_library(cyber_common
     src/game/game_world.cpp
     src/game/battle_room.cpp
     src/game/plain_game_server.cpp
-    src/game/plain_game_client.cpp
     src/game/auth_plain_game_client.cpp
     src/monitor/protocol_monitor.cpp
     src/ui/websocket.cpp
