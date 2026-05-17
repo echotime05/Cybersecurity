@@ -48,7 +48,7 @@ V_IP=172.27.39.248
 主机 4：
 
 ```powershell
-.\run_v.bat
+.\scripts\run_v.ps1
 ```
 
 预期终端输出：

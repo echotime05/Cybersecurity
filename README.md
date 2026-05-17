@@ -93,12 +93,6 @@ Start the C++ backend:
 .\scripts\run_local.ps1
 ```
 
-or:
-
-```cmd
-run_local.bat
-```
-
 `run_local.ps1` stops old local role processes and clears local runtime/protocol
 logs before starting the new demo, so the Protocol panel shows packets from the
 current run. Add `-KeepLogs` if you intentionally want to keep old local logs.
@@ -107,12 +101,6 @@ Start the Web UI in another terminal:
 
 ```powershell
 .\scripts\run_web.ps1
-```
-
-or:
-
-```cmd
-run_web.bat
 ```
 
 Open:
@@ -125,12 +113,6 @@ Stop the local C++ backend:
 
 ```powershell
 .\scripts\stop_local.ps1
-```
-
-or:
-
-```cmd
-stop_local.bat
 ```
 
 ## Manual Startup
