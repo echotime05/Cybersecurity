@@ -15,12 +15,11 @@
 
 namespace cyber::game
 {
-class AuthPlainGameClient
+class TankGameClient
 {
 public:
-    AuthPlainGameClient(Config config, std::uint16_t ui_port,
-                        bool encrypt_app_payloads = false);
-    ~AuthPlainGameClient();
+    TankGameClient(Config config, std::uint16_t ui_port, bool encrypt_app_payloads = false);
+    ~TankGameClient();
 
     void run();
 

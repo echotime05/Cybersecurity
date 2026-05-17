@@ -1,4 +1,4 @@
-#include "cyber/game/auth_plain_game_client.hpp"
+#include "cyber/game/tank_game_client.hpp"
 
 #include "cyber/common/auth_credentials.hpp"
 #include "cyber/common/net_packet.hpp"
@@ -31,8 +31,8 @@ ProtocolPayloadView app_payload_view(const Packet& packet, std::uint64_t kc_v, b
 }
 } // namespace
 
-AuthPlainGameClient::AuthPlainGameClient(Config config, std::uint16_t ui_port,
-                                         bool encrypt_app_payloads)
+TankGameClient::TankGameClient(Config config, std::uint16_t ui_port,
+                               bool encrypt_app_payloads)
     : config_(std::move(config)),
       ui_port_(ui_port),
       encrypt_app_payloads_(encrypt_app_payloads),
@@ -41,7 +41,7 @@ AuthPlainGameClient::AuthPlainGameClient(Config config, std::uint16_t ui_port,
 {
 }
 
-AuthPlainGameClient::~AuthPlainGameClient()
+TankGameClient::~TankGameClient()
 {
     stopping_ = true;
     close_v_socket();
@@ -55,7 +55,7 @@ AuthPlainGameClient::~AuthPlainGameClient()
     }
 }
 
-void AuthPlainGameClient::run()
+void TankGameClient::run()
 {
     SocketRuntime runtime;
     bridge_ = std::make_unique<cyber::ui::UiBridge>(
@@ -75,7 +75,7 @@ void AuthPlainGameClient::run()
     }
 }
 
-void AuthPlainGameClient::handle_ui_command(const cyber::ui::UiCommand& command)
+void TankGameClient::handle_ui_command(const cyber::ui::UiCommand& command)
 {
     if (command.kind == cyber::ui::UiCommandKind::login)
     {
@@ -91,7 +91,7 @@ void AuthPlainGameClient::handle_ui_command(const cyber::ui::UiCommand& command)
     }
 }
 
-void AuthPlainGameClient::handle_login(const cyber::ui::UiCommand& command)
+void TankGameClient::handle_login(const cyber::ui::UiCommand& command)
 {
     if (!is_client(command.client_id) || command.password.empty())
     {
@@ -121,7 +121,7 @@ void AuthPlainGameClient::handle_login(const cyber::ui::UiCommand& command)
         const std::uint64_t kc = derive_client_key(command.client_id, command.password);
         VAuthenticatedSocket auth =
             authenticate_client_to_v_socket(config_, command.client_id, kc, logger_,
-                                            "AuthPlainGameClient");
+                                            "TankGameClient");
         {
             std::lock_guard<std::mutex> lock(state_mutex_);
             self_ = command.client_id;
@@ -138,7 +138,7 @@ void AuthPlainGameClient::handle_login(const cyber::ui::UiCommand& command)
     }
     catch (const std::exception& ex)
     {
-        logger_.write("Client", "AuthPlainGameClient", "ERROR", ex.what());
+        logger_.write("Client", "TankGameClient", "ERROR", ex.what());
         close_v_socket();
         {
             std::lock_guard<std::mutex> lock(state_mutex_);
@@ -152,7 +152,7 @@ void AuthPlainGameClient::handle_login(const cyber::ui::UiCommand& command)
     }
 }
 
-void AuthPlainGameClient::handle_join()
+void TankGameClient::handle_join()
 {
     EntityId client = EntityId::unknown;
     {
@@ -168,7 +168,7 @@ void AuthPlainGameClient::handle_join()
     bridge_->broadcast_text(cyber::ui::join_state_json("joined"));
 }
 
-void AuthPlainGameClient::handle_game_command(const cyber::ui::UiCommand& command)
+void TankGameClient::handle_game_command(const cyber::ui::UiCommand& command)
 {
     {
         std::lock_guard<std::mutex> lock(state_mutex_);
@@ -180,7 +180,7 @@ void AuthPlainGameClient::handle_game_command(const cyber::ui::UiCommand& comman
     send_game_message(command.type, command.payload);
 }
 
-void AuthPlainGameClient::send_game_message(GameMsgType type, const Bytes& payload)
+void TankGameClient::send_game_message(GameMsgType type, const Bytes& payload)
 {
     std::lock_guard<std::mutex> lock(send_mutex_);
     if (v_socket_ == 0)
@@ -196,7 +196,7 @@ void AuthPlainGameClient::send_game_message(GameMsgType type, const Bytes& paylo
                          app_payload_view(packet, kc_v_, encrypt_app_payloads_));
 }
 
-void AuthPlainGameClient::receive_loop()
+void TankGameClient::receive_loop()
 {
     try
     {
@@ -255,7 +255,7 @@ void AuthPlainGameClient::receive_loop()
     }
 }
 
-void AuthPlainGameClient::close_v_socket()
+void TankGameClient::close_v_socket()
 {
     std::lock_guard<std::mutex> lock(send_mutex_);
     if (v_socket_ != 0)
@@ -265,7 +265,7 @@ void AuthPlainGameClient::close_v_socket()
     }
 }
 
-std::string AuthPlainGameClient::v_server_text() const
+std::string TankGameClient::v_server_text() const
 {
     return config_.get_string("V_IP") + ":" + std::to_string(config_.get_u16("V_PORT"));
 }

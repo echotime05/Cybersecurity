@@ -6,7 +6,7 @@
 #include "cyber/common/net_packet.hpp"
 #include "cyber/common/net_socket.hpp"
 #include "cyber/common/packet.hpp"
-#include "cyber/game/auth_plain_game_client.hpp"
+#include "cyber/game/tank_game_client.hpp"
 #include "cyber/game/tank_game_server.hpp"
 
 #include <filesystem>
@@ -589,7 +589,7 @@ int run_role_main(RoleKind role, int argc, char** argv)
                 {
                     throw std::runtime_error("client --game-auth-encrypted requires --ui-port");
                 }
-                cyber::game::AuthPlainGameClient client(config, ui_port, true);
+                cyber::game::TankGameClient client(config, ui_port, true);
                 client.run();
                 return 0;
             }

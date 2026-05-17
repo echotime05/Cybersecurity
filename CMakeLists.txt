@@ -35,7 +35,7 @@ add_library(cyber_common
     src/game/game_world.cpp
     src/game/battle_room.cpp
     src/game/tank_game_server.cpp
-    src/game/auth_plain_game_client.cpp
+    src/game/tank_game_client.cpp
     src/monitor/protocol_monitor.cpp
     src/ui/websocket.cpp
     src/ui/ui_bridge.cpp
@@ -98,9 +98,9 @@ target_link_libraries(battle_room_selftest PRIVATE cyber_common)
 add_executable(tank_game_server_flow_selftest tests/tank_game_server_flow_selftest.cpp)
 target_link_libraries(tank_game_server_flow_selftest PRIVATE cyber_common)
 
-add_executable(auth_plain_game_client_options_selftest
-    tests/auth_plain_game_client_options_selftest.cpp)
-target_link_libraries(auth_plain_game_client_options_selftest PRIVATE cyber_common)
+add_executable(tank_game_client_options_selftest
+    tests/tank_game_client_options_selftest.cpp)
+target_link_libraries(tank_game_client_options_selftest PRIVATE cyber_common)
 
 add_executable(encrypted_plaintext_rejection_client
     tests/encrypted_plaintext_rejection_client.cpp)
@@ -129,8 +129,8 @@ add_test(NAME protocol_monitor_tail_selftest COMMAND protocol_monitor_tail_selft
 add_test(NAME game_world_selftest COMMAND game_world_selftest)
 add_test(NAME battle_room_selftest COMMAND battle_room_selftest)
 add_test(NAME tank_game_server_flow_selftest COMMAND tank_game_server_flow_selftest)
-add_test(NAME auth_plain_game_client_options_selftest
-         COMMAND auth_plain_game_client_options_selftest)
+add_test(NAME tank_game_client_options_selftest
+         COMMAND tank_game_client_options_selftest)
 add_test(NAME websocket_selftest COMMAND websocket_selftest)
 add_test(NAME ui_bridge_selftest COMMAND ui_bridge_selftest)
 
