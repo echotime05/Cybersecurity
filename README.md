@@ -74,6 +74,14 @@ Run the C++ and integration tests:
 ctest --test-dir build-mingw --output-on-failure
 ```
 
+Run the Web UI protocol parser selftest and production build:
+
+```powershell
+cd web-ui
+npm run verify
+cd ..
+```
+
 ## Single-Machine Demo
 
 The default `config/course_config.txt` is a single-machine config. It binds AS,

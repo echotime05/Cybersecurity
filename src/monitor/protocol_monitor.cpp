@@ -15,6 +15,16 @@
 
 namespace cyber::monitor
 {
+namespace
+{
+struct PendingProtocolEvent
+{
+    ProtocolEvent event;
+    std::filesystem::path file;
+    std::uint64_t sequence = 0;
+};
+} // namespace
+
 ProtocolEventTailer::ProtocolEventTailer(std::filesystem::path events_dir)
     : events_dir_(std::move(events_dir))
 {
@@ -35,7 +45,8 @@ std::vector<std::string> ProtocolEventTailer::poll_json_events()
     }
     std::sort(files.begin(), files.end());
 
-    std::vector<std::string> events;
+    std::vector<PendingProtocolEvent> pending;
+    std::uint64_t sequence = 0;
     for (const std::filesystem::path& file : files)
     {
         const std::uintmax_t size = std::filesystem::file_size(file);
@@ -61,13 +72,33 @@ std::vector<std::string> ProtocolEventTailer::poll_json_events()
             }
             try
             {
-                events.push_back(protocol_event_json(parse_protocol_event_line(line), next_id_++));
+                pending.push_back({parse_protocol_event_line(line), file, sequence++});
             }
             catch (const std::exception&)
             {
             }
         }
         offset = size;
+    }
+
+    std::stable_sort(pending.begin(), pending.end(),
+                     [](const PendingProtocolEvent& lhs, const PendingProtocolEvent& rhs) {
+                         if (lhs.event.timestamp != rhs.event.timestamp)
+                         {
+                             return lhs.event.timestamp < rhs.event.timestamp;
+                         }
+                         if (lhs.file != rhs.file)
+                         {
+                             return lhs.file < rhs.file;
+                         }
+                         return lhs.sequence < rhs.sequence;
+                     });
+
+    std::vector<std::string> events;
+    events.reserve(pending.size());
+    for (const PendingProtocolEvent& item : pending)
+    {
+        events.push_back(protocol_event_json(item.event, next_id_++));
     }
     return events;
 }

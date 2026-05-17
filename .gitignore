@@ -1,6 +1,7 @@
 # Build output
 build/
 build-*/
+build-web-tests/
 out/
 .worktrees/
 .superpowers/

@@ -62,6 +62,37 @@ int main()
         require(second[0].find("\"direction\":\"RECV\"") != std::string::npos,
                 "second event direction missing");
 
+        const std::filesystem::path ordered_dir =
+            std::filesystem::temp_directory_path() / "protocol_monitor_tail_order_selftest";
+        std::filesystem::remove_all(ordered_dir);
+        std::filesystem::create_directories(ordered_dir);
+        {
+            std::ofstream as_out(ordered_dir / "as_1234.txt");
+            as_out << "[AS][ProtocolMonitor][PACKET_SEND] "
+                   << "ts=12:03:15.200 direction=SEND endpoint=AS->Client1 "
+                   << "message=MSG_AS_REP category=kerberos msg_type=MSG_AS_REP "
+                   << "msg_type_raw=0x02 src=AS src_raw=0x11 dst=Client1 dst_raw=0x01 "
+                   << "payload_len=1 payload_len_raw=0x00000001 reserved=0 "
+                   << "reserved_raw=0x00000000 payload_hex=aa\n";
+
+            std::ofstream client_out(ordered_dir / "client_01_1234.txt");
+            client_out << "[Client1][ProtocolMonitor][PACKET_SEND] "
+                       << "ts=12:03:15.100 direction=SEND endpoint=Client1->AS "
+                       << "message=MSG_AS_REQ category=kerberos msg_type=MSG_AS_REQ "
+                       << "msg_type_raw=0x01 src=Client1 src_raw=0x01 dst=AS dst_raw=0x11 "
+                       << "payload_len=1 payload_len_raw=0x00000001 reserved=0 "
+                       << "reserved_raw=0x00000000 payload_hex=bb\n";
+        }
+
+        cyber::monitor::ProtocolEventTailer ordered_tailer(ordered_dir);
+        const auto ordered = ordered_tailer.poll_json_events();
+        require(ordered.size() == 2U, "expected two ordered events");
+        require(ordered[0].find("\"message\":\"MSG_AS_REQ\"") != std::string::npos,
+                "events should be ordered by timestamp across files");
+        require(ordered[1].find("\"message\":\"MSG_AS_REP\"") != std::string::npos,
+                "second ordered event mismatch");
+
+        std::filesystem::remove_all(ordered_dir);
         std::filesystem::remove_all(dir);
         std::cout << "protocol_monitor_tail_selftest: ok\n";
     }
