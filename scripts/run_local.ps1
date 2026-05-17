@@ -3,7 +3,8 @@ param(
     [uint16]$UiPort = 7001,
     [uint16]$MonitorPort = 7010,
     [switch]$NoBuild,
-    [switch]$NoStop
+    [switch]$NoStop,
+    [switch]$KeepLogs
 )
 
 $ErrorActionPreference = 'Stop'
@@ -34,6 +35,24 @@ function Stop-RoleProcesses {
         if ($processes) {
             $processes | Stop-Process -Force
         }
+    }
+}
+
+function Clear-LogFiles {
+    param(
+        [string]$Path,
+        [string[]]$Patterns
+    )
+
+    $resolvedPath = Resolve-Path -LiteralPath $Path -ErrorAction SilentlyContinue
+    if (-not $resolvedPath) {
+        return
+    }
+    foreach ($pattern in $Patterns) {
+        Get-ChildItem -LiteralPath $resolvedPath.Path -Filter $pattern -File |
+            ForEach-Object {
+                Remove-Item -LiteralPath $_.FullName -Force
+            }
     }
 }
 
@@ -93,6 +112,11 @@ if (-not $NoBuild) {
 if (-not $NoStop) {
     Stop-RoleProcesses
     Start-Sleep -Milliseconds 300
+}
+
+if (-not $NoStop -and -not $KeepLogs) {
+    Clear-LogFiles $runtimeDir @('*.out', '*.err')
+    Clear-LogFiles $protocolEventsDir @('*.txt')
 }
 
 $processes = @()
