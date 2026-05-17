@@ -10,6 +10,7 @@ web-ui/dist/
 
 # Runtime output
 logs/
+perf_runs/
 *.log
 
 # Local IDE/editor files

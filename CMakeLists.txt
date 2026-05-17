@@ -106,6 +106,9 @@ add_executable(encrypted_plaintext_rejection_client
     tests/encrypted_plaintext_rejection_client.cpp)
 target_link_libraries(encrypted_plaintext_rejection_client PRIVATE cyber_common)
 
+add_executable(game_load_client tests/game_load_client.cpp)
+target_link_libraries(game_load_client PRIVATE cyber_common)
+
 add_executable(websocket_selftest tests/websocket_selftest.cpp)
 target_link_libraries(websocket_selftest PRIVATE cyber_common)
 

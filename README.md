@@ -165,6 +165,22 @@ Client3: hehe12345
 Client4: &wxh@147
 ```
 
+## Four-Client Performance Test
+
+Use the headless performance script to measure the encrypted AS/TGS/V game
+link without browser rendering cost:
+
+```powershell
+powershell -NoProfile -ExecutionPolicy Bypass -File .\scripts\run_perf_4clients.ps1 -DurationSeconds 60 -InputHz 10
+```
+
+The script builds the needed targets, starts isolated localhost AS/TGS/V
+processes on random ports, runs four simulated authenticated clients, and
+writes a report under `perf_runs/<timestamp>/perf_report.txt`. The report
+includes `GAME_STATE` interval jitter, input/ACK counts, process CPU/memory
+deltas, and log growth rates. This is a server/protocol load test; use the
+normal browser demo separately when you want to inspect rendering smoothness.
+
 ## Four-Host Deployment
 
 Each host needs the same AS, TGS, and V addresses in its config file. The
