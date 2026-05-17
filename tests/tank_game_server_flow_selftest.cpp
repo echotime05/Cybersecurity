@@ -4,7 +4,7 @@
 #include "cyber/common/config.hpp"
 #include "cyber/game/app_payload_codec.hpp"
 #include "cyber/game/game_protocol.hpp"
-#include "cyber/game/plain_game_server.hpp"
+#include "cyber/game/tank_game_server.hpp"
 
 #include <chrono>
 #include <filesystem>
@@ -74,7 +74,7 @@ int main()
     try
     {
         cyber::SocketRuntime runtime;
-        cyber::game::PlainGameServer server({"127.0.0.1", 0});
+        cyber::game::TankGameServer server({"127.0.0.1", 0});
         const std::uint16_t port = server.start_for_test();
         std::thread server_thread([&]() { server.run_until_stopped(); });
 
@@ -97,7 +97,7 @@ int main()
         server_thread.join();
 
         const cyber::Config config = make_test_config();
-        cyber::game::PlainGameServer auth_server({"127.0.0.1", 0}, config, true);
+        cyber::game::TankGameServer auth_server({"127.0.0.1", 0}, config, true);
         const std::uint16_t auth_port = auth_server.start_for_test();
         std::thread auth_thread([&]() { auth_server.run_until_stopped(); });
 
@@ -125,7 +125,7 @@ int main()
         auth_server.stop();
         auth_thread.join();
 
-        cyber::game::PlainGameServer encrypted_server({"127.0.0.1", 0}, config, false, true);
+        cyber::game::TankGameServer encrypted_server({"127.0.0.1", 0}, config, false, true);
         const std::uint16_t encrypted_port = encrypted_server.start_for_test();
         std::thread encrypted_thread([&]() { encrypted_server.run_until_stopped(); });
 
@@ -146,7 +146,7 @@ int main()
         encrypted_server.stop();
         encrypted_thread.join();
 
-        cyber::game::PlainGameServer reject_plain_server({"127.0.0.1", 0}, config, false, true);
+        cyber::game::TankGameServer reject_plain_server({"127.0.0.1", 0}, config, false, true);
         const std::uint16_t reject_plain_port = reject_plain_server.start_for_test();
         std::thread reject_plain_thread([&]() { reject_plain_server.run_until_stopped(); });
 
@@ -173,11 +173,11 @@ int main()
         reject_plain_server.stop();
         reject_plain_thread.join();
 
-        std::cout << "plain_game_flow_selftest: ok\n";
+        std::cout << "tank_game_server_flow_selftest: ok\n";
     }
     catch (const std::exception& ex)
     {
-        std::cerr << "plain_game_flow_selftest failed: " << ex.what() << '\n';
+        std::cerr << "tank_game_server_flow_selftest failed: " << ex.what() << '\n';
         return 1;
     }
     return 0;

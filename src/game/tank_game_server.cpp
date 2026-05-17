@@ -1,4 +1,4 @@
-#include "cyber/game/plain_game_server.hpp"
+#include "cyber/game/tank_game_server.hpp"
 
 #include "cyber/common/crypto.hpp"
 #include "cyber/common/net_packet.hpp"
@@ -79,20 +79,20 @@ ProtocolPayloadView v_auth_req_payload_view(const Packet& packet, const Config& 
 }
 } // namespace
 
-PlainGameServer::PlainGameServer(TcpEndpoint endpoint)
+TankGameServer::TankGameServer(TcpEndpoint endpoint)
     : endpoint_(std::move(endpoint)),
       logger_(std::filesystem::path("logs") / "v_game.log"),
       ack_logger_(std::filesystem::path("logs") / "v_ack.log")
 {
 }
 
-PlainGameServer::PlainGameServer(TcpEndpoint endpoint, Config config, bool require_auth)
-    : PlainGameServer(std::move(endpoint), std::move(config), require_auth, false)
+TankGameServer::TankGameServer(TcpEndpoint endpoint, Config config, bool require_auth)
+    : TankGameServer(std::move(endpoint), std::move(config), require_auth, false)
 {
 }
 
-PlainGameServer::PlainGameServer(TcpEndpoint endpoint, Config config, bool require_auth,
-                                 bool encrypt_app_payloads)
+TankGameServer::TankGameServer(TcpEndpoint endpoint, Config config, bool require_auth,
+                               bool encrypt_app_payloads)
     : endpoint_(std::move(endpoint)),
       config_(std::move(config)),
       require_auth_(require_auth),
@@ -103,13 +103,13 @@ PlainGameServer::PlainGameServer(TcpEndpoint endpoint, Config config, bool requi
 {
 }
 
-PlainGameServer::~PlainGameServer()
+TankGameServer::~TankGameServer()
 {
     stop();
     join_client_threads();
 }
 
-void PlainGameServer::run()
+void TankGameServer::run()
 {
     listener_ = listen_tcp(endpoint_);
     const char* mode =
@@ -119,7 +119,7 @@ void PlainGameServer::run()
     run_until_stopped();
 }
 
-std::uint16_t PlainGameServer::start_for_test()
+std::uint16_t TankGameServer::start_for_test()
 {
     listener_ = listen_tcp(endpoint_);
     sockaddr_in addr{};
@@ -132,7 +132,7 @@ std::uint16_t PlainGameServer::start_for_test()
     return endpoint_.port;
 }
 
-void PlainGameServer::run_until_stopped()
+void TankGameServer::run_until_stopped()
 {
     std::thread game_thread([&]() { game_loop(); });
     try
@@ -156,7 +156,7 @@ void PlainGameServer::run_until_stopped()
     join_client_threads();
 }
 
-void PlainGameServer::stop()
+void TankGameServer::stop()
 {
     stopping_ = true;
     if (listener_ != 0)
@@ -176,7 +176,7 @@ void PlainGameServer::stop()
     }
 }
 
-void PlainGameServer::accept_loop()
+void TankGameServer::accept_loop()
 {
     while (!stopping_)
     {
@@ -185,7 +185,7 @@ void PlainGameServer::accept_loop()
             std::string peer;
             SocketHandle accepted = accept_tcp(listener_, &peer);
             logger_.write("V", "PlainAccept", "ACCEPT", "accept " + peer);
-            client_threads_.emplace_back(&PlainGameServer::client_loop, this, accepted, peer);
+            client_threads_.emplace_back(&TankGameServer::client_loop, this, accepted, peer);
         }
         catch (const std::exception& ex)
         {
@@ -199,7 +199,7 @@ void PlainGameServer::accept_loop()
     }
 }
 
-void PlainGameServer::client_loop(SocketHandle socket, std::string peer)
+void TankGameServer::client_loop(SocketHandle socket, std::string peer)
 {
     logger_.write("V", "PlainClient", "THREAD_START", "client " + peer);
     try
@@ -253,7 +253,7 @@ void PlainGameServer::client_loop(SocketHandle socket, std::string peer)
     logger_.write("V", "PlainClient", "THREAD_EXIT", "client " + peer);
 }
 
-void PlainGameServer::handle_packet(SocketHandle socket, const Packet& packet,
+void TankGameServer::handle_packet(SocketHandle socket, const Packet& packet,
                                     std::uint64_t kc_v,
                                     const RsaPublicKey& client_public_key)
 {
@@ -355,7 +355,7 @@ void PlainGameServer::handle_packet(SocketHandle socket, const Packet& packet,
     }
 }
 
-bool PlainGameServer::authenticate_socket(SocketHandle socket, const std::string& peer,
+bool TankGameServer::authenticate_socket(SocketHandle socket, const std::string& peer,
                                           EntityId& client_id, std::uint64_t& kc_v,
                                           RsaPublicKey& client_public_key)
 {
@@ -395,7 +395,7 @@ bool PlainGameServer::authenticate_socket(SocketHandle socket, const std::string
     return true;
 }
 
-void PlainGameServer::game_loop()
+void TankGameServer::game_loop()
 {
     using clock = std::chrono::steady_clock;
     auto next_tick = clock::now();
@@ -409,7 +409,7 @@ void PlainGameServer::game_loop()
     }
 }
 
-void PlainGameServer::broadcast(const BattleStateSnapshot& snapshot)
+void TankGameServer::broadcast(const BattleStateSnapshot& snapshot)
 {
     std::vector<ClientConnection> targets;
     {
@@ -473,7 +473,7 @@ void PlainGameServer::broadcast(const BattleStateSnapshot& snapshot)
     }
 }
 
-void PlainGameServer::join_client_threads()
+void TankGameServer::join_client_threads()
 {
     for (std::thread& thread : client_threads_)
     {

@@ -15,14 +15,14 @@
 
 namespace cyber::game
 {
-class PlainGameServer
+class TankGameServer
 {
 public:
-    explicit PlainGameServer(TcpEndpoint endpoint);
-    PlainGameServer(TcpEndpoint endpoint, Config config, bool require_auth);
-    PlainGameServer(TcpEndpoint endpoint, Config config, bool require_auth,
-                    bool encrypt_app_payloads);
-    ~PlainGameServer();
+    explicit TankGameServer(TcpEndpoint endpoint);
+    TankGameServer(TcpEndpoint endpoint, Config config, bool require_auth);
+    TankGameServer(TcpEndpoint endpoint, Config config, bool require_auth,
+                   bool encrypt_app_payloads);
+    ~TankGameServer();
 
     void run();
     std::uint16_t start_for_test();

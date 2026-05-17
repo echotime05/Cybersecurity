@@ -7,7 +7,7 @@
 #include "cyber/common/net_socket.hpp"
 #include "cyber/common/packet.hpp"
 #include "cyber/game/auth_plain_game_client.hpp"
-#include "cyber/game/plain_game_server.hpp"
+#include "cyber/game/tank_game_server.hpp"
 
 #include <filesystem>
 #include <iostream>
@@ -578,8 +578,8 @@ int run_role_main(RoleKind role, int argc, char** argv)
             if (role == RoleKind::v_server)
             {
                 SocketRuntime runtime;
-                cyber::game::PlainGameServer server(bind_endpoint(config, spec), config, true,
-                                                     true);
+                cyber::game::TankGameServer server(bind_endpoint(config, spec), config, true,
+                                                    true);
                 server.run();
                 return 0;
             }
