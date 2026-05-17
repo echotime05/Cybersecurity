@@ -42,10 +42,22 @@ function testEncryptedSignedAppWithoutPlainIsNotParsedAsSignedApp() {
     direction: "RECV",
     message: "MSG_APP.GAME_MOVE",
     payloadHex: fakeCipherThatLooksLikeMove,
+    payloadEncryptedHex: fakeCipherThatLooksLikeMove,
   });
 
   assertCondition(rowValue(view.rows, "payload_state") === "encrypted", "encrypted MSG_APP parsed as signed app");
   assertCondition(view.hexBlocks[0]?.title === "payload encrypted hex", "encrypted MSG_APP hex mislabeled");
+}
+
+function testPlainGameAppWithoutPayloadViewIsParsedAsRawGameMessage() {
+  const view = buildProtocolPayloadView({
+    direction: "SEND",
+    message: "MSG_APP.GAME_MOVE",
+    payloadHex: "020100",
+  });
+
+  assertCondition(rowValue(view.rows, "game_msg") === "MOVE x=1 y=0", "plain raw GAME_MOVE was not parsed");
+  assertCondition(view.hexBlocks[0]?.title === "payload hex", "plain raw GAME_MOVE hex mislabeled");
 }
 
 function testVAuthRepAndCertV2CPlainPayloadsAreParsed() {
@@ -72,6 +84,7 @@ function testVAuthRepAndCertV2CPlainPayloadsAreParsed() {
 testEncryptedOuterPayloadIsNotParsedAsPlain();
 testPlainAsRepShowsActualSessionKeyBytes();
 testEncryptedSignedAppWithoutPlainIsNotParsedAsSignedApp();
+testPlainGameAppWithoutPayloadViewIsParsedAsRawGameMessage();
 testVAuthRepAndCertV2CPlainPayloadsAreParsed();
 
 console.log("protocolPayloadSelftest: ok");

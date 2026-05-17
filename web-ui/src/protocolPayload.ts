@@ -220,7 +220,14 @@ function parsePayloadRows(event: ProtocolPayloadEvent): ProtocolPayloadRow[] {
   try {
     const message = event.message;
     if (message.startsWith("MSG_APP")) {
-      return parseSignedAppRows(bytes);
+      try {
+        return parseSignedAppRows(bytes);
+      } catch {
+        if (message.startsWith("MSG_APP.GAME_")) {
+          return parseGameMessageRows(bytes);
+        }
+        return [{ key: "payload_len", value: `${bytes.length}` }];
+      }
     }
     if (message === "MSG_AS_REQ") {
       return parseAsReqRows(bytes);
@@ -269,7 +276,7 @@ function isOuterPayloadEncrypted(event: ProtocolPayloadEvent) {
   if (outerEncryptedMessages.has(event.message)) {
     return true;
   }
-  return event.message.startsWith("MSG_APP");
+  return false;
 }
 
 function buildFieldHexBlocks(fields: ProtocolPayloadField[]): ProtocolPayloadHexBlock[] {
