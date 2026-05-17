@@ -12,7 +12,7 @@ namespace cyber::game
 constexpr std::uint64_t kServerTickIntervalMs = 20;
 constexpr float kTickScaleFrom33Ms = static_cast<float>(kServerTickIntervalMs) / 33.0F;
 constexpr float kTankSpeed = 0.2F * kTickScaleFrom33Ms;
-constexpr float kTankRange = 16.0F;
+constexpr float kTankRange = 32.0F;
 constexpr float kTankRadius = 0.75F;
 constexpr float kBulletSpeed = 0.65F * kTickScaleFrom33Ms;
 constexpr float kBulletRadius = 0.25F;

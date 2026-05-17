@@ -33,6 +33,8 @@ int main()
                       "tank speed should preserve the old 33ms movement pace at 20ms ticks");
         require_close(cyber::game::kBulletSpeed, 0.65F * 20.0F / 33.0F,
                       "bullet speed should preserve the old 33ms movement pace at 20ms ticks");
+        require_close(cyber::game::kTankRange, 32.0F,
+                      "bullet range should be 32 world units");
 
         cyber::game::BattleRoom room;
         require(room.join(cyber::EntityId::client1, "alpha", 1000),
