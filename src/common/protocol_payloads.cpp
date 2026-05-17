@@ -388,6 +388,8 @@ AppAckPayload parse_app_ack_payload(const Bytes& payload)
     return value;
 }
 
+// Signature input is the logical application bytes only: AppCode followed by
+// app_payload. Packet header fields are not part of the RSA signature.
 Bytes signed_app_logical_bytes(AppCode code, const Bytes& app_payload)
 {
     Bytes logical;

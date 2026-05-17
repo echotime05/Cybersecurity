@@ -61,6 +61,9 @@ struct AuthRuntime
     AuthSessionTable v_sessions;
 };
 
+// Handoff from Kerberos to the tank game layer. The authenticated socket keeps
+// the open V connection plus Kc_v and public keys needed by encrypted signed
+// MSG_APP traffic.
 struct VAuthenticatedSocket
 {
     AuthClientState state;

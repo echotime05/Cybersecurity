@@ -180,6 +180,8 @@ void TankGameClient::handle_game_command(const cyber::ui::UiCommand& command)
     send_game_message(command.type, command.payload);
 }
 
+// Browser input becomes a signed game MSG_APP here. The browser still renders
+// only the authoritative GAME_STATE that V sends back.
 void TankGameClient::send_game_message(GameMsgType type, const Bytes& payload)
 {
     std::lock_guard<std::mutex> lock(send_mutex_);
@@ -196,6 +198,8 @@ void TankGameClient::send_game_message(GameMsgType type, const Bytes& payload)
                          app_payload_view(packet, kc_v_, encrypt_app_payloads_));
 }
 
+// The receive loop handles ACK evidence and authoritative state messages.
+// Non-ACK game packets from V are acknowledged with signed APP_ACK.
 void TankGameClient::receive_loop()
 {
     try

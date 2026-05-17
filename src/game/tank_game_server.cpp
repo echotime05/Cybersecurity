@@ -253,9 +253,11 @@ void TankGameServer::client_loop(SocketHandle socket, std::string peer)
     logger_.write("V", "TankClient", "THREAD_EXIT", "client " + peer);
 }
 
+// V is authoritative for gameplay: it verifies signed client payloads, writes
+// ACK evidence, applies valid inputs to BattleRoom, and broadcasts state.
 void TankGameServer::handle_packet(SocketHandle socket, const Packet& packet,
-                                    std::uint64_t kc_v,
-                                    const RsaPublicKey& client_public_key)
+                                   std::uint64_t kc_v,
+                                   const RsaPublicKey& client_public_key)
 {
     if (packet.msg_type != MsgType::app)
     {
