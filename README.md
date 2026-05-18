@@ -40,7 +40,8 @@ Client:  src/roles/client/README.md
 Monitor: src/roles/monitor/README.md
 ```
 
-协议字段和报文展示规则集中见 `src/shared/protocol/`、`src/shared/game/` 和后续协议参考文档。
+协议字段和报文展示规则集中见 `src/shared/protocol/`、`src/shared/game/` 和协议参考文档。
+完整报文字段表见 [docs/protocol_reference.md](docs/protocol_reference.md)。
 
 ## 2. 环境要求
 
