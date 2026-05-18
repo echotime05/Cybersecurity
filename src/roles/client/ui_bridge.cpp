@@ -126,19 +126,19 @@ UiCommand UiBridge::parse_json_command(const std::string& text) const
         const int x = std::max(-1, std::min(1, extract_int(text, "x", 0)));
         const int y = std::max(-1, std::min(1, extract_int(text, "y", 0)));
         return {UiCommandKind::game, cyber::game::GameMsgType::move,
-                cyber::game::build_move({static_cast<std::int8_t>(x),
+                cyber::game::game_build_move({static_cast<std::int8_t>(x),
                                          static_cast<std::int8_t>(y)}),
                 self_, ""};
     }
     if (type == "target")
     {
         return {UiCommandKind::game, cyber::game::GameMsgType::target,
-                cyber::game::build_target({extract_float(text, "angle", 0.0F)}), self_, ""};
+                cyber::game::game_build_target({extract_float(text, "angle", 0.0F)}), self_, ""};
     }
     if (type == "shoot")
     {
         return {UiCommandKind::game, cyber::game::GameMsgType::shoot,
-                cyber::game::build_shoot({}), self_, ""};
+                cyber::game::game_build_shoot({}), self_, ""};
     }
     return {UiCommandKind::error, cyber::game::GameMsgType::error, {}, self_, ""};
 }
@@ -196,7 +196,7 @@ void UiBridge::handle_client(cyber::SocketHandle socket)
 
 void UiBridge::broadcast_state(const cyber::game::BattleStateSnapshot& snapshot)
 {
-    broadcast_text(cyber::game::to_json(snapshot, self_));
+    broadcast_text(cyber::game::game_format_state_json(snapshot, self_));
 }
 
 void UiBridge::set_self(cyber::EntityId self)

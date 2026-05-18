@@ -31,43 +31,43 @@ int main()
         const std::uint32_t adc = 0x7F000001U;
 
         cyber::AsReq as_req{cyber::EntityId::client1, cyber::EntityId::tgs, 1001};
-        require(cyber::parse_as_req(cyber::build_as_req(as_req)).ts1 == 1001,
+        require(cyber::as_parse_req(cyber::as_build_req(as_req)).ts1 == 1001,
                 "AS_REQ roundtrip failed");
 
         cyber::TicketTgsBody ticket_tgs_body{
             kc_tgs, cyber::EntityId::client1, adc, cyber::EntityId::tgs, 2002, 300000};
-        const cyber::Bytes ticket_tgs = cyber::encrypt_ticket_tgs(ticket_tgs_body, ktgs);
-        require(cyber::decrypt_ticket_tgs(ticket_tgs, ktgs).idc == cyber::EntityId::client1,
+        const cyber::Bytes ticket_tgs = cyber::tgs_ticket_encrypt(ticket_tgs_body, ktgs);
+        require(cyber::tgs_ticket_decrypt(ticket_tgs, ktgs).idc == cyber::EntityId::client1,
                 "Ticket_tgs decrypt failed");
 
         cyber::AsRepBody as_rep_body{kc_tgs, cyber::EntityId::tgs, 2002, 300000, ticket_tgs};
-        require(cyber::parse_as_rep_body(cyber::build_as_rep_body(as_rep_body)).ticket_tgs ==
+        require(cyber::as_parse_rep_body(cyber::as_build_rep_body(as_rep_body)).ticket_tgs ==
                     ticket_tgs,
                 "AS_REP_BODY roundtrip failed");
 
         cyber::AuthenticatorBody auth_tgs{cyber::EntityId::client1, adc, 3003};
         cyber::TgsReq tgs_req{cyber::EntityId::v, ticket_tgs,
-                              cyber::encrypt_authenticator(auth_tgs, kc_tgs)};
-        require(cyber::parse_tgs_req(cyber::build_tgs_req(tgs_req)).ticket_tgs == ticket_tgs,
+                              cyber::authenticator_encrypt(auth_tgs, kc_tgs)};
+        require(cyber::tgs_parse_req(cyber::tgs_build_req(tgs_req)).ticket_tgs == ticket_tgs,
                 "TGS_REQ roundtrip failed");
 
         cyber::TicketVBody ticket_v_body{
             kc_v, cyber::EntityId::client1, adc, cyber::EntityId::v, 4004, 300000};
-        const cyber::Bytes ticket_v = cyber::encrypt_ticket_v(ticket_v_body, kv);
-        require(cyber::decrypt_ticket_v(ticket_v, kv).idv == cyber::EntityId::v,
+        const cyber::Bytes ticket_v = cyber::v_ticket_encrypt(ticket_v_body, kv);
+        require(cyber::v_ticket_decrypt(ticket_v, kv).idv == cyber::EntityId::v,
                 "Ticket_v decrypt failed");
 
         cyber::TgsRepBody tgs_rep_body{kc_v, cyber::EntityId::v, 4004, ticket_v};
-        require(cyber::parse_tgs_rep_body(cyber::build_tgs_rep_body(tgs_rep_body)).ticket_v ==
+        require(cyber::tgs_parse_rep_body(cyber::tgs_build_rep_body(tgs_rep_body)).ticket_v ==
                     ticket_v,
                 "TGS_REP_BODY roundtrip failed");
 
         cyber::AuthenticatorBody auth_v{cyber::EntityId::client1, adc, 5005};
-        cyber::VAuthReq v_auth_req{ticket_v, cyber::encrypt_authenticator(auth_v, kc_v)};
-        require(cyber::parse_v_auth_req(cyber::build_v_auth_req(v_auth_req)).ticket_v == ticket_v,
+        cyber::VAuthReq v_auth_req{ticket_v, cyber::authenticator_encrypt(auth_v, kc_v)};
+        require(cyber::v_auth_parse_req(cyber::v_auth_build_req(v_auth_req)).ticket_v == ticket_v,
                 "V_AUTH_REQ roundtrip failed");
 
-        require(cyber::parse_v_auth_rep_body(cyber::build_v_auth_rep_body({5006})).ts5_plus_1 ==
+        require(cyber::v_auth_parse_rep_body(cyber::v_auth_build_rep_body({5006})).ts5_plus_1 ==
                     5006,
                 "V_AUTH_REP_BODY roundtrip failed");
 
@@ -81,21 +81,21 @@ int main()
         const cyber::Bytes cert_bytes = cyber::serialize_certificate(client_cert);
 
         cyber::CertC2VBody cert_c2v{cyber::EntityId::client1, cert_bytes};
-        require(cyber::parse_cert_c2v_body(cyber::build_cert_c2v_body(cert_c2v)).cert == cert_bytes,
+        require(cyber::cert_parse_c2v_body(cyber::cert_build_c2v_body(cert_c2v)).cert == cert_bytes,
                 "CERT_C2V_BODY roundtrip failed");
 
         cyber::AppAckPayload ack{cyber::MsgType::app, cyber::AppCode::game_join_req,
                                  cyber::EntityId::client1, cyber::EntityId::v, 2, 0xABCDEF};
-        require(cyber::parse_app_ack_payload(cyber::build_app_ack_payload(ack)).acked_payload_hash ==
+        require(cyber::ack_parse_payload(cyber::ack_build_payload(ack)).acked_payload_hash ==
                     0xABCDEF,
                 "APP_ACK roundtrip failed");
 
-        const cyber::Bytes signed_join = cyber::build_signed_app_payload(
+        const cyber::Bytes signed_join = cyber::app_build_signed_payload(
             cyber::AppCode::game_join_req, cyber::Bytes{0x01}, client_pair.private_key);
-        const cyber::SignedAppPayload parsed_join = cyber::parse_signed_app_payload(signed_join);
+        const cyber::SignedAppPayload parsed_join = cyber::app_parse_signed_payload(signed_join);
         require(parsed_join.app_code == cyber::AppCode::game_join_req,
                 "signed app code mismatch");
-        require(cyber::verify_signed_app_payload(parsed_join, client_pair.public_key),
+        require(cyber::app_verify_signed_payload(parsed_join, client_pair.public_key),
                 "signed app verification failed");
 
         const std::filesystem::path config_path =
@@ -117,18 +117,18 @@ int main()
                 << "SK_CA_D=0xA1A84610F63E7E9BA04B9BBCD043B2D891C75316A7AC70BEC7C3CEB1477AFB69\n";
         }
         const cyber::Config config = cyber::Config::load(config_path);
-        cyber::AuthRuntime runtime = cyber::make_auth_runtime(config);
+        cyber::AuthRuntime runtime = cyber::auth_make_runtime(config);
         cyber::Packet v_request =
             cyber::make_packet(cyber::MsgType::v_auth_req, cyber::EntityId::client1,
-                               cyber::EntityId::v, cyber::build_v_auth_req(v_auth_req));
+                               cyber::EntityId::v, cyber::v_auth_build_req(v_auth_req));
         cyber::Logger logger(std::filesystem::temp_directory_path() / "auth_payload_v_auth.log");
         cyber::Packet v_response =
-            cyber::process_v_auth_request(v_request, config, runtime, logger, "AuthPayloadTest");
+            cyber::v_auth_process_request(v_request, config, runtime, logger, "AuthPayloadTest");
         require(v_response.msg_type == cyber::MsgType::v_auth_rep, "V_AUTH response type mismatch");
         require(v_response.src == cyber::EntityId::v, "V_AUTH response source mismatch");
         require(v_response.dst == cyber::EntityId::client1, "V_AUTH response destination mismatch");
         const cyber::VAuthRepBody parsed_v_response =
-            cyber::parse_v_auth_rep_body(cyber::des_decrypt_payload(v_response.payload, kc_v));
+            cyber::v_auth_parse_rep_body(cyber::des_decrypt_payload(v_response.payload, kc_v));
         require(parsed_v_response.ts5_plus_1 == auth_v.ts + 1U,
                 "V_AUTH response timestamp mismatch");
         require(runtime.v_sessions.get(cyber::EntityId::client1).v_auth_done,

@@ -95,20 +95,20 @@ void as_process_packet(SocketHandle socket, const Packet& request, const Config&
                        Logger& logger, const std::string& thread_name)
 {
     packet_require_msg_type(request, MsgType::as_req);
-    const AsReq as_req = parse_as_req(request.payload);
+    const AsReq as_req = as_parse_req(request.payload);
     const ClientSecret secret = auth_find_client_secret(config, as_req.idc);
     const std::uint64_t kc_tgs = generate_des_key56();
     const std::uint64_t ts2 = auth_time_now_ms();
     const TicketTgsBody ticket_body{
         kc_tgs, as_req.idc, kDefaultAdc, EntityId::tgs, ts2, kDefaultLifetimeMs};
-    const Bytes ticket_tgs = encrypt_ticket_tgs(ticket_body, config.get_u64("KTGS"));
+    const Bytes ticket_tgs = tgs_ticket_encrypt(ticket_body, config.get_u64("KTGS"));
     const AsRepBody rep_body{kc_tgs, EntityId::tgs, ts2, kDefaultLifetimeMs, ticket_tgs};
-    const Bytes rep_plain = build_as_rep_body(rep_body);
+    const Bytes rep_plain = as_build_rep_body(rep_body);
     const Packet response =
         packet_build_encrypted(MsgType::as_rep, EntityId::as, as_req.idc, rep_plain, secret.kc);
     ProtocolPayloadView view = protocol_build_encrypted_payload_view(rep_plain, response.payload);
     protocol_add_encrypted_field(view, "ticket_tgs", ticket_tgs,
-                                 build_ticket_tgs_body(ticket_body));
+                                 tgs_ticket_build_body(ticket_body));
     logger.write("AS", thread_name, "AUTH_STATE",
                  "AS_REP_SENT client=" + log_format_entity(as_req.idc));
     send_packet_logged(socket, response, logger, "AS", thread_name, view);
@@ -118,33 +118,33 @@ void tgs_process_packet(SocketHandle socket, const Packet& request, const Config
                         Logger& logger, const std::string& thread_name)
 {
     packet_require_msg_type(request, MsgType::tgs_req);
-    const TgsReq tgs_req = parse_tgs_req(request.payload);
-    const TicketTgsBody ticket = decrypt_ticket_tgs(tgs_req.ticket_tgs, config.get_u64("KTGS"));
+    const TgsReq tgs_req = tgs_parse_req(request.payload);
+    const TicketTgsBody ticket = tgs_ticket_decrypt(tgs_req.ticket_tgs, config.get_u64("KTGS"));
     const AuthenticatorBody auth =
-        decrypt_authenticator(tgs_req.authenticator_tgs, ticket.kc_tgs);
+        authenticator_decrypt(tgs_req.authenticator_tgs, ticket.kc_tgs);
     if (ticket.idc != auth.idc || ticket.idtgs != EntityId::tgs || tgs_req.idv != EntityId::v)
     {
         throw std::runtime_error("TGS identity check failed");
     }
     ProtocolPayloadView request_view;
     protocol_add_encrypted_field(request_view, "ticket_tgs", tgs_req.ticket_tgs,
-                                 build_ticket_tgs_body(ticket));
+                                 tgs_ticket_build_body(ticket));
     protocol_add_encrypted_field(request_view, "authenticator_tgs", tgs_req.authenticator_tgs,
-                                 build_authenticator_body(auth));
+                                 authenticator_build_body(auth));
     write_protocol_event(ProtocolDirection::recv, request, {}, request_view);
 
     const std::uint64_t kc_v = generate_des_key56();
     const std::uint64_t ts4 = auth_time_now_ms();
     const TicketVBody ticket_v_body{
         kc_v, ticket.idc, ticket.adc, EntityId::v, ts4, kDefaultLifetimeMs};
-    const Bytes ticket_v = encrypt_ticket_v(ticket_v_body, config.get_u64("KV"));
+    const Bytes ticket_v = v_ticket_encrypt(ticket_v_body, config.get_u64("KV"));
     const TgsRepBody rep_body{kc_v, EntityId::v, ts4, ticket_v};
-    const Bytes rep_plain = build_tgs_rep_body(rep_body);
+    const Bytes rep_plain = tgs_build_rep_body(rep_body);
     const Packet response =
         packet_build_encrypted(MsgType::tgs_rep, EntityId::tgs, ticket.idc, rep_plain,
                                ticket.kc_tgs);
     ProtocolPayloadView view = protocol_build_encrypted_payload_view(rep_plain, response.payload);
-    protocol_add_encrypted_field(view, "ticket_v", ticket_v, build_ticket_v_body(ticket_v_body));
+    protocol_add_encrypted_field(view, "ticket_v", ticket_v, v_ticket_build_body(ticket_v_body));
     logger.write("TGS", thread_name, "AUTH_STATE",
                  "TGS_REP_SENT client=" + log_format_entity(ticket.idc));
     send_packet_logged(socket, response, logger, "TGS", thread_name, view);
@@ -222,7 +222,7 @@ void AuthSessionTable::put_client_public_key(EntityId client_id, const RsaPublic
     session.cert_done = true;
 }
 
-AuthRuntime make_auth_runtime(const Config& config)
+AuthRuntime auth_make_runtime(const Config& config)
 {
     AuthRuntime runtime;
     runtime.ca_key_pair =
@@ -232,13 +232,13 @@ AuthRuntime make_auth_runtime(const Config& config)
     return runtime;
 }
 
-Packet process_v_auth_request(const Packet& request, const Config& config, AuthRuntime& runtime,
+Packet v_auth_process_request(const Packet& request, const Config& config, AuthRuntime& runtime,
                               Logger& logger, const std::string& thread_name)
 {
     packet_require_msg_type(request, MsgType::v_auth_req);
-    const VAuthReq v_req = parse_v_auth_req(request.payload);
-    const TicketVBody ticket = decrypt_ticket_v(v_req.ticket_v, config.get_u64("KV"));
-    const AuthenticatorBody auth = decrypt_authenticator(v_req.authenticator_v, ticket.kc_v);
+    const VAuthReq v_req = v_auth_parse_req(request.payload);
+    const TicketVBody ticket = v_ticket_decrypt(v_req.ticket_v, config.get_u64("KV"));
+    const AuthenticatorBody auth = authenticator_decrypt(v_req.authenticator_v, ticket.kc_v);
     if (ticket.idc != auth.idc || ticket.idv != EntityId::v || request.src != ticket.idc)
     {
         throw std::runtime_error("V identity check failed");
@@ -247,10 +247,10 @@ Packet process_v_auth_request(const Packet& request, const Config& config, AuthR
     logger.write("V", thread_name, "AUTH_STATE",
                  "V_AUTH_REP_SENT client=" + log_format_entity(ticket.idc));
     return packet_build_encrypted(MsgType::v_auth_rep, EntityId::v, ticket.idc,
-                                  build_v_auth_rep_body({auth.ts + 1U}), ticket.kc_v);
+                                  v_auth_build_rep_body({auth.ts + 1U}), ticket.kc_v);
 }
 
-Packet process_cert_c2v_request(const Packet& request, AuthRuntime& runtime, Logger& logger,
+Packet cert_process_c2v_request(const Packet& request, AuthRuntime& runtime, Logger& logger,
                                 const std::string& thread_name)
 {
     packet_require_msg_type(request, MsgType::cert_c2v);
@@ -261,7 +261,7 @@ Packet process_cert_c2v_request(const Packet& request, AuthRuntime& runtime, Log
 
     const AuthSession session = runtime.v_sessions.get(request.src);
     const CertC2VBody body =
-        parse_cert_c2v_body(des_decrypt_payload(request.payload, session.kc_v));
+        cert_parse_c2v_body(des_decrypt_payload(request.payload, session.kc_v));
     if (body.client_id != request.src)
     {
         throw std::runtime_error("CERT_C2V client id mismatch");
@@ -280,10 +280,10 @@ Packet process_cert_c2v_request(const Packet& request, AuthRuntime& runtime, Log
     logger.write("V", thread_name, "AUTH_STATE",
                  "CERT_V2C_SENT client=" + log_format_entity(request.src));
     return packet_build_encrypted(MsgType::cert_v2c, EntityId::v, request.src,
-                                  build_cert_v2c_body(response_body), session.kc_v);
+                                  cert_build_v2c_body(response_body), session.kc_v);
 }
 
-VAuthenticatedSocket authenticate_client_to_v_socket(const Config& config, EntityId client_id,
+VAuthenticatedSocket client_auth_connect_to_v_socket(const Config& config, EntityId client_id,
                                                      std::uint64_t kc, Logger& logger,
                                                      const std::string& thread_name)
 {
@@ -292,17 +292,17 @@ VAuthenticatedSocket authenticate_client_to_v_socket(const Config& config, Entit
     state.adc = kDefaultAdc;
     state.kc = kc;
     state.client_key_pair = demo_rsa_key_pair_for(client_id);
-    const AuthRuntime cert_runtime = make_auth_runtime(config);
+    const AuthRuntime cert_runtime = auth_make_runtime(config);
 
     const std::uint64_t ts1 = auth_time_now_ms();
     const Packet as_req =
         make_packet(MsgType::as_req, state.client_id, EntityId::as,
-                    build_as_req({state.client_id, EntityId::tgs, ts1}));
+                    as_build_req({state.client_id, EntityId::tgs, ts1}));
     const Packet as_rep = auth_exchange_packet(
         config_build_endpoint(config, "AS_IP", "AS_PORT"), as_req, logger, thread_name);
     packet_require_msg_type(as_rep, MsgType::as_rep);
     const Bytes as_rep_plain = des_decrypt_payload(as_rep.payload, state.kc);
-    const AsRepBody as_body = parse_as_rep_body(as_rep_plain);
+    const AsRepBody as_body = as_parse_rep_body(as_rep_plain);
     ProtocolPayloadView as_rep_view =
         protocol_build_encrypted_payload_view(as_rep_plain, as_rep.payload);
     protocol_add_encrypted_field(as_rep_view, "ticket_tgs", as_body.ticket_tgs);
@@ -312,22 +312,22 @@ VAuthenticatedSocket authenticate_client_to_v_socket(const Config& config, Entit
     logger.write("Client", thread_name, "AUTH_STATE", "AS_OK");
 
     const AuthenticatorBody auth_tgs{state.client_id, state.adc, auth_time_now_ms()};
-    const Bytes authenticator_tgs = encrypt_authenticator(auth_tgs, state.kc_tgs);
+    const Bytes authenticator_tgs = authenticator_encrypt(auth_tgs, state.kc_tgs);
     const TgsReq tgs_req_body{EntityId::v, state.ticket_tgs,
                               authenticator_tgs};
     const Packet tgs_req =
         make_packet(MsgType::tgs_req, state.client_id, EntityId::tgs,
-                    build_tgs_req(tgs_req_body));
+                    tgs_build_req(tgs_req_body));
     ProtocolPayloadView tgs_req_view;
     protocol_add_encrypted_field(tgs_req_view, "ticket_tgs", state.ticket_tgs);
     protocol_add_encrypted_field(tgs_req_view, "authenticator_tgs", authenticator_tgs,
-                                 build_authenticator_body(auth_tgs));
+                                 authenticator_build_body(auth_tgs));
     const Packet tgs_rep = auth_exchange_packet(
         config_build_endpoint(config, "TGS_IP", "TGS_PORT"), tgs_req, logger, thread_name,
         tgs_req_view);
     packet_require_msg_type(tgs_rep, MsgType::tgs_rep);
     const Bytes tgs_rep_plain = des_decrypt_payload(tgs_rep.payload, state.kc_tgs);
-    const TgsRepBody tgs_body = parse_tgs_rep_body(tgs_rep_plain);
+    const TgsRepBody tgs_body = tgs_parse_rep_body(tgs_rep_plain);
     ProtocolPayloadView tgs_rep_view =
         protocol_build_encrypted_payload_view(tgs_rep_plain, tgs_rep.payload);
     protocol_add_encrypted_field(tgs_rep_view, "ticket_v", tgs_body.ticket_v);
@@ -343,19 +343,19 @@ VAuthenticatedSocket authenticate_client_to_v_socket(const Config& config, Entit
     {
         const std::uint64_t ts5 = auth_time_now_ms();
         const AuthenticatorBody auth_v{state.client_id, state.adc, ts5};
-        const Bytes authenticator_v = encrypt_authenticator(auth_v, state.kc_v);
+        const Bytes authenticator_v = authenticator_encrypt(auth_v, state.kc_v);
         const VAuthReq v_req_body{state.ticket_v, authenticator_v};
         const Packet v_req = make_packet(MsgType::v_auth_req, state.client_id, EntityId::v,
-                                         build_v_auth_req(v_req_body));
+                                         v_auth_build_req(v_req_body));
         ProtocolPayloadView v_req_view;
         protocol_add_encrypted_field(v_req_view, "ticket_v", state.ticket_v);
         protocol_add_encrypted_field(v_req_view, "authenticator_v", authenticator_v,
-                                     build_authenticator_body(auth_v));
+                                     authenticator_build_body(auth_v));
         send_packet_logged(socket, v_req, logger, "Client", thread_name, v_req_view);
         const Packet v_rep = recv_packet_logged(socket, logger, "Client", thread_name);
         packet_require_msg_type(v_rep, MsgType::v_auth_rep);
         const Bytes v_rep_plain = des_decrypt_payload(v_rep.payload, state.kc_v);
-        const VAuthRepBody v_body = parse_v_auth_rep_body(v_rep_plain);
+        const VAuthRepBody v_body = v_auth_parse_rep_body(v_rep_plain);
         write_protocol_event(
             ProtocolDirection::recv, v_rep, {},
             protocol_build_encrypted_payload_view(v_rep_plain, v_rep.payload));
@@ -369,7 +369,7 @@ VAuthenticatedSocket authenticate_client_to_v_socket(const Config& config, Entit
             make_certificate(state.client_id, state.client_key_pair.public_key,
                              cert_runtime.ca_key_pair.private_key);
         const CertC2VBody cert_body{state.client_id, serialize_certificate(client_cert)};
-        const Bytes cert_plain = build_cert_c2v_body(cert_body);
+        const Bytes cert_plain = cert_build_c2v_body(cert_body);
         const Packet cert_req =
             packet_build_encrypted(MsgType::cert_c2v, state.client_id, EntityId::v,
                                    cert_plain, state.kc_v);
@@ -378,7 +378,7 @@ VAuthenticatedSocket authenticate_client_to_v_socket(const Config& config, Entit
         const Packet cert_rep = recv_packet_logged(socket, logger, "Client", thread_name);
         packet_require_msg_type(cert_rep, MsgType::cert_v2c);
         const Bytes cert_rep_plain = des_decrypt_payload(cert_rep.payload, state.kc_v);
-        const CertV2CBody cert_v = parse_cert_v2c_body(cert_rep_plain);
+        const CertV2CBody cert_v = cert_parse_v2c_body(cert_rep_plain);
         write_protocol_event(
             ProtocolDirection::recv, cert_rep, {},
             protocol_build_encrypted_payload_view(cert_rep_plain, cert_rep.payload));
@@ -400,7 +400,7 @@ VAuthenticatedSocket authenticate_client_to_v_socket(const Config& config, Entit
     }
 }
 
-void handle_auth_packet(RoleKind role, SocketHandle socket, const Packet& request,
+void auth_handle_packet(RoleKind role, SocketHandle socket, const Packet& request,
                         const Config& config, Logger& logger, const std::string& thread_name)
 {
     try

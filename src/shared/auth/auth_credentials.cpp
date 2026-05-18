@@ -6,11 +6,11 @@
 
 namespace cyber
 {
-std::uint64_t derive_client_key(EntityId client_id, const std::string& password)
+std::uint64_t auth_derive_client_key(EntityId client_id, const std::string& password)
 {
     if (!is_client(client_id))
     {
-        throw std::runtime_error("derive_client_key requires a client id");
+        throw std::runtime_error("auth_derive_client_key requires a client id");
     }
 
     const std::string material =

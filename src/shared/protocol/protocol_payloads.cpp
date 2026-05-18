@@ -100,7 +100,7 @@ void require_end(const Bytes& in, std::size_t offset, const char* name)
 }
 } // namespace
 
-Bytes build_as_req(const AsReq& value)
+Bytes as_build_req(const AsReq& value)
 {
     Bytes out;
     out.push_back(static_cast<std::uint8_t>(value.idc));
@@ -109,7 +109,7 @@ Bytes build_as_req(const AsReq& value)
     return out;
 }
 
-AsReq parse_as_req(const Bytes& payload)
+AsReq as_parse_req(const Bytes& payload)
 {
     if (payload.size() != 10U)
     {
@@ -124,7 +124,7 @@ AsReq parse_as_req(const Bytes& payload)
     return value;
 }
 
-Bytes build_ticket_tgs_body(const TicketTgsBody& value)
+Bytes tgs_ticket_build_body(const TicketTgsBody& value)
 {
     Bytes out;
     write_u64(out, value.kc_tgs);
@@ -136,7 +136,7 @@ Bytes build_ticket_tgs_body(const TicketTgsBody& value)
     return out;
 }
 
-TicketTgsBody parse_ticket_tgs_body(const Bytes& payload)
+TicketTgsBody tgs_ticket_parse_body(const Bytes& payload)
 {
     std::size_t offset = 0;
     TicketTgsBody value;
@@ -150,17 +150,17 @@ TicketTgsBody parse_ticket_tgs_body(const Bytes& payload)
     return value;
 }
 
-Bytes encrypt_ticket_tgs(const TicketTgsBody& value, std::uint64_t ktgs)
+Bytes tgs_ticket_encrypt(const TicketTgsBody& value, std::uint64_t ktgs)
 {
-    return des_encrypt_payload(build_ticket_tgs_body(value), ktgs);
+    return des_encrypt_payload(tgs_ticket_build_body(value), ktgs);
 }
 
-TicketTgsBody decrypt_ticket_tgs(const Bytes& cipher, std::uint64_t ktgs)
+TicketTgsBody tgs_ticket_decrypt(const Bytes& cipher, std::uint64_t ktgs)
 {
-    return parse_ticket_tgs_body(des_decrypt_payload(cipher, ktgs));
+    return tgs_ticket_parse_body(des_decrypt_payload(cipher, ktgs));
 }
 
-Bytes build_as_rep_body(const AsRepBody& value)
+Bytes as_build_rep_body(const AsRepBody& value)
 {
     Bytes out;
     write_u64(out, value.kc_tgs);
@@ -171,7 +171,7 @@ Bytes build_as_rep_body(const AsRepBody& value)
     return out;
 }
 
-AsRepBody parse_as_rep_body(const Bytes& payload)
+AsRepBody as_parse_rep_body(const Bytes& payload)
 {
     std::size_t offset = 0;
     AsRepBody value;
@@ -184,7 +184,7 @@ AsRepBody parse_as_rep_body(const Bytes& payload)
     return value;
 }
 
-Bytes build_authenticator_body(const AuthenticatorBody& value)
+Bytes authenticator_build_body(const AuthenticatorBody& value)
 {
     Bytes out;
     out.push_back(static_cast<std::uint8_t>(value.idc));
@@ -193,7 +193,7 @@ Bytes build_authenticator_body(const AuthenticatorBody& value)
     return out;
 }
 
-AuthenticatorBody parse_authenticator_body(const Bytes& payload)
+AuthenticatorBody authenticator_parse_body(const Bytes& payload)
 {
     std::size_t offset = 0;
     AuthenticatorBody value;
@@ -204,17 +204,17 @@ AuthenticatorBody parse_authenticator_body(const Bytes& payload)
     return value;
 }
 
-Bytes encrypt_authenticator(const AuthenticatorBody& value, std::uint64_t key56)
+Bytes authenticator_encrypt(const AuthenticatorBody& value, std::uint64_t key56)
 {
-    return des_encrypt_payload(build_authenticator_body(value), key56);
+    return des_encrypt_payload(authenticator_build_body(value), key56);
 }
 
-AuthenticatorBody decrypt_authenticator(const Bytes& cipher, std::uint64_t key56)
+AuthenticatorBody authenticator_decrypt(const Bytes& cipher, std::uint64_t key56)
 {
-    return parse_authenticator_body(des_decrypt_payload(cipher, key56));
+    return authenticator_parse_body(des_decrypt_payload(cipher, key56));
 }
 
-Bytes build_tgs_req(const TgsReq& value)
+Bytes tgs_build_req(const TgsReq& value)
 {
     Bytes out;
     out.push_back(static_cast<std::uint8_t>(value.idv));
@@ -223,7 +223,7 @@ Bytes build_tgs_req(const TgsReq& value)
     return out;
 }
 
-TgsReq parse_tgs_req(const Bytes& payload)
+TgsReq tgs_parse_req(const Bytes& payload)
 {
     std::size_t offset = 0;
     TgsReq value;
@@ -234,7 +234,7 @@ TgsReq parse_tgs_req(const Bytes& payload)
     return value;
 }
 
-Bytes build_ticket_v_body(const TicketVBody& value)
+Bytes v_ticket_build_body(const TicketVBody& value)
 {
     Bytes out;
     write_u64(out, value.kc_v);
@@ -246,7 +246,7 @@ Bytes build_ticket_v_body(const TicketVBody& value)
     return out;
 }
 
-TicketVBody parse_ticket_v_body(const Bytes& payload)
+TicketVBody v_ticket_parse_body(const Bytes& payload)
 {
     std::size_t offset = 0;
     TicketVBody value;
@@ -260,17 +260,17 @@ TicketVBody parse_ticket_v_body(const Bytes& payload)
     return value;
 }
 
-Bytes encrypt_ticket_v(const TicketVBody& value, std::uint64_t kv)
+Bytes v_ticket_encrypt(const TicketVBody& value, std::uint64_t kv)
 {
-    return des_encrypt_payload(build_ticket_v_body(value), kv);
+    return des_encrypt_payload(v_ticket_build_body(value), kv);
 }
 
-TicketVBody decrypt_ticket_v(const Bytes& cipher, std::uint64_t kv)
+TicketVBody v_ticket_decrypt(const Bytes& cipher, std::uint64_t kv)
 {
-    return parse_ticket_v_body(des_decrypt_payload(cipher, kv));
+    return v_ticket_parse_body(des_decrypt_payload(cipher, kv));
 }
 
-Bytes build_tgs_rep_body(const TgsRepBody& value)
+Bytes tgs_build_rep_body(const TgsRepBody& value)
 {
     Bytes out;
     write_u64(out, value.kc_v);
@@ -280,7 +280,7 @@ Bytes build_tgs_rep_body(const TgsRepBody& value)
     return out;
 }
 
-TgsRepBody parse_tgs_rep_body(const Bytes& payload)
+TgsRepBody tgs_parse_rep_body(const Bytes& payload)
 {
     std::size_t offset = 0;
     TgsRepBody value;
@@ -292,7 +292,7 @@ TgsRepBody parse_tgs_rep_body(const Bytes& payload)
     return value;
 }
 
-Bytes build_v_auth_req(const VAuthReq& value)
+Bytes v_auth_build_req(const VAuthReq& value)
 {
     Bytes out;
     write_bytes_u16(out, value.ticket_v);
@@ -300,7 +300,7 @@ Bytes build_v_auth_req(const VAuthReq& value)
     return out;
 }
 
-VAuthReq parse_v_auth_req(const Bytes& payload)
+VAuthReq v_auth_parse_req(const Bytes& payload)
 {
     std::size_t offset = 0;
     VAuthReq value;
@@ -310,14 +310,14 @@ VAuthReq parse_v_auth_req(const Bytes& payload)
     return value;
 }
 
-Bytes build_v_auth_rep_body(const VAuthRepBody& value)
+Bytes v_auth_build_rep_body(const VAuthRepBody& value)
 {
     Bytes out;
     write_u64(out, value.ts5_plus_1);
     return out;
 }
 
-VAuthRepBody parse_v_auth_rep_body(const Bytes& payload)
+VAuthRepBody v_auth_parse_rep_body(const Bytes& payload)
 {
     std::size_t offset = 0;
     VAuthRepBody value;
@@ -326,7 +326,7 @@ VAuthRepBody parse_v_auth_rep_body(const Bytes& payload)
     return value;
 }
 
-Bytes build_cert_c2v_body(const CertC2VBody& value)
+Bytes cert_build_c2v_body(const CertC2VBody& value)
 {
     Bytes out;
     out.push_back(static_cast<std::uint8_t>(value.client_id));
@@ -334,7 +334,7 @@ Bytes build_cert_c2v_body(const CertC2VBody& value)
     return out;
 }
 
-CertC2VBody parse_cert_c2v_body(const Bytes& payload)
+CertC2VBody cert_parse_c2v_body(const Bytes& payload)
 {
     std::size_t offset = 0;
     CertC2VBody value;
@@ -344,7 +344,7 @@ CertC2VBody parse_cert_c2v_body(const Bytes& payload)
     return value;
 }
 
-Bytes build_cert_v2c_body(const CertV2CBody& value)
+Bytes cert_build_v2c_body(const CertV2CBody& value)
 {
     Bytes out;
     out.push_back(static_cast<std::uint8_t>(value.v_id));
@@ -352,7 +352,7 @@ Bytes build_cert_v2c_body(const CertV2CBody& value)
     return out;
 }
 
-CertV2CBody parse_cert_v2c_body(const Bytes& payload)
+CertV2CBody cert_parse_v2c_body(const Bytes& payload)
 {
     std::size_t offset = 0;
     CertV2CBody value;
@@ -362,7 +362,7 @@ CertV2CBody parse_cert_v2c_body(const Bytes& payload)
     return value;
 }
 
-Bytes build_app_ack_payload(const AppAckPayload& value)
+Bytes ack_build_payload(const AppAckPayload& value)
 {
     Bytes out;
     out.push_back(static_cast<std::uint8_t>(value.acked_msg_type));
@@ -374,7 +374,7 @@ Bytes build_app_ack_payload(const AppAckPayload& value)
     return out;
 }
 
-AppAckPayload parse_app_ack_payload(const Bytes& payload)
+AppAckPayload ack_parse_payload(const Bytes& payload)
 {
     std::size_t offset = 0;
     AppAckPayload value;
@@ -390,7 +390,7 @@ AppAckPayload parse_app_ack_payload(const Bytes& payload)
 
 // Signature input is the logical application bytes only: AppCode followed by
 // app_payload. Packet header fields are not part of the RSA signature.
-Bytes signed_app_logical_bytes(AppCode code, const Bytes& app_payload)
+Bytes app_build_signed_logical_bytes(AppCode code, const Bytes& app_payload)
 {
     Bytes logical;
     logical.push_back(static_cast<std::uint8_t>(code));
@@ -398,10 +398,10 @@ Bytes signed_app_logical_bytes(AppCode code, const Bytes& app_payload)
     return logical;
 }
 
-Bytes build_signed_app_payload(AppCode code, const Bytes& app_payload,
+Bytes app_build_signed_payload(AppCode code, const Bytes& app_payload,
                                const RsaPrivateKey& private_key)
 {
-    const Bytes logical = signed_app_logical_bytes(code, app_payload);
+    const Bytes logical = app_build_signed_logical_bytes(code, app_payload);
     const Bytes signature = rsa_sign_hash(hash64(logical), private_key);
     Bytes out;
     out.push_back(static_cast<std::uint8_t>(code));
@@ -410,7 +410,7 @@ Bytes build_signed_app_payload(AppCode code, const Bytes& app_payload,
     return out;
 }
 
-SignedAppPayload parse_signed_app_payload(const Bytes& decrypted_payload)
+SignedAppPayload app_parse_signed_payload(const Bytes& decrypted_payload)
 {
     std::size_t offset = 0;
     SignedAppPayload value;
@@ -421,10 +421,10 @@ SignedAppPayload parse_signed_app_payload(const Bytes& decrypted_payload)
     return value;
 }
 
-bool verify_signed_app_payload(const SignedAppPayload& signed_payload,
+bool app_verify_signed_payload(const SignedAppPayload& signed_payload,
                                const RsaPublicKey& public_key)
 {
-    return rsa_verify_hash(hash64(signed_app_logical_bytes(signed_payload.app_code,
+    return rsa_verify_hash(hash64(app_build_signed_logical_bytes(signed_payload.app_code,
                                                            signed_payload.app_payload)),
                            signed_payload.signature, public_key);
 }

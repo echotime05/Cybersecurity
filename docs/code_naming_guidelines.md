@@ -87,4 +87,4 @@ config_find_default_path()
 | `src/roles/client/tank_game_client.cpp` | Client 内部 `app_payload_view` 与 V 同名但语义是应用层 view 构造 | 改为 `app_build_payload_view` |
 | `src/shared/runtime/role_runtime.cpp` | 角色运行时 helper 命名偏泛，如 `spec_for`、`run_server` | 改为 `runtime_`、`config_`、`net_` 前缀 |
 
-第二批再考虑 public header API，例如 `build_as_req` 是否改为 `as_build_req`、`parse_tgs_rep_body` 是否改为 `tgs_parse_rep_body`。这类改名影响测试和多个模块，应单独提交。
+第二批已将 Kerberos、证书、应用层安全封装、ACK 和游戏协议的 public header API 按本文档规则统一。底层通用模块如 `packet`、`net_socket`、`crypto`、`logger` 暂不强制改名，后续如果继续整理，应按模块单独提交。

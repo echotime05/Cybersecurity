@@ -42,7 +42,7 @@ int main()
 
         const cyber::ui::UiCommand move =
             bridge.parse_json_command("{\"type\":\"move\",\"x\":1,\"y\":-1}");
-        const cyber::game::MoveMessage parsed_move = cyber::game::parse_move(move.payload);
+        const cyber::game::MoveMessage parsed_move = cyber::game::game_parse_move(move.payload);
         require(move.kind == cyber::ui::UiCommandKind::game, "move command kind mismatch");
         require(move.type == cyber::game::GameMsgType::move, "move command type mismatch");
         require(parsed_move.x == 1 && parsed_move.y == -1, "move payload mismatch");
@@ -50,14 +50,14 @@ int main()
         const cyber::ui::UiCommand target =
             bridge.parse_json_command("{\"type\":\"target\",\"angle\":135.5}");
         require(target.type == cyber::game::GameMsgType::target, "target command type mismatch");
-        require_close(cyber::game::parse_target(target.payload).angle, 135.5F,
+        require_close(cyber::game::game_parse_target(target.payload).angle, 135.5F,
                       "target payload mismatch");
 
         const cyber::ui::UiCommand shoot =
             bridge.parse_json_command("{\"type\":\"shoot\"}");
         require(shoot.type == cyber::game::GameMsgType::shoot, "shoot command type mismatch");
         require(shoot.payload.empty(), "shoot payload should be empty");
-        (void)cyber::game::parse_shoot(shoot.payload);
+        (void)cyber::game::game_parse_shoot(shoot.payload);
 
         const std::string authenticated =
             cyber::ui::login_state_json("authenticated", cyber::EntityId::client4,

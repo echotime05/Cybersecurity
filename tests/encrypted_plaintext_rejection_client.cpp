@@ -37,13 +37,13 @@ int main(int argc, char** argv)
                              "encrypted_plaintext_rejection_client.log");
 
         const cyber::EntityId client_id = cyber::EntityId::client1;
-        const std::uint64_t kc = cyber::derive_client_key(client_id, "123456");
-        cyber::VAuthenticatedSocket auth = cyber::authenticate_client_to_v_socket(
+        const std::uint64_t kc = cyber::auth_derive_client_key(client_id, "123456");
+        cyber::VAuthenticatedSocket auth = cyber::client_auth_connect_to_v_socket(
             config, client_id, kc, logger, "EncryptedPlainReject");
 
-        const cyber::Bytes plaintext_join = cyber::game::build_game_message(
+        const cyber::Bytes plaintext_join = cyber::game::game_build_message(
             {cyber::game::GameMsgType::join,
-             cyber::game::build_join({client_id})});
+             cyber::game::game_build_join({client_id})});
 
         cyber::send_packet_logged(auth.socket,
                                   cyber::make_packet(cyber::MsgType::app, client_id,
@@ -65,9 +65,9 @@ int main(int argc, char** argv)
                 try
                 {
                     const cyber::Bytes decrypted =
-                        cyber::game::decode_app_payload(response.payload, auth.state.kc_v, true);
+                        cyber::game::app_decode_payload(response.payload, auth.state.kc_v, true);
                     const cyber::game::GameMessage message =
-                        cyber::game::parse_game_message(decrypted);
+                        cyber::game::game_parse_message(decrypted);
                     rejected = message.type != cyber::game::GameMsgType::state;
                 }
                 catch (const std::exception&)

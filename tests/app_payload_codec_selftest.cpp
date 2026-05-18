@@ -21,31 +21,31 @@ int main()
     try
     {
         const std::uint64_t kc_v = 0x123456789abcdeULL;
-        const cyber::Bytes plain = cyber::game::build_game_message(
+        const cyber::Bytes plain = cyber::game::game_build_message(
             {cyber::game::GameMsgType::join,
-             cyber::game::build_join({cyber::EntityId::client1})});
+             cyber::game::game_build_join({cyber::EntityId::client1})});
 
         const cyber::Bytes identity =
-            cyber::game::encode_app_payload(plain, kc_v, false);
+            cyber::game::app_encode_payload(plain, kc_v, false);
         require(identity == plain, "plaintext codec should not change payload");
-        require(cyber::game::decode_app_payload(identity, kc_v, false) == plain,
+        require(cyber::game::app_decode_payload(identity, kc_v, false) == plain,
                 "plaintext codec should roundtrip");
 
-        const cyber::Bytes cipher = cyber::game::encode_app_payload(plain, kc_v, true);
+        const cyber::Bytes cipher = cyber::game::app_encode_payload(plain, kc_v, true);
         require(cipher != plain, "encrypted codec should change payload bytes");
         require(cipher.size() % 8U == 0U, "encrypted codec should produce DES blocks");
 
-        const cyber::Bytes decoded = cyber::game::decode_app_payload(cipher, kc_v, true);
+        const cyber::Bytes decoded = cyber::game::app_decode_payload(cipher, kc_v, true);
         require(decoded == plain, "encrypted codec should roundtrip");
 
-        const cyber::game::GameMessage parsed = cyber::game::parse_game_message(decoded);
+        const cyber::game::GameMessage parsed = cyber::game::game_parse_message(decoded);
         require(parsed.type == cyber::game::GameMsgType::join,
                 "decoded game message type mismatch");
 
         bool plaintext_rejected_by_encrypted_decoder = false;
         try
         {
-            (void)cyber::game::decode_app_payload(plain, kc_v, true);
+            (void)cyber::game::app_decode_payload(plain, kc_v, true);
         }
         catch (const std::exception&)
         {

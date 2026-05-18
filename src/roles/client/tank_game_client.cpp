@@ -21,7 +21,7 @@ ProtocolPayloadView app_build_payload_view(const Packet& packet, std::uint64_t k
     ProtocolPayloadView view;
     if (encrypted)
     {
-        view.plain_hex = bytes_to_hex(decode_app_payload(packet.payload, kc_v, true));
+        view.plain_hex = bytes_to_hex(app_decode_payload(packet.payload, kc_v, true));
         view.encrypted_hex = bytes_to_hex(packet.payload);
     }
     else
@@ -121,9 +121,9 @@ void TankGameClient::handle_login(const cyber::ui::UiCommand& command)
             rx_thread_.join();
         }
 
-        const std::uint64_t kc = derive_client_key(command.client_id, command.password);
+        const std::uint64_t kc = auth_derive_client_key(command.client_id, command.password);
         VAuthenticatedSocket auth =
-            authenticate_client_to_v_socket(config_, command.client_id, kc, logger_,
+            client_auth_connect_to_v_socket(config_, command.client_id, kc, logger_,
                                             "TankGameClient");
         {
             std::lock_guard<std::mutex> lock(state_mutex_);
@@ -167,7 +167,7 @@ void TankGameClient::handle_join()
         client = self_;
         state_ = State::joined;
     }
-    send_game_message(GameMsgType::join, build_join({client}));
+    send_game_message(GameMsgType::join, game_build_join({client}));
     bridge_->broadcast_text(cyber::ui::join_state_json("joined"));
 }
 
@@ -193,11 +193,11 @@ void TankGameClient::send_game_message(GameMsgType type, const Bytes& payload)
         return;
     }
     const Packet packet =
-        build_signed_game_packet(self_, EntityId::v, type, payload, kc_v_, encrypt_app_payloads_,
+        app_build_signed_game_packet(self_, EntityId::v, type, payload, kc_v_, encrypt_app_payloads_,
                                  client_key_pair_.private_key);
     send_packet_logged(v_socket_, packet, logger_, "Client", "TankGameTx");
     write_protocol_event(ProtocolDirection::send, packet,
-                         protocol_app_message(app_code_for_game_message_type(type)),
+                         protocol_app_message(app_map_game_message_code(type)),
                          app_build_payload_view(packet, kc_v_, encrypt_app_payloads_));
 }
 
@@ -216,23 +216,23 @@ void TankGameClient::receive_loop()
                 continue;
             }
             const SignedAppPayload signed_payload =
-                decode_signed_app_packet(packet, kc_v_, encrypt_app_payloads_);
+                app_decode_signed_packet(packet, kc_v_, encrypt_app_payloads_);
             if (signed_payload.app_code == AppCode::app_ack)
             {
                 write_protocol_event(ProtocolDirection::recv, packet,
                                      protocol_app_message(AppCode::app_ack),
                                      app_build_payload_view(packet, kc_v_, encrypt_app_payloads_));
-                (void)parse_verified_ack_payload(signed_payload, v_public_key_);
-                log_verified_ack_packet(ack_logger_, "Client", "TankGameRx", packet);
+                (void)ack_parse_verified_payload(signed_payload, v_public_key_);
+                ack_log_verified_packet(ack_logger_, "Client", "TankGameRx", packet);
                 continue;
             }
 
             const GameMessage message =
-                parse_verified_game_message(signed_payload, v_public_key_);
+                app_parse_verified_game_message(signed_payload, v_public_key_);
             write_protocol_event(ProtocolDirection::recv, packet,
                                  protocol_app_message(signed_payload.app_code),
                                  app_build_payload_view(packet, kc_v_, encrypt_app_payloads_));
-            const Packet ack = build_signed_ack_packet(packet, signed_payload, self_, EntityId::v,
+            const Packet ack = ack_build_signed_packet(packet, signed_payload, self_, EntityId::v,
                                                        kc_v_, encrypt_app_payloads_,
                                                        client_key_pair_.private_key);
             {
@@ -247,7 +247,7 @@ void TankGameClient::receive_loop()
             }
             if (message.type == GameMsgType::state && bridge_)
             {
-                bridge_->broadcast_state(parse_state(message.payload));
+                bridge_->broadcast_state(game_parse_state(message.payload));
             }
         }
     }

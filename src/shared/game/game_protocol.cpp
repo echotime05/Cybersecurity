@@ -133,7 +133,7 @@ TankSnapshot read_tank(const Bytes& in, std::size_t& offset)
 }
 } // namespace
 
-Bytes build_game_message(const GameMessage& message)
+Bytes game_build_message(const GameMessage& message)
 {
     Bytes out;
     out.reserve(1U + message.payload.size());
@@ -142,7 +142,7 @@ Bytes build_game_message(const GameMessage& message)
     return out;
 }
 
-GameMessage parse_game_message(const Bytes& bytes)
+GameMessage game_parse_message(const Bytes& bytes)
 {
     if (bytes.empty())
     {
@@ -154,12 +154,12 @@ GameMessage parse_game_message(const Bytes& bytes)
     return message;
 }
 
-Bytes build_join(const JoinMessage& message)
+Bytes game_build_join(const JoinMessage& message)
 {
     return Bytes{static_cast<std::uint8_t>(message.client_id)};
 }
 
-JoinMessage parse_join(const Bytes& bytes)
+JoinMessage game_parse_join(const Bytes& bytes)
 {
     if (bytes.size() != 1U)
     {
@@ -172,12 +172,12 @@ JoinMessage parse_join(const Bytes& bytes)
     return message;
 }
 
-Bytes build_move(const MoveMessage& message)
+Bytes game_build_move(const MoveMessage& message)
 {
     return Bytes{static_cast<std::uint8_t>(message.x), static_cast<std::uint8_t>(message.y)};
 }
 
-MoveMessage parse_move(const Bytes& bytes)
+MoveMessage game_parse_move(const Bytes& bytes)
 {
     if (bytes.size() != 2U)
     {
@@ -186,14 +186,14 @@ MoveMessage parse_move(const Bytes& bytes)
     return {static_cast<std::int8_t>(bytes[0]), static_cast<std::int8_t>(bytes[1])};
 }
 
-Bytes build_target(const TargetMessage& message)
+Bytes game_build_target(const TargetMessage& message)
 {
     Bytes out;
     write_f32(out, message.angle);
     return out;
 }
 
-TargetMessage parse_target(const Bytes& bytes)
+TargetMessage game_parse_target(const Bytes& bytes)
 {
     std::size_t offset = 0;
     TargetMessage message{read_f32(bytes, offset)};
@@ -201,13 +201,13 @@ TargetMessage parse_target(const Bytes& bytes)
     return message;
 }
 
-Bytes build_shoot(const ShootMessage& message)
+Bytes game_build_shoot(const ShootMessage& message)
 {
     (void)message;
     return {};
 }
 
-ShootMessage parse_shoot(const Bytes& bytes)
+ShootMessage game_parse_shoot(const Bytes& bytes)
 {
     if (!bytes.empty())
     {
@@ -216,7 +216,7 @@ ShootMessage parse_shoot(const Bytes& bytes)
     return {};
 }
 
-Bytes build_state(const BattleStateSnapshot& snapshot)
+Bytes game_build_state(const BattleStateSnapshot& snapshot)
 {
     Bytes out;
     write_u64(out, snapshot.server_time_ms);
@@ -262,7 +262,7 @@ Bytes build_state(const BattleStateSnapshot& snapshot)
     return out;
 }
 
-BattleStateSnapshot parse_state(const Bytes& bytes)
+BattleStateSnapshot game_parse_state(const Bytes& bytes)
 {
     std::size_t offset = 0;
     BattleStateSnapshot snapshot;
@@ -336,7 +336,7 @@ BattleStateSnapshot parse_state(const Bytes& bytes)
     return snapshot;
 }
 
-std::string to_json(const BattleStateSnapshot& snapshot, EntityId self)
+std::string game_format_state_json(const BattleStateSnapshot& snapshot, EntityId self)
 {
     std::ostringstream out;
     out << "{\"type\":\"state\",\"self\":" << static_cast<int>(self)

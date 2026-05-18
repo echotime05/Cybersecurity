@@ -53,12 +53,12 @@ bool wait_for_state(cyber::SocketHandle client, cyber::Logger& logger, std::uint
         const cyber::Packet packet =
             cyber::recv_packet_logged(client, logger, "Client", "PlainGameTest");
         const cyber::Bytes plain =
-            cyber::game::decode_app_payload(packet.payload, kc_v, encrypted);
-        const cyber::game::GameMessage message = cyber::game::parse_game_message(plain);
+            cyber::game::app_decode_payload(packet.payload, kc_v, encrypted);
+        const cyber::game::GameMessage message = cyber::game::game_parse_message(plain);
         if (message.type == cyber::game::GameMsgType::state)
         {
             const cyber::game::BattleStateSnapshot state =
-                cyber::game::parse_state(message.payload);
+                cyber::game::game_parse_state(message.payload);
             if (!state.tanks.empty())
             {
                 return true;
@@ -81,9 +81,9 @@ int main()
         cyber::Logger client_logger(std::filesystem::temp_directory_path() /
                                     "plain_game_flow_client.log");
         cyber::SocketHandle client = cyber::connect_tcp({"127.0.0.1", port});
-        const auto join = cyber::game::build_game_message(
+        const auto join = cyber::game::game_build_message(
             {cyber::game::GameMsgType::join,
-             cyber::game::build_join({cyber::EntityId::client1})});
+             cyber::game::game_build_join({cyber::EntityId::client1})});
         cyber::send_packet_logged(client,
                                   cyber::make_packet(cyber::MsgType::app,
                                                      cyber::EntityId::client1, cyber::EntityId::v,
@@ -102,9 +102,9 @@ int main()
         std::thread auth_thread([&]() { auth_server.run_until_stopped(); });
 
         cyber::SocketHandle unauthenticated = cyber::connect_tcp({"127.0.0.1", auth_port});
-        const auto bad_join = cyber::game::build_game_message(
+        const auto bad_join = cyber::game::game_build_message(
             {cyber::game::GameMsgType::join,
-             cyber::game::build_join({cyber::EntityId::client1})});
+             cyber::game::game_build_join({cyber::EntityId::client1})});
         cyber::send_packet_logged(unauthenticated,
                                   cyber::make_packet(cyber::MsgType::app,
                                                      cyber::EntityId::client1, cyber::EntityId::v,
@@ -130,11 +130,11 @@ int main()
         std::thread encrypted_thread([&]() { encrypted_server.run_until_stopped(); });
 
         cyber::SocketHandle encrypted_client = cyber::connect_tcp({"127.0.0.1", encrypted_port});
-        const auto encrypted_join_plain = cyber::game::build_game_message(
+        const auto encrypted_join_plain = cyber::game::game_build_message(
             {cyber::game::GameMsgType::join,
-             cyber::game::build_join({cyber::EntityId::client1})});
+             cyber::game::game_build_join({cyber::EntityId::client1})});
         const cyber::Bytes encrypted_join =
-            cyber::game::encode_app_payload(encrypted_join_plain, 0, true);
+            cyber::game::app_encode_payload(encrypted_join_plain, 0, true);
         cyber::send_packet_logged(encrypted_client,
                                   cyber::make_packet(cyber::MsgType::app,
                                                      cyber::EntityId::client1, cyber::EntityId::v,

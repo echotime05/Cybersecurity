@@ -179,7 +179,7 @@ void runtime_handle_server_connection(SocketHandle socket, std::shared_ptr<Logge
     try
     {
         const Packet request = recv_packet_logged(socket, *logger, spec.name, thread_name);
-        handle_auth_packet(role, socket, request, config, *logger, thread_name);
+        auth_handle_packet(role, socket, request, config, *logger, thread_name);
         logger->write(spec.name, thread_name, "SOCKET_CLOSE", "close auth connection");
         logger->write(spec.name, thread_name, "THREAD_EXIT", thread_name + " exit");
     }

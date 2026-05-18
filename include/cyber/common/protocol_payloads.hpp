@@ -105,40 +105,40 @@ struct SignedAppPayload
     Bytes signature;
 };
 
-Bytes build_as_req(const AsReq& value);
-AsReq parse_as_req(const Bytes& payload);
-Bytes build_ticket_tgs_body(const TicketTgsBody& value);
-TicketTgsBody parse_ticket_tgs_body(const Bytes& payload);
-Bytes encrypt_ticket_tgs(const TicketTgsBody& value, std::uint64_t ktgs);
-TicketTgsBody decrypt_ticket_tgs(const Bytes& cipher, std::uint64_t ktgs);
-Bytes build_as_rep_body(const AsRepBody& value);
-AsRepBody parse_as_rep_body(const Bytes& payload);
-Bytes build_authenticator_body(const AuthenticatorBody& value);
-AuthenticatorBody parse_authenticator_body(const Bytes& payload);
-Bytes encrypt_authenticator(const AuthenticatorBody& value, std::uint64_t key56);
-AuthenticatorBody decrypt_authenticator(const Bytes& cipher, std::uint64_t key56);
-Bytes build_tgs_req(const TgsReq& value);
-TgsReq parse_tgs_req(const Bytes& payload);
-Bytes build_ticket_v_body(const TicketVBody& value);
-TicketVBody parse_ticket_v_body(const Bytes& payload);
-Bytes encrypt_ticket_v(const TicketVBody& value, std::uint64_t kv);
-TicketVBody decrypt_ticket_v(const Bytes& cipher, std::uint64_t kv);
-Bytes build_tgs_rep_body(const TgsRepBody& value);
-TgsRepBody parse_tgs_rep_body(const Bytes& payload);
-Bytes build_v_auth_req(const VAuthReq& value);
-VAuthReq parse_v_auth_req(const Bytes& payload);
-Bytes build_v_auth_rep_body(const VAuthRepBody& value);
-VAuthRepBody parse_v_auth_rep_body(const Bytes& payload);
-Bytes build_cert_c2v_body(const CertC2VBody& value);
-CertC2VBody parse_cert_c2v_body(const Bytes& payload);
-Bytes build_cert_v2c_body(const CertV2CBody& value);
-CertV2CBody parse_cert_v2c_body(const Bytes& payload);
-Bytes build_app_ack_payload(const AppAckPayload& value);
-AppAckPayload parse_app_ack_payload(const Bytes& payload);
-Bytes build_signed_app_payload(AppCode code, const Bytes& app_payload,
+Bytes as_build_req(const AsReq& value);
+AsReq as_parse_req(const Bytes& payload);
+Bytes tgs_ticket_build_body(const TicketTgsBody& value);
+TicketTgsBody tgs_ticket_parse_body(const Bytes& payload);
+Bytes tgs_ticket_encrypt(const TicketTgsBody& value, std::uint64_t ktgs);
+TicketTgsBody tgs_ticket_decrypt(const Bytes& cipher, std::uint64_t ktgs);
+Bytes as_build_rep_body(const AsRepBody& value);
+AsRepBody as_parse_rep_body(const Bytes& payload);
+Bytes authenticator_build_body(const AuthenticatorBody& value);
+AuthenticatorBody authenticator_parse_body(const Bytes& payload);
+Bytes authenticator_encrypt(const AuthenticatorBody& value, std::uint64_t key56);
+AuthenticatorBody authenticator_decrypt(const Bytes& cipher, std::uint64_t key56);
+Bytes tgs_build_req(const TgsReq& value);
+TgsReq tgs_parse_req(const Bytes& payload);
+Bytes v_ticket_build_body(const TicketVBody& value);
+TicketVBody v_ticket_parse_body(const Bytes& payload);
+Bytes v_ticket_encrypt(const TicketVBody& value, std::uint64_t kv);
+TicketVBody v_ticket_decrypt(const Bytes& cipher, std::uint64_t kv);
+Bytes tgs_build_rep_body(const TgsRepBody& value);
+TgsRepBody tgs_parse_rep_body(const Bytes& payload);
+Bytes v_auth_build_req(const VAuthReq& value);
+VAuthReq v_auth_parse_req(const Bytes& payload);
+Bytes v_auth_build_rep_body(const VAuthRepBody& value);
+VAuthRepBody v_auth_parse_rep_body(const Bytes& payload);
+Bytes cert_build_c2v_body(const CertC2VBody& value);
+CertC2VBody cert_parse_c2v_body(const Bytes& payload);
+Bytes cert_build_v2c_body(const CertV2CBody& value);
+CertV2CBody cert_parse_v2c_body(const Bytes& payload);
+Bytes ack_build_payload(const AppAckPayload& value);
+AppAckPayload ack_parse_payload(const Bytes& payload);
+Bytes app_build_signed_payload(AppCode code, const Bytes& app_payload,
                                const RsaPrivateKey& private_key);
-SignedAppPayload parse_signed_app_payload(const Bytes& decrypted_payload);
-bool verify_signed_app_payload(const SignedAppPayload& signed_payload,
+SignedAppPayload app_parse_signed_payload(const Bytes& decrypted_payload);
+bool app_verify_signed_payload(const SignedAppPayload& signed_payload,
                                const RsaPublicKey& public_key);
-Bytes signed_app_logical_bytes(AppCode code, const Bytes& app_payload);
+Bytes app_build_signed_logical_bytes(AppCode code, const Bytes& app_payload);
 } // namespace cyber

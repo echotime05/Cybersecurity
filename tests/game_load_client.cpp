@@ -53,7 +53,7 @@ std::string client_log_stem(cyber::EntityId id)
 cyber::ProtocolPayloadView app_payload_view(const cyber::Packet& packet, std::uint64_t kc_v)
 {
     cyber::ProtocolPayloadView view;
-    view.plain_hex = cyber::bytes_to_hex(cyber::game::decode_app_payload(packet.payload, kc_v,
+    view.plain_hex = cyber::bytes_to_hex(cyber::game::app_decode_payload(packet.payload, kc_v,
                                                                           true));
     view.encrypted_hex = cyber::bytes_to_hex(packet.payload);
     return view;
@@ -85,7 +85,7 @@ void send_signed_game_packet(cyber::SocketHandle socket, cyber::Logger& logger,
                              cyber::game::GameMsgType type, const cyber::Bytes& payload,
                              std::mutex& send_mutex, ClientStats& stats)
 {
-    const cyber::Packet packet = cyber::game::build_signed_game_packet(
+    const cyber::Packet packet = cyber::game::app_build_signed_game_packet(
         auth_state.client_id, cyber::EntityId::v, type, payload, auth_state.kc_v, true,
         auth_state.client_key_pair.private_key);
 
@@ -93,7 +93,7 @@ void send_signed_game_packet(cyber::SocketHandle socket, cyber::Logger& logger,
     cyber::send_packet_logged(socket, packet, logger, "PerfClient", "LoadTx");
     cyber::write_protocol_event(
         cyber::ProtocolDirection::send, packet,
-        cyber::protocol_app_message(cyber::game::app_code_for_game_message_type(type)),
+        cyber::protocol_app_message(cyber::game::app_map_game_message_code(type)),
         app_payload_view(packet, auth_state.kc_v));
     ++stats.input_sent;
 }
@@ -104,7 +104,7 @@ void send_state_ack(cyber::SocketHandle socket, cyber::Logger& logger,
                     const cyber::SignedAppPayload& received_payload,
                     std::mutex& send_mutex, ClientStats& stats)
 {
-    const cyber::Packet ack = cyber::game::build_signed_ack_packet(
+    const cyber::Packet ack = cyber::game::ack_build_signed_packet(
         received_packet, received_payload, auth_state.client_id, cyber::EntityId::v,
         auth_state.kc_v, true, auth_state.client_key_pair.private_key);
 
@@ -133,10 +133,10 @@ void receiver_loop(cyber::SocketHandle socket, cyber::Logger& logger,
             }
 
             const cyber::SignedAppPayload signed_payload =
-                cyber::game::decode_signed_app_packet(packet, auth_state.kc_v, true);
+                cyber::game::app_decode_signed_packet(packet, auth_state.kc_v, true);
             if (signed_payload.app_code == cyber::AppCode::app_ack)
             {
-                (void)cyber::game::parse_verified_ack_payload(signed_payload,
+                (void)cyber::game::ack_parse_verified_payload(signed_payload,
                                                                auth_state.v_public_key);
                 cyber::write_protocol_event(cyber::ProtocolDirection::recv, packet,
                                             cyber::protocol_app_message(cyber::AppCode::app_ack),
@@ -146,7 +146,7 @@ void receiver_loop(cyber::SocketHandle socket, cyber::Logger& logger,
             }
 
             const cyber::game::GameMessage message =
-                cyber::game::parse_verified_game_message(signed_payload,
+                cyber::game::app_parse_verified_game_message(signed_payload,
                                                           auth_state.v_public_key);
             cyber::write_protocol_event(
                 cyber::ProtocolDirection::recv, packet,
@@ -186,9 +186,9 @@ void client_worker(const cyber::Config& config, const cyber::ClientSecret& secre
     {
         logger = std::make_unique<cyber::Logger>(std::filesystem::path("logs") /
                                                  client_log_stem(secret.id));
-        const std::uint64_t kc = cyber::derive_client_key(secret.id, secret.password);
+        const std::uint64_t kc = cyber::auth_derive_client_key(secret.id, secret.password);
         cyber::VAuthenticatedSocket auth =
-            cyber::authenticate_client_to_v_socket(config, secret.id, kc, *logger,
+            cyber::client_auth_connect_to_v_socket(config, secret.id, kc, *logger,
                                                    "PerfClientAuth");
         socket = auth.socket;
         auth_state = auth.state;
@@ -198,7 +198,7 @@ void client_worker(const cyber::Config& config, const cyber::ClientSecret& secre
         });
 
         send_signed_game_packet(socket, *logger, auth_state, cyber::game::GameMsgType::join,
-                                cyber::game::build_join({secret.id}),
+                                cyber::game::game_build_join({secret.id}),
                                 send_mutex, stats);
 
         const auto end_time = Clock::now() + std::chrono::seconds(duration_seconds);
@@ -216,14 +216,14 @@ void client_worker(const cyber::Config& config, const cyber::ClientSecret& secre
                                                    360);
 
             send_signed_game_packet(socket, *logger, auth_state, cyber::game::GameMsgType::move,
-                                    cyber::game::build_move({x, y}), send_mutex, stats);
+                                    cyber::game::game_build_move({x, y}), send_mutex, stats);
             send_signed_game_packet(socket, *logger, auth_state, cyber::game::GameMsgType::target,
-                                    cyber::game::build_target({angle}), send_mutex, stats);
+                                    cyber::game::game_build_target({angle}), send_mutex, stats);
             if (frame % 5 == 0)
             {
                 send_signed_game_packet(socket, *logger, auth_state,
                                         cyber::game::GameMsgType::shoot,
-                                        cyber::game::build_shoot({}), send_mutex, stats);
+                                        cyber::game::game_build_shoot({}), send_mutex, stats);
             }
             ++frame;
             std::this_thread::sleep_until(next_frame);

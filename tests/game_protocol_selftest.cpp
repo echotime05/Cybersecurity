@@ -29,19 +29,19 @@ int main()
     try
     {
         const cyber::game::JoinMessage join{cyber::EntityId::client1};
-        const cyber::Bytes join_payload = cyber::game::build_join(join);
+        const cyber::Bytes join_payload = cyber::game::game_build_join(join);
         require(join_payload.size() == 1U, "join payload should only carry client id");
         const cyber::game::GameMessage join_msg{cyber::game::GameMsgType::join, join_payload};
-        const cyber::Bytes encoded_join = cyber::game::build_game_message(join_msg);
-        const cyber::game::GameMessage parsed_join = cyber::game::parse_game_message(encoded_join);
+        const cyber::Bytes encoded_join = cyber::game::game_build_message(join_msg);
+        const cyber::game::GameMessage parsed_join = cyber::game::game_parse_message(encoded_join);
         require(parsed_join.type == cyber::game::GameMsgType::join, "join type mismatch");
         const cyber::game::JoinMessage parsed_join_body =
-            cyber::game::parse_join(parsed_join.payload);
+            cyber::game::game_parse_join(parsed_join.payload);
         require(parsed_join_body.client_id == cyber::EntityId::client1, "join client mismatch");
         bool rejected_legacy_join_name = false;
         try
         {
-            (void)cyber::game::parse_join(cyber::Bytes{0x01, 0x05, 'a', 'l', 'p', 'h', 'a'});
+            (void)cyber::game::game_parse_join(cyber::Bytes{0x01, 0x05, 'a', 'l', 'p', 'h', 'a'});
         }
         catch (const cyber::PacketError&)
         {
@@ -51,22 +51,22 @@ int main()
 
         const cyber::game::MoveMessage move{-1, 1};
         const cyber::game::MoveMessage parsed_move =
-            cyber::game::parse_move(cyber::game::build_move(move));
+            cyber::game::game_parse_move(cyber::game::game_build_move(move));
         require(parsed_move.x == -1 && parsed_move.y == 1, "move roundtrip mismatch");
 
         const cyber::game::TargetMessage target{135.5F};
         const cyber::game::TargetMessage parsed_target =
-            cyber::game::parse_target(cyber::game::build_target(target));
+            cyber::game::game_parse_target(cyber::game::game_build_target(target));
         require_close(parsed_target.angle, 135.5F, "target angle mismatch");
 
         const cyber::game::ShootMessage shoot{};
-        const cyber::Bytes shoot_payload = cyber::game::build_shoot(shoot);
+        const cyber::Bytes shoot_payload = cyber::game::game_build_shoot(shoot);
         require(shoot_payload.empty(), "shoot payload should be empty for one-shot fire");
-        (void)cyber::game::parse_shoot(shoot_payload);
+        (void)cyber::game::game_parse_shoot(shoot_payload);
         bool rejected_legacy_shoot_state = false;
         try
         {
-            (void)cyber::game::parse_shoot(cyber::Bytes{0x01});
+            (void)cyber::game::game_parse_shoot(cyber::Bytes{0x01});
         }
         catch (const cyber::PacketError&)
         {
@@ -83,9 +83,9 @@ int main()
                                   false, 3});
         snapshot.bullets.push_back({5, cyber::EntityId::client1, 3.0F, 4.0F, true});
         snapshot.pickables.push_back({9, cyber::game::PickableType::repair, 8.0F, 9.0F});
-        const cyber::Bytes snapshot_bytes = cyber::game::build_state(snapshot);
+        const cyber::Bytes snapshot_bytes = cyber::game::game_build_state(snapshot);
         const cyber::game::BattleStateSnapshot parsed_snapshot =
-            cyber::game::parse_state(snapshot_bytes);
+            cyber::game::game_parse_state(snapshot_bytes);
         require(parsed_snapshot.server_time_ms == 1234, "state time mismatch");
         require(parsed_snapshot.total_score == 7, "state score mismatch");
         require(parsed_snapshot.winner_team == -1, "state winner mismatch");
@@ -97,7 +97,7 @@ int main()
         require(parsed_snapshot.bullets.size() == 1, "bullet count mismatch");
         require(parsed_snapshot.pickables.size() == 1, "pickable count mismatch");
 
-        const std::string json = cyber::game::to_json(parsed_snapshot, cyber::EntityId::client1);
+        const std::string json = cyber::game::game_format_state_json(parsed_snapshot, cyber::EntityId::client1);
         require(json.find("\"type\":\"state\"") != std::string::npos, "json type missing");
         require(json.find("\"clientId\":1") != std::string::npos, "json tank missing");
         require(json.find("\"name\"") == std::string::npos, "json should not expose tank name");

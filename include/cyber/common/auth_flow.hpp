@@ -70,18 +70,18 @@ struct VAuthenticatedSocket
     SocketHandle socket = 0;
 };
 
-AuthRuntime make_auth_runtime(const Config& config);
+AuthRuntime auth_make_runtime(const Config& config);
 
-Packet process_v_auth_request(const Packet& request, const Config& config, AuthRuntime& runtime,
+Packet v_auth_process_request(const Packet& request, const Config& config, AuthRuntime& runtime,
                               Logger& logger, const std::string& thread_name);
 
-Packet process_cert_c2v_request(const Packet& request, AuthRuntime& runtime, Logger& logger,
+Packet cert_process_c2v_request(const Packet& request, AuthRuntime& runtime, Logger& logger,
                                 const std::string& thread_name);
 
-VAuthenticatedSocket authenticate_client_to_v_socket(const Config& config, EntityId client_id,
+VAuthenticatedSocket client_auth_connect_to_v_socket(const Config& config, EntityId client_id,
                                                      std::uint64_t kc, Logger& logger,
                                                      const std::string& thread_name);
 
-void handle_auth_packet(RoleKind role, SocketHandle socket, const Packet& request,
+void auth_handle_packet(RoleKind role, SocketHandle socket, const Packet& request,
                         const Config& config, Logger& logger, const std::string& thread_name);
 } // namespace cyber

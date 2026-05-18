@@ -98,20 +98,20 @@ struct BattleStateSnapshot
     std::vector<PickableSnapshot> pickables;
 };
 
-Bytes build_game_message(const GameMessage& message);
-GameMessage parse_game_message(const Bytes& bytes);
+Bytes game_build_message(const GameMessage& message);
+GameMessage game_parse_message(const Bytes& bytes);
 
-Bytes build_join(const JoinMessage& message);
-JoinMessage parse_join(const Bytes& bytes);
-Bytes build_move(const MoveMessage& message);
-MoveMessage parse_move(const Bytes& bytes);
-Bytes build_target(const TargetMessage& message);
-TargetMessage parse_target(const Bytes& bytes);
-Bytes build_shoot(const ShootMessage& message);
-ShootMessage parse_shoot(const Bytes& bytes);
+Bytes game_build_join(const JoinMessage& message);
+JoinMessage game_parse_join(const Bytes& bytes);
+Bytes game_build_move(const MoveMessage& message);
+MoveMessage game_parse_move(const Bytes& bytes);
+Bytes game_build_target(const TargetMessage& message);
+TargetMessage game_parse_target(const Bytes& bytes);
+Bytes game_build_shoot(const ShootMessage& message);
+ShootMessage game_parse_shoot(const Bytes& bytes);
 
-Bytes build_state(const BattleStateSnapshot& snapshot);
-BattleStateSnapshot parse_state(const Bytes& bytes);
+Bytes game_build_state(const BattleStateSnapshot& snapshot);
+BattleStateSnapshot game_parse_state(const Bytes& bytes);
 
-std::string to_json(const BattleStateSnapshot& snapshot, EntityId self);
+std::string game_format_state_json(const BattleStateSnapshot& snapshot, EntityId self);
 } // namespace cyber::game
