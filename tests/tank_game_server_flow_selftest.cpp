@@ -4,7 +4,7 @@
 #include "cyber/common/config.hpp"
 #include "cyber/game/app_payload_codec.hpp"
 #include "cyber/game/game_protocol.hpp"
-#include "cyber/game/tank_game_server.hpp"
+#include "cyber/roles/v/tank_game_server.hpp"
 
 #include <chrono>
 #include <filesystem>

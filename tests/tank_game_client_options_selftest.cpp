@@ -1,5 +1,5 @@
 #include "cyber/common/config.hpp"
-#include "cyber/game/tank_game_client.hpp"
+#include "cyber/roles/client/tank_game_client.hpp"
 
 #include <iostream>
 #include <stdexcept>

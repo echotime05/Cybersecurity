@@ -5,8 +5,8 @@
 #include "cyber/common/net_socket.hpp"
 #include "cyber/common/protocol_event.hpp"
 #include "cyber/common/runtime_paths.hpp"
-#include "cyber/game/tank_game_client.hpp"
-#include "cyber/game/tank_game_server.hpp"
+#include "cyber/roles/client/tank_game_client.hpp"
+#include "cyber/roles/v/tank_game_server.hpp"
 #include "cyber/roles/as/as_service.hpp"
 #include "cyber/roles/tgs/tgs_service.hpp"
 

@@ -1,4 +1,4 @@
-#include "cyber/game/tank_game_client.hpp"
+#include "cyber/roles/client/tank_game_client.hpp"
 
 #include "cyber/common/auth_credentials.hpp"
 #include "cyber/common/net_packet.hpp"
