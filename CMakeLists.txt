@@ -18,7 +18,6 @@ endif()
 
 add_library(cyber_common
     src/shared/auth/auth_credentials.cpp
-    src/shared/auth/auth_flow.cpp
     src/shared/config/config.cpp
     src/shared/crypto/crypto.cpp
     src/shared/logging/log_parser.cpp
@@ -39,6 +38,7 @@ add_library(cyber_common
     src/roles/v/game_world.cpp
     src/roles/v/battle_room.cpp
     src/roles/v/tank_game_server.cpp
+    src/roles/client/client_auth_flow.cpp
     src/roles/client/tank_game_client.cpp
     src/roles/monitor/protocol_monitor.cpp
     src/roles/client/websocket.cpp

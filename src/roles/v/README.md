@@ -10,20 +10,20 @@ Owned files:
 
 ```text
 src/roles/v/main.cpp
+src/roles/v/v_auth_service.cpp
 src/roles/v/tank_game_server.cpp
 src/roles/v/battle_room.cpp
 src/roles/v/game_world.cpp
+include/cyber/roles/v/v_auth_service.hpp
 ```
 
 Shared files usually modified for V behavior:
 
 ```text
-src/shared/auth/auth_flow.cpp
 src/shared/game/game_protocol.cpp
 src/shared/game/app_payload_codec.cpp
 src/shared/game/game_non_repudiation.cpp
 src/shared/protocol/protocol_payloads.cpp
-include/cyber/game/tank_game_server.hpp
 include/cyber/game/battle_room.hpp
 include/cyber/game/game_world.hpp
 include/cyber/game/game_protocol.hpp

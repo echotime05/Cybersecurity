@@ -10,9 +10,11 @@ Owned files:
 
 ```text
 src/roles/client/main.cpp
+src/roles/client/client_auth_flow.cpp
 src/roles/client/tank_game_client.cpp
 src/roles/client/ui_bridge.cpp
 src/roles/client/websocket.cpp
+include/cyber/roles/client/client_auth_flow.hpp
 web-ui/src/Game.ts
 web-ui/src/Network.ts
 web-ui/src/ProtocolMonitor.ts
@@ -22,12 +24,10 @@ web-ui/src/protocolPayload.ts
 Shared files usually modified for Client behavior:
 
 ```text
-src/shared/auth/auth_flow.cpp
 src/shared/game/game_protocol.cpp
 src/shared/game/app_payload_codec.cpp
 src/shared/game/game_non_repudiation.cpp
 src/shared/protocol/protocol_payloads.cpp
-include/cyber/game/tank_game_client.hpp
 include/cyber/ui/ui_bridge.hpp
 include/cyber/ui/websocket.hpp
 ```
@@ -47,6 +47,7 @@ Common live modification points:
 
 ```text
 Login/game command flow: src/roles/client/tank_game_client.cpp
+AS/TGS/V auth sequence: src/roles/client/client_auth_flow.cpp
 Browser bridge JSON:    src/roles/client/ui_bridge.cpp
 WebSocket framing:      src/roles/client/websocket.cpp
 Game UI behavior:       web-ui/src/Game.ts

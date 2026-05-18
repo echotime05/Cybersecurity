@@ -1,10 +1,10 @@
 #include "cyber/common/auth_credentials.hpp"
-#include "cyber/common/auth_flow.hpp"
 #include "cyber/common/config.hpp"
 #include "cyber/common/net_packet.hpp"
 #include "cyber/common/net_socket.hpp"
 #include "cyber/game/app_payload_codec.hpp"
 #include "cyber/game/game_protocol.hpp"
+#include "cyber/roles/client/client_auth_flow.hpp"
 
 #include <iostream>
 #include <stdexcept>
@@ -35,8 +35,8 @@ int main(int argc, char** argv)
 
         const cyber::EntityId client_id = cyber::EntityId::client1;
         const std::uint64_t kc = cyber::auth_derive_client_key(client_id, "123456");
-        cyber::VAuthenticatedSocket auth = cyber::client_auth_connect_to_v_socket(
-            config, client_id, kc);
+        cyber::roles::client::VAuthenticatedSocket auth =
+            cyber::roles::client::client_auth_connect_to_v_socket(config, client_id, kc);
 
         const cyber::Bytes plaintext_join = cyber::game::game_build_message(
             {cyber::game::GameMsgType::join,

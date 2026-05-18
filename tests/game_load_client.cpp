@@ -1,5 +1,4 @@
 #include "cyber/common/auth_credentials.hpp"
-#include "cyber/common/auth_flow.hpp"
 #include "cyber/common/config.hpp"
 #include "cyber/common/crypto.hpp"
 #include "cyber/common/net_packet.hpp"
@@ -8,6 +7,7 @@
 #include "cyber/game/app_payload_codec.hpp"
 #include "cyber/game/game_non_repudiation.hpp"
 #include "cyber/game/game_protocol.hpp"
+#include "cyber/roles/client/client_auth_flow.hpp"
 
 #include <algorithm>
 #include <atomic>
@@ -71,7 +71,8 @@ void record_state_interval(ClientStats& stats, Clock::time_point& last_state,
     last_state = current;
 }
 
-void send_signed_game_packet(cyber::SocketHandle socket, const cyber::AuthClientState& auth_state,
+void send_signed_game_packet(cyber::SocketHandle socket,
+                             const cyber::roles::client::AuthClientState& auth_state,
                              cyber::game::GameMsgType type, const cyber::Bytes& payload,
                              std::mutex& send_mutex, ClientStats& stats)
 {
@@ -88,7 +89,8 @@ void send_signed_game_packet(cyber::SocketHandle socket, const cyber::AuthClient
     ++stats.input_sent;
 }
 
-void send_state_ack(cyber::SocketHandle socket, const cyber::AuthClientState& auth_state,
+void send_state_ack(cyber::SocketHandle socket,
+                    const cyber::roles::client::AuthClientState& auth_state,
                     const cyber::Packet& received_packet,
                     const cyber::SignedAppPayload& received_payload,
                     std::mutex& send_mutex, ClientStats& stats)
@@ -105,7 +107,8 @@ void send_state_ack(cyber::SocketHandle socket, const cyber::AuthClientState& au
     ++stats.state_ack_sent;
 }
 
-void receiver_loop(cyber::SocketHandle socket, const cyber::AuthClientState& auth_state,
+void receiver_loop(cyber::SocketHandle socket,
+                   const cyber::roles::client::AuthClientState& auth_state,
                    std::atomic<bool>& stopping,
                    std::mutex& send_mutex, ClientStats& stats)
 {
@@ -167,12 +170,12 @@ void client_worker(const cyber::Config& config, const cyber::ClientSecret& secre
     std::atomic<bool> stopping{false};
     std::mutex send_mutex;
     std::thread receiver;
-    cyber::AuthClientState auth_state;
+    cyber::roles::client::AuthClientState auth_state;
     try
     {
         const std::uint64_t kc = cyber::auth_derive_client_key(secret.id, secret.password);
-        cyber::VAuthenticatedSocket auth =
-            cyber::client_auth_connect_to_v_socket(config, secret.id, kc);
+        cyber::roles::client::VAuthenticatedSocket auth =
+            cyber::roles::client::client_auth_connect_to_v_socket(config, secret.id, kc);
         socket = auth.socket;
         auth_state = auth.state;
 

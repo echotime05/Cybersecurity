@@ -120,8 +120,8 @@ void TankGameClient::handle_login(const cyber::ui::UiCommand& command)
         }
 
         const std::uint64_t kc = auth_derive_client_key(command.client_id, command.password);
-        VAuthenticatedSocket auth =
-            client_auth_connect_to_v_socket(config_, command.client_id, kc);
+        cyber::roles::client::VAuthenticatedSocket auth =
+            cyber::roles::client::client_auth_connect_to_v_socket(config_, command.client_id, kc);
         {
             std::lock_guard<std::mutex> lock(state_mutex_);
             self_ = command.client_id;

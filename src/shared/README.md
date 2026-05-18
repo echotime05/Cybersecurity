@@ -4,7 +4,6 @@ Shared code used by AS, TGS, V, Client, and Monitor lives here.
 
 ```text
 auth/auth_credentials.cpp       Client passwords, long-term keys, entity keys
-auth/auth_flow.cpp              AS/TGS/V_AUTH flow, certificate exchange helpers
 config/config.cpp               course_config.txt parser
 crypto/crypto.cpp               DES-style payload encryption, hash, RSA-style signatures, certificates
 game/app_payload_codec.cpp      MSG_APP payload codec switch and encrypted/plain views

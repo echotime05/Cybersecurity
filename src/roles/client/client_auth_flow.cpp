@@ -1,13 +1,14 @@
-#include "cyber/common/auth_flow.hpp"
+#include "cyber/roles/client/client_auth_flow.hpp"
 
 #include "cyber/common/net_packet.hpp"
 #include "cyber/common/protocol_event.hpp"
 
 #include <chrono>
 #include <stdexcept>
+#include <string>
 #include <utility>
 
-namespace cyber
+namespace cyber::roles::client
 {
 namespace
 {
@@ -21,7 +22,8 @@ std::uint64_t auth_time_now_ms()
             .count());
 }
 
-TcpEndpoint config_build_endpoint(const Config& config, const char* ip_key, const char* port_key)
+TcpEndpoint config_build_endpoint(const Config& config, const char* ip_key,
+                                  const char* port_key)
 {
     return {config.get_string(ip_key), config.get_u16(port_key)};
 }
@@ -59,15 +61,6 @@ void packet_require_msg_type(const Packet& packet, MsgType expected)
     }
 }
 
-void auth_send_error_packet(SocketHandle socket, EntityId src, EntityId dst,
-                            const std::string& message)
-{
-    const Packet packet =
-        make_packet(MsgType::error, src, dst,
-                    make_error_payload(ErrorCode::unsupported_msg_type, message));
-    send_packet_logged(socket, packet);
-}
-
 Packet auth_exchange_packet(const TcpEndpoint& endpoint, const Packet& request,
                             const ProtocolPayloadView& request_payload_view = {})
 {
@@ -103,8 +96,8 @@ VAuthenticatedSocket client_auth_connect_to_v_socket(const Config& config, Entit
     const Packet as_req =
         make_packet(MsgType::as_req, state.client_id, EntityId::as,
                     as_build_req({state.client_id, EntityId::tgs, ts1}));
-    const Packet as_rep = auth_exchange_packet(
-        config_build_endpoint(config, "AS_IP", "AS_PORT"), as_req);
+    const Packet as_rep =
+        auth_exchange_packet(config_build_endpoint(config, "AS_IP", "AS_PORT"), as_req);
     packet_require_msg_type(as_rep, MsgType::as_rep);
     const Bytes as_rep_plain = des_decrypt_payload(as_rep.payload, state.kc);
     const AsRepBody as_body = as_parse_rep_body(as_rep_plain);
@@ -117,8 +110,7 @@ VAuthenticatedSocket client_auth_connect_to_v_socket(const Config& config, Entit
 
     const AuthenticatorBody auth_tgs{state.client_id, state.adc, auth_time_now_ms()};
     const Bytes authenticator_tgs = authenticator_encrypt(auth_tgs, state.kc_tgs);
-    const TgsReq tgs_req_body{EntityId::v, state.ticket_tgs,
-                              authenticator_tgs};
+    const TgsReq tgs_req_body{EntityId::v, state.ticket_tgs, authenticator_tgs};
     const Packet tgs_req =
         make_packet(MsgType::tgs_req, state.client_id, EntityId::tgs,
                     tgs_build_req(tgs_req_body));
@@ -127,8 +119,7 @@ VAuthenticatedSocket client_auth_connect_to_v_socket(const Config& config, Entit
     protocol_add_encrypted_field(tgs_req_view, "authenticator_tgs", authenticator_tgs,
                                  authenticator_build_body(auth_tgs));
     const Packet tgs_rep = auth_exchange_packet(
-        config_build_endpoint(config, "TGS_IP", "TGS_PORT"), tgs_req,
-        tgs_req_view);
+        config_build_endpoint(config, "TGS_IP", "TGS_PORT"), tgs_req, tgs_req_view);
     packet_require_msg_type(tgs_rep, MsgType::tgs_rep);
     const Bytes tgs_rep_plain = des_decrypt_payload(tgs_rep.payload, state.kc_tgs);
     const TgsRepBody tgs_body = tgs_parse_rep_body(tgs_rep_plain);
@@ -165,6 +156,7 @@ VAuthenticatedSocket client_auth_connect_to_v_socket(const Config& config, Entit
         {
             throw std::runtime_error("V_AUTH TS5+1 check failed");
         }
+
         const Certificate client_cert =
             make_certificate(state.client_id, state.client_key_pair.public_key,
                              ca_key_pair.private_key);
@@ -198,23 +190,4 @@ VAuthenticatedSocket client_auth_connect_to_v_socket(const Config& config, Entit
         throw;
     }
 }
-
-void auth_handle_packet(RoleKind role, SocketHandle socket, const Packet& request,
-                        const Config& config)
-{
-    (void)config;
-    try
-    {
-        auth_send_error_packet(socket,
-                               role == RoleKind::as_server ? EntityId::as : EntityId::tgs,
-                               request.src, "unsupported auth message");
-        close_socket(socket);
-    }
-    catch (...)
-    {
-        close_socket(socket);
-        throw;
-    }
-}
-
-} // namespace cyber
+} // namespace cyber::roles::client

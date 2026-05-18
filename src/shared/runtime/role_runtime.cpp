@@ -1,6 +1,5 @@
 #include "cyber/common/role_runtime.hpp"
 
-#include "cyber/common/auth_flow.hpp"
 #include "cyber/common/config.hpp"
 #include "cyber/common/net_packet.hpp"
 #include "cyber/common/net_socket.hpp"
@@ -137,8 +136,9 @@ void runtime_handle_server_connection(SocketHandle socket, RoleKind role, RoleSp
         }
         else
         {
-            const Packet request = recv_packet_logged(socket);
-            auth_handle_packet(role, socket, request, config);
+            (void)config;
+            close_socket(socket);
+            throw std::runtime_error("unsupported auth server role");
         }
     }
     catch (const std::exception& ex)
