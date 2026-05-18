@@ -12,7 +12,6 @@ namespace cyber
 namespace
 {
 constexpr std::uint32_t kDefaultAdc = 0x7F000001U;
-constexpr std::uint64_t kDefaultLifetimeMs = 5ULL * 60ULL * 1000ULL;
 
 std::uint64_t auth_time_now_ms()
 {
@@ -67,39 +66,6 @@ void auth_send_error_packet(SocketHandle socket, EntityId src, EntityId dst,
         make_packet(MsgType::error, src, dst,
                     make_error_payload(ErrorCode::unsupported_msg_type, message));
     send_packet_logged(socket, packet);
-}
-
-void tgs_process_packet(SocketHandle socket, const Packet& request, const Config& config)
-{
-    packet_require_msg_type(request, MsgType::tgs_req);
-    const TgsReq tgs_req = tgs_parse_req(request.payload);
-    const TicketTgsBody ticket = tgs_ticket_decrypt(tgs_req.ticket_tgs, config.get_u64("KTGS"));
-    const AuthenticatorBody auth =
-        authenticator_decrypt(tgs_req.authenticator_tgs, ticket.kc_tgs);
-    if (ticket.idc != auth.idc || ticket.idtgs != EntityId::tgs || tgs_req.idv != EntityId::v)
-    {
-        throw std::runtime_error("TGS identity check failed");
-    }
-    ProtocolPayloadView request_view;
-    protocol_add_encrypted_field(request_view, "ticket_tgs", tgs_req.ticket_tgs,
-                                 tgs_ticket_build_body(ticket));
-    protocol_add_encrypted_field(request_view, "authenticator_tgs", tgs_req.authenticator_tgs,
-                                 authenticator_build_body(auth));
-    write_protocol_event(ProtocolDirection::recv, request, {}, request_view);
-
-    const std::uint64_t kc_v = generate_des_key56();
-    const std::uint64_t ts4 = auth_time_now_ms();
-    const TicketVBody ticket_v_body{
-        kc_v, ticket.idc, ticket.adc, EntityId::v, ts4, kDefaultLifetimeMs};
-    const Bytes ticket_v = v_ticket_encrypt(ticket_v_body, config.get_u64("KV"));
-    const TgsRepBody rep_body{kc_v, EntityId::v, ts4, ticket_v};
-    const Bytes rep_plain = tgs_build_rep_body(rep_body);
-    const Packet response =
-        packet_build_encrypted(MsgType::tgs_rep, EntityId::tgs, ticket.idc, rep_plain,
-                               ticket.kc_tgs);
-    ProtocolPayloadView view = protocol_build_encrypted_payload_view(rep_plain, response.payload);
-    protocol_add_encrypted_field(view, "ticket_v", ticket_v, v_ticket_build_body(ticket_v_body));
-    send_packet_logged(socket, response, view);
 }
 
 Packet auth_exchange_packet(const TcpEndpoint& endpoint, const Packet& request,
@@ -338,18 +304,12 @@ VAuthenticatedSocket client_auth_connect_to_v_socket(const Config& config, Entit
 void auth_handle_packet(RoleKind role, SocketHandle socket, const Packet& request,
                         const Config& config)
 {
+    (void)config;
     try
     {
-        if (role == RoleKind::tgs_server)
-        {
-            tgs_process_packet(socket, request, config);
-        }
-        else
-        {
-            auth_send_error_packet(socket,
-                                   role == RoleKind::as_server ? EntityId::as : EntityId::tgs,
-                                   request.src, "unsupported auth message");
-        }
+        auth_send_error_packet(socket,
+                               role == RoleKind::as_server ? EntityId::as : EntityId::tgs,
+                               request.src, "unsupported auth message");
         close_socket(socket);
     }
     catch (...)

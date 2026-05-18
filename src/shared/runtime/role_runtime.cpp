@@ -9,6 +9,7 @@
 #include "cyber/game/tank_game_client.hpp"
 #include "cyber/game/tank_game_server.hpp"
 #include "cyber/roles/as/as_service.hpp"
+#include "cyber/roles/tgs/tgs_service.hpp"
 
 #include <filesystem>
 #include <iostream>
@@ -129,6 +130,10 @@ void runtime_handle_server_connection(SocketHandle socket, RoleKind role, RoleSp
         if (role == RoleKind::as_server)
         {
             cyber::roles::as::as_process_connection(socket, config);
+        }
+        else if (role == RoleKind::tgs_server)
+        {
+            cyber::roles::tgs::tgs_process_connection(socket, config);
         }
         else
         {
