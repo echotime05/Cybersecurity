@@ -316,7 +316,7 @@ void TankGameServer::handle_packet(SocketHandle socket, const Packet& packet,
         {
             throw std::runtime_error("join client id must match packet source");
         }
-        room_.join(join.client_id, join.name, now_ms);
+        room_.join(join.client_id, now_ms);
         std::lock_guard<std::mutex> lock(connections_mutex_);
         auto existing = connections_.find(join.client_id);
         if (existing != connections_.end() && existing->second.socket != socket &&
@@ -341,14 +341,8 @@ void TankGameServer::handle_packet(SocketHandle socket, const Packet& packet,
     }
     case GameMsgType::shoot:
     {
-        const ShootMessage shoot = parse_shoot(message.payload);
-        room_.handle_shoot(packet.src, shoot.shooting);
-        break;
-    }
-    case GameMsgType::name:
-    {
-        const NameMessage name = parse_name(message.payload);
-        room_.handle_name(packet.src, name.name);
+        (void)parse_shoot(message.payload);
+        room_.handle_shoot(packet.src);
         break;
     }
     default:

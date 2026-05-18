@@ -23,7 +23,7 @@ int main()
         const std::uint64_t kc_v = 0x123456789abcdeULL;
         const cyber::Bytes plain = cyber::game::build_game_message(
             {cyber::game::GameMsgType::join,
-             cyber::game::build_join({cyber::EntityId::client1, "Client1"})});
+             cyber::game::build_join({cyber::EntityId::client1})});
 
         const cyber::Bytes identity =
             cyber::game::encode_app_payload(plain, kc_v, false);

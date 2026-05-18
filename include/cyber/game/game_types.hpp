@@ -5,7 +5,6 @@
 
 #include <cstddef>
 #include <cstdint>
-#include <string>
 
 namespace cyber::game
 {
@@ -36,7 +35,7 @@ struct GameInput
     std::int8_t dir_x = 0;
     std::int8_t dir_y = 0;
     float angle = 0.0F;
-    bool shooting = false;
+    bool shoot_requested = false;
 };
 
 struct TeamState
@@ -48,7 +47,6 @@ struct TeamState
 struct TankState
 {
     EntityId client_id = EntityId::unknown;
-    std::string name = "guest";
     std::uint8_t team = 0;
     float x = 0.0F;
     float y = 0.0F;

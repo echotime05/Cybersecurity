@@ -60,6 +60,26 @@ function testPlainGameAppWithoutPayloadViewIsParsedAsRawGameMessage() {
   assertCondition(view.hexBlocks[0]?.title === "payload hex", "plain raw GAME_MOVE hex mislabeled");
 }
 
+function testShootGameMessageIsOneShotEvent() {
+  const view = buildProtocolPayloadView({
+    direction: "SEND",
+    message: "MSG_APP.GAME_SHOOT",
+    payloadHex: "04",
+  });
+
+  assertCondition(rowValue(view.rows, "game_msg") === "SHOOT", "GAME_SHOOT should be shown as one-shot event");
+}
+
+function testJoinGameMessageUsesOnlyClientId() {
+  const view = buildProtocolPayloadView({
+    direction: "SEND",
+    message: "MSG_APP.GAME_JOIN_REQ",
+    payloadHex: "0103",
+  });
+
+  assertCondition(rowValue(view.rows, "game_msg") === "JOIN client=Client3", "GAME_JOIN_REQ should not show a name field");
+}
+
 function testVAuthRepAndCertV2CPlainPayloadsAreParsed() {
   const vAuthView = buildProtocolPayloadView({
     direction: "SEND",
@@ -85,6 +105,8 @@ testEncryptedOuterPayloadIsNotParsedAsPlain();
 testPlainAsRepShowsActualSessionKeyBytes();
 testEncryptedSignedAppWithoutPlainIsNotParsedAsSignedApp();
 testPlainGameAppWithoutPayloadViewIsParsedAsRawGameMessage();
+testShootGameMessageIsOneShotEvent();
+testJoinGameMessageUsesOnlyClientId();
 testVAuthRepAndCertV2CPlainPayloadsAreParsed();
 
 console.log("protocolPayloadSelftest: ok");

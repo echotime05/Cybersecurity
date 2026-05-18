@@ -2,7 +2,6 @@ export type TeamState = { teamId: number; score: number; tanks: number };
 
 export type TankState = {
   clientId: number;
-  name: string;
   team: number;
   x: number;
   y: number;
@@ -102,11 +101,8 @@ export class Network {
     this.send({ type: "target", angle });
   }
 
-  sendShoot(shooting: boolean) {
-    this.send({ type: "shoot", shooting });
+  sendShoot() {
+    this.send({ type: "shoot" });
   }
 
-  sendName(name: string) {
-    this.send({ type: "name", name });
-  }
 }

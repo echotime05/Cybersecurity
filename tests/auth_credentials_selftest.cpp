@@ -3,7 +3,6 @@
 
 #include <iostream>
 #include <stdexcept>
-#include <string>
 
 namespace
 {
@@ -35,9 +34,6 @@ int main()
         require(cyber::derive_client_key(cyber::EntityId::client1, "wrong") !=
                     0x0059EF3DB7CB8C8DULL,
                 "wrong password should produce a different key");
-        require(cyber::default_client_name(cyber::EntityId::client4) == "Client4",
-                "default client name mismatch");
-
         std::cout << "auth_credentials_selftest: ok\n";
     }
     catch (const std::exception& ex)

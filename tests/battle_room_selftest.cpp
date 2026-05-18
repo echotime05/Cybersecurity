@@ -37,9 +37,9 @@ int main()
                       "bullet range should be 32 world units");
 
         cyber::game::BattleRoom room;
-        require(room.join(cyber::EntityId::client1, "alpha", 1000),
+        require(room.join(cyber::EntityId::client1, 1000),
                 "client1 join failed");
-        require(room.join(cyber::EntityId::client2, "bravo", 1000),
+        require(room.join(cyber::EntityId::client2, 1000),
                 "client2 join failed");
         auto state = room.snapshot(1000);
         require(state.tanks.size() == 2U, "join did not create two tanks");
@@ -54,10 +54,15 @@ int main()
         require(after_x > before_x, "move did not advance tank");
 
         room.handle_target(cyber::EntityId::client1, 90.0F);
-        room.handle_shoot(cyber::EntityId::client1, true);
+        room.handle_shoot(cyber::EntityId::client1);
         room.tick(5500);
         state = room.snapshot(5500);
         require(!state.bullets.empty(), "shoot did not create bullet");
+        const std::size_t bullets_after_shot = state.bullets.size();
+        room.tick(6000);
+        state = room.snapshot(6000);
+        require(state.bullets.size() == bullets_after_shot,
+                "shoot request should be consumed after one bullet");
 
         room.leave(cyber::EntityId::client2);
         state = room.snapshot(5600);

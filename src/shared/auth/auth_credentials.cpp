@@ -24,12 +24,4 @@ std::uint64_t derive_client_key(EntityId client_id, const std::string& password)
     return key;
 }
 
-std::string default_client_name(EntityId client_id)
-{
-    if (!is_client(client_id))
-    {
-        return "Unknown";
-    }
-    return std::string(to_string(client_id));
-}
 } // namespace cyber

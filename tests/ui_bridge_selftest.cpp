@@ -54,9 +54,10 @@ int main()
                       "target payload mismatch");
 
         const cyber::ui::UiCommand shoot =
-            bridge.parse_json_command("{\"type\":\"shoot\",\"shooting\":true}");
+            bridge.parse_json_command("{\"type\":\"shoot\"}");
         require(shoot.type == cyber::game::GameMsgType::shoot, "shoot command type mismatch");
-        require(cyber::game::parse_shoot(shoot.payload).shooting, "shoot payload mismatch");
+        require(shoot.payload.empty(), "shoot payload should be empty");
+        (void)cyber::game::parse_shoot(shoot.payload);
 
         const std::string authenticated =
             cyber::ui::login_state_json("authenticated", cyber::EntityId::client4,

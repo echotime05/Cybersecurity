@@ -64,7 +64,6 @@ export class Game {
   keys = new Set<string>();
   mouseX = 0;
   mouseY = 0;
-  mouseDown = false;
 
   lastSentDirX = -999;
   lastSentDirY = -999;
@@ -466,14 +465,7 @@ export class Game {
     });
     window.addEventListener("mousedown", (e) => {
       if (e.button === 0 && this.joined) {
-        this.mouseDown = true;
-        this.network.sendShoot(true);
-      }
-    });
-    window.addEventListener("mouseup", (e) => {
-      if (e.button === 0 && this.joined) {
-        this.mouseDown = false;
-        this.network.sendShoot(false);
+        this.network.sendShoot();
       }
     });
     window.addEventListener("contextmenu", (e) => e.preventDefault());

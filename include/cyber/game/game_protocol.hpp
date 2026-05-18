@@ -14,7 +14,6 @@ enum class GameMsgType : std::uint8_t
     move = 2,
     target = 3,
     shoot = 4,
-    name = 5,
     state = 16,
     error = 127
 };
@@ -35,7 +34,6 @@ struct GameMessage
 struct JoinMessage
 {
     EntityId client_id = EntityId::unknown;
-    std::string name;
 };
 
 struct MoveMessage
@@ -50,14 +48,7 @@ struct TargetMessage
 };
 
 struct ShootMessage
-{
-    bool shooting = false;
-};
-
-struct NameMessage
-{
-    std::string name;
-};
+{};
 
 struct TeamSnapshot
 {
@@ -69,7 +60,6 @@ struct TeamSnapshot
 struct TankSnapshot
 {
     EntityId client_id = EntityId::unknown;
-    std::string name;
     std::uint8_t team = 0;
     float x = 0.0F;
     float y = 0.0F;
@@ -119,8 +109,6 @@ Bytes build_target(const TargetMessage& message);
 TargetMessage parse_target(const Bytes& bytes);
 Bytes build_shoot(const ShootMessage& message);
 ShootMessage parse_shoot(const Bytes& bytes);
-Bytes build_name(const NameMessage& message);
-NameMessage parse_name(const Bytes& bytes);
 
 Bytes build_state(const BattleStateSnapshot& snapshot);
 BattleStateSnapshot parse_state(const Bytes& bytes);

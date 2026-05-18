@@ -52,26 +52,6 @@ float extract_float(const std::string& json, const std::string& key, float fallb
     return std::stof(json.substr(pos + marker.size()));
 }
 
-bool extract_bool(const std::string& json, const std::string& key, bool fallback)
-{
-    const std::string marker = "\"" + key + "\":";
-    const std::size_t pos = json.find(marker);
-    if (pos == std::string::npos)
-    {
-        return fallback;
-    }
-    const std::string value = json.substr(pos + marker.size(), 5);
-    if (value.rfind("true", 0) == 0)
-    {
-        return true;
-    }
-    if (value.rfind("false", 0) == 0)
-    {
-        return false;
-    }
-    return fallback;
-}
-
 std::string json_escape(const std::string& value)
 {
     std::string out;
@@ -158,12 +138,7 @@ UiCommand UiBridge::parse_json_command(const std::string& text) const
     if (type == "shoot")
     {
         return {UiCommandKind::game, cyber::game::GameMsgType::shoot,
-                cyber::game::build_shoot({extract_bool(text, "shooting", false)}), self_, ""};
-    }
-    if (type == "name")
-    {
-        return {UiCommandKind::game, cyber::game::GameMsgType::name,
-                cyber::game::build_name({extract_string(text, "name")}), self_, ""};
+                cyber::game::build_shoot({}), self_, ""};
     }
     return {UiCommandKind::error, cyber::game::GameMsgType::error, {}, self_, ""};
 }

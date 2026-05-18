@@ -1,4 +1,5 @@
 # Build output
+_generated/
 build/
 build-*/
 build-web-tests/

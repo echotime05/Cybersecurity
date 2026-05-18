@@ -1,8 +1,6 @@
 #include "cyber/game/game_protocol.hpp"
 
 #include <cstring>
-#include <iomanip>
-#include <limits>
 #include <sstream>
 #include <stdexcept>
 
@@ -90,33 +88,6 @@ float read_f32(const Bytes& in, std::size_t& offset)
     return value;
 }
 
-void write_string_u8(Bytes& out, const std::string& value)
-{
-    if (value.size() > std::numeric_limits<std::uint8_t>::max())
-    {
-        throw PacketError("game string is too long for uint8 length");
-    }
-    out.push_back(static_cast<std::uint8_t>(value.size()));
-    out.insert(out.end(), value.begin(), value.end());
-}
-
-std::string read_string_u8(const Bytes& in, std::size_t& offset)
-{
-    if (offset >= in.size())
-    {
-        throw PacketError("game string length is missing");
-    }
-    const std::uint8_t len = in[offset++];
-    if (offset + len > in.size())
-    {
-        throw PacketError("game string exceeds payload");
-    }
-    std::string out(in.begin() + static_cast<std::ptrdiff_t>(offset),
-                    in.begin() + static_cast<std::ptrdiff_t>(offset + len));
-    offset += len;
-    return out;
-}
-
 void require_end(const Bytes& in, std::size_t offset, const char* name)
 {
     if (offset != in.size())
@@ -125,54 +96,9 @@ void require_end(const Bytes& in, std::size_t offset, const char* name)
     }
 }
 
-std::string json_escape(const std::string& text)
-{
-    std::ostringstream out;
-    for (unsigned char ch : text)
-    {
-        switch (ch)
-        {
-        case '\\':
-            out << "\\\\";
-            break;
-        case '"':
-            out << "\\\"";
-            break;
-        case '\b':
-            out << "\\b";
-            break;
-        case '\f':
-            out << "\\f";
-            break;
-        case '\n':
-            out << "\\n";
-            break;
-        case '\r':
-            out << "\\r";
-            break;
-        case '\t':
-            out << "\\t";
-            break;
-        default:
-            if (ch < 0x20U)
-            {
-                out << "\\u" << std::hex << std::setw(4) << std::setfill('0')
-                    << static_cast<int>(ch) << std::dec;
-            }
-            else
-            {
-                out << static_cast<char>(ch);
-            }
-            break;
-        }
-    }
-    return out.str();
-}
-
 void write_tank(Bytes& out, const TankSnapshot& tank)
 {
     out.push_back(static_cast<std::uint8_t>(tank.client_id));
-    write_string_u8(out, tank.name);
     out.push_back(tank.team);
     write_f32(out, tank.x);
     write_f32(out, tank.y);
@@ -191,7 +117,6 @@ TankSnapshot read_tank(const Bytes& in, std::size_t& offset)
     }
     TankSnapshot tank;
     tank.client_id = static_cast<EntityId>(in[offset++]);
-    tank.name = read_string_u8(in, offset);
     if (offset + 1U + 4U + 4U + 4U + 1U + 1U + 1U + 2U > in.size())
     {
         throw PacketError("tank payload is truncated");
@@ -231,22 +156,18 @@ GameMessage parse_game_message(const Bytes& bytes)
 
 Bytes build_join(const JoinMessage& message)
 {
-    Bytes out;
-    out.push_back(static_cast<std::uint8_t>(message.client_id));
-    write_string_u8(out, message.name);
-    return out;
+    return Bytes{static_cast<std::uint8_t>(message.client_id)};
 }
 
 JoinMessage parse_join(const Bytes& bytes)
 {
-    if (bytes.empty())
+    if (bytes.size() != 1U)
     {
-        throw PacketError("join payload is empty");
+        throw PacketError("join payload must be 1 byte");
     }
     std::size_t offset = 0;
     JoinMessage message;
     message.client_id = static_cast<EntityId>(bytes[offset++]);
-    message.name = read_string_u8(bytes, offset);
     require_end(bytes, offset, "join");
     return message;
 }
@@ -282,31 +203,17 @@ TargetMessage parse_target(const Bytes& bytes)
 
 Bytes build_shoot(const ShootMessage& message)
 {
-    return Bytes{static_cast<std::uint8_t>(message.shooting ? 1U : 0U)};
+    (void)message;
+    return {};
 }
 
 ShootMessage parse_shoot(const Bytes& bytes)
 {
-    if (bytes.size() != 1U)
+    if (!bytes.empty())
     {
-        throw PacketError("shoot payload must be 1 byte");
+        throw PacketError("shoot payload must be empty");
     }
-    return {bytes[0] != 0};
-}
-
-Bytes build_name(const NameMessage& message)
-{
-    Bytes out;
-    write_string_u8(out, message.name);
-    return out;
-}
-
-NameMessage parse_name(const Bytes& bytes)
-{
-    std::size_t offset = 0;
-    NameMessage message{read_string_u8(bytes, offset)};
-    require_end(bytes, offset, "name");
-    return message;
+    return {};
 }
 
 Bytes build_state(const BattleStateSnapshot& snapshot)
@@ -455,8 +362,8 @@ std::string to_json(const BattleStateSnapshot& snapshot, EntityId self)
         {
             out << ',';
         }
-        out << "{\"clientId\":" << static_cast<int>(tank.client_id) << ",\"name\":\""
-            << json_escape(tank.name) << "\",\"team\":" << static_cast<int>(tank.team)
+        out << "{\"clientId\":" << static_cast<int>(tank.client_id)
+            << ",\"team\":" << static_cast<int>(tank.team)
             << ",\"x\":" << tank.x << ",\"y\":" << tank.y << ",\"angle\":" << tank.angle
             << ",\"hp\":" << static_cast<int>(tank.hp)
             << ",\"shield\":" << static_cast<int>(tank.shield)

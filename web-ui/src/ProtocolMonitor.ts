@@ -187,6 +187,7 @@ export class ProtocolMonitorUi {
   }
 
   private renderEvents() {
+    const scrollTop = this.eventsEl.scrollTop;
     const items = this.filteredEvents().slice().reverse();
     this.eventsEl.replaceChildren(
       ...items.map((event) => {
@@ -199,9 +200,11 @@ export class ProtocolMonitorUi {
           .filter(Boolean)
           .join(" ");
         button.type = "button";
+        button.dataset.eventId = String(event.id);
         button.addEventListener("click", () => {
           this.selectedId = event.id;
-          this.render();
+          this.updateEventSelection();
+          this.renderDetail();
         });
 
         const time = document.createElement("span");
@@ -218,6 +221,13 @@ export class ProtocolMonitorUi {
         return button;
       })
     );
+    this.eventsEl.scrollTop = scrollTop;
+  }
+
+  private updateEventSelection() {
+    this.eventsEl.querySelectorAll<HTMLElement>(".protocol-event-item").forEach((item) => {
+      item.classList.toggle("active", item.dataset.eventId === String(this.selectedId));
+    });
   }
 
   private renderDetail() {

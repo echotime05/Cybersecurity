@@ -17,28 +17,28 @@ else()
 endif()
 
 add_library(cyber_common
-    src/common/auth_credentials.cpp
-    src/common/auth_flow.cpp
-    src/common/config.cpp
-    src/common/crypto.cpp
-    src/common/log_parser.cpp
-    src/common/logger.cpp
-    src/common/net_packet.cpp
-    src/common/net_socket.cpp
-    src/common/packet.cpp
-    src/common/protocol_event.cpp
-    src/common/protocol_payloads.cpp
-    src/common/role_runtime.cpp
-    src/game/app_payload_codec.cpp
-    src/game/game_protocol.cpp
-    src/game/game_non_repudiation.cpp
-    src/game/game_world.cpp
-    src/game/battle_room.cpp
-    src/game/tank_game_server.cpp
-    src/game/tank_game_client.cpp
-    src/monitor/protocol_monitor.cpp
-    src/ui/websocket.cpp
-    src/ui/ui_bridge.cpp
+    src/shared/auth/auth_credentials.cpp
+    src/shared/auth/auth_flow.cpp
+    src/shared/config/config.cpp
+    src/shared/crypto/crypto.cpp
+    src/shared/logging/log_parser.cpp
+    src/shared/logging/logger.cpp
+    src/shared/net/net_packet.cpp
+    src/shared/net/net_socket.cpp
+    src/shared/protocol/packet.cpp
+    src/shared/protocol/protocol_event.cpp
+    src/shared/protocol/protocol_payloads.cpp
+    src/shared/runtime/role_runtime.cpp
+    src/shared/game/app_payload_codec.cpp
+    src/shared/game/game_protocol.cpp
+    src/shared/game/game_non_repudiation.cpp
+    src/roles/v/game_world.cpp
+    src/roles/v/battle_room.cpp
+    src/roles/v/tank_game_server.cpp
+    src/roles/client/tank_game_client.cpp
+    src/roles/monitor/protocol_monitor.cpp
+    src/roles/client/websocket.cpp
+    src/roles/client/ui_bridge.cpp
 )
 
 target_include_directories(cyber_common

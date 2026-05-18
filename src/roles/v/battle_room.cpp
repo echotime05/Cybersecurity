@@ -2,7 +2,6 @@
 
 #include <algorithm>
 #include <cmath>
-#include <regex>
 #include <vector>
 
 namespace cyber::game
@@ -42,12 +41,6 @@ BattleRoom::BattleRoom() : world_(kWorldSize, kWorldSize, kClusterSize)
     rebuild_world();
 }
 
-bool BattleRoom::valid_name(const std::string& name) const
-{
-    static const std::regex pattern("^[A-Za-z0-9_-]{4,8}$");
-    return std::regex_match(name, pattern);
-}
-
 std::uint8_t BattleRoom::pick_weakest_team() const
 {
     std::uint8_t best = 0;
@@ -71,7 +64,7 @@ void BattleRoom::spawn_position(TankState& tank) const
              static_cast<float>((index * 5) % 9);
 }
 
-bool BattleRoom::join(EntityId client_id, const std::string& name, std::uint64_t now_ms)
+bool BattleRoom::join(EntityId client_id, std::uint64_t now_ms)
 {
     std::lock_guard<std::mutex> lock(mutex_);
     if (!is_client(client_id) || tanks_.count(client_id) != 0U)
@@ -81,7 +74,6 @@ bool BattleRoom::join(EntityId client_id, const std::string& name, std::uint64_t
     const std::uint8_t team = pick_weakest_team();
     TankItem item;
     item.state.client_id = client_id;
-    item.state.name = valid_name(name) ? name : "guest";
     item.state.team = team;
     item.state.dead = true;
     item.state.died_ms = now_ms >= kRespawnTimeMs ? now_ms - kRespawnTimeMs : 0;
@@ -137,23 +129,13 @@ void BattleRoom::handle_target(EntityId client_id, float angle)
     }
 }
 
-void BattleRoom::handle_shoot(EntityId client_id, bool shooting)
+void BattleRoom::handle_shoot(EntityId client_id)
 {
     std::lock_guard<std::mutex> lock(mutex_);
     auto it = tanks_.find(client_id);
     if (it != tanks_.end())
     {
-        it->second.state.input.shooting = shooting;
-    }
-}
-
-void BattleRoom::handle_name(EntityId client_id, const std::string& name)
-{
-    std::lock_guard<std::mutex> lock(mutex_);
-    auto it = tanks_.find(client_id);
-    if (it != tanks_.end() && valid_name(name))
-    {
-        it->second.state.name = name;
+        it->second.state.input.shoot_requested = true;
     }
 }
 
@@ -342,7 +324,9 @@ void BattleRoom::tick(std::uint64_t now_ms)
     for (auto& [id, tank] : tanks_)
     {
         (void)id;
-        if (!tank.state.dead && tank.state.input.shooting && !tank.state.reloading)
+        const bool shoot_requested = tank.state.input.shoot_requested;
+        tank.state.input.shoot_requested = false;
+        if (!tank.state.dead && shoot_requested && !tank.state.reloading)
         {
             create_bullet(tank, now_ms);
         }
@@ -417,7 +401,7 @@ void BattleRoom::tick(std::uint64_t now_ms)
                 target.state.hp = 0;
                 target.state.dead = true;
                 target.state.died_ms = now_ms;
-                target.state.input.shooting = false;
+                target.state.input.shoot_requested = false;
                 target.state.reloading = false;
                 auto owner = tanks_.find(bullet.state.owner);
                 if (owner != tanks_.end())
@@ -480,7 +464,6 @@ BattleStateSnapshot BattleRoom::snapshot(std::uint64_t now_ms) const
     {
         (void)id;
         snapshot.tanks.push_back({tank.state.client_id,
-                                  tank.state.name,
                                   tank.state.team,
                                   tank.state.x,
                                   tank.state.y,

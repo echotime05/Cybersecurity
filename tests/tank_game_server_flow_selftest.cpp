@@ -83,7 +83,7 @@ int main()
         cyber::SocketHandle client = cyber::connect_tcp({"127.0.0.1", port});
         const auto join = cyber::game::build_game_message(
             {cyber::game::GameMsgType::join,
-             cyber::game::build_join({cyber::EntityId::client1, "alpha"})});
+             cyber::game::build_join({cyber::EntityId::client1})});
         cyber::send_packet_logged(client,
                                   cyber::make_packet(cyber::MsgType::app,
                                                      cyber::EntityId::client1, cyber::EntityId::v,
@@ -104,7 +104,7 @@ int main()
         cyber::SocketHandle unauthenticated = cyber::connect_tcp({"127.0.0.1", auth_port});
         const auto bad_join = cyber::game::build_game_message(
             {cyber::game::GameMsgType::join,
-             cyber::game::build_join({cyber::EntityId::client1, "Client1"})});
+             cyber::game::build_join({cyber::EntityId::client1})});
         cyber::send_packet_logged(unauthenticated,
                                   cyber::make_packet(cyber::MsgType::app,
                                                      cyber::EntityId::client1, cyber::EntityId::v,
@@ -132,7 +132,7 @@ int main()
         cyber::SocketHandle encrypted_client = cyber::connect_tcp({"127.0.0.1", encrypted_port});
         const auto encrypted_join_plain = cyber::game::build_game_message(
             {cyber::game::GameMsgType::join,
-             cyber::game::build_join({cyber::EntityId::client1, "EncryptedClient"})});
+             cyber::game::build_join({cyber::EntityId::client1})});
         const cyber::Bytes encrypted_join =
             cyber::game::encode_app_payload(encrypted_join_plain, 0, true);
         cyber::send_packet_logged(encrypted_client,

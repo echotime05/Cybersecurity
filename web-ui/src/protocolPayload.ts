@@ -75,7 +75,6 @@ const appLabels = new Map<number, string>([
   [0x09, "GAME_MOVE"],
   [0x0a, "GAME_TARGET"],
   [0x0b, "GAME_SHOOT"],
-  [0x0c, "GAME_NAME"],
 ]);
 
 const errorLabels = new Map<number, string>([
@@ -93,7 +92,6 @@ const gameLabels = new Map<number, string>([
   [0x02, "MOVE"],
   [0x03, "TARGET"],
   [0x04, "SHOOT"],
-  [0x05, "NAME"],
   [0x10, "STATE"],
   [0x7f, "ERROR"],
 ]);
@@ -537,13 +535,13 @@ function formatGamePayload(type: string, payload: number[]) {
       return `TARGET angle=${reader.readF32().toFixed(3)}`;
     }
     if (type === "SHOOT") {
-      return `SHOOT shooting=${reader.readU8() !== 0}`;
+      if (reader.remaining() === 0) {
+        return "SHOOT";
+      }
+      return `SHOOT ${summarizeBytes(payload)}`;
     }
     if (type === "JOIN") {
-      return `JOIN client=${entityLabel(reader.readU8())} name=${reader.readStringU8()}`;
-    }
-    if (type === "NAME") {
-      return `NAME ${reader.readStringU8()}`;
+      return `JOIN client=${entityLabel(reader.readU8())}`;
     }
     if (type === "STATE") {
       const serverTime = reader.readU64Hex();

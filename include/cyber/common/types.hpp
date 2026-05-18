@@ -57,8 +57,7 @@ enum class AppCode : std::uint8_t
     app_ack = 0x08,
     game_move = 0x09,
     game_target = 0x0A,
-    game_shoot = 0x0B,
-    game_name = 0x0C
+    game_shoot = 0x0B
 };
 
 inline bool is_known(EntityId id)
@@ -157,7 +156,6 @@ inline bool is_known(AppCode code)
     case AppCode::game_move:
     case AppCode::game_target:
     case AppCode::game_shoot:
-    case AppCode::game_name:
         return true;
     default:
         return false;
@@ -265,8 +263,6 @@ inline std::string_view to_string(AppCode code)
         return "GAME_TARGET";
     case AppCode::game_shoot:
         return "GAME_SHOOT";
-    case AppCode::game_name:
-        return "GAME_NAME";
     default:
         return "UNKNOWN_APP_CODE";
     }

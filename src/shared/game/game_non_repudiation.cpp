@@ -19,8 +19,6 @@ AppCode app_code_for_game_message_type(GameMsgType type)
         return AppCode::game_target;
     case GameMsgType::shoot:
         return AppCode::game_shoot;
-    case GameMsgType::name:
-        return AppCode::game_name;
     case GameMsgType::state:
         return AppCode::game_state;
     default:

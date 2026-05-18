@@ -107,16 +107,18 @@ function Start-RoleProcess {
 
 $scriptDir = Split-Path -Parent $MyInvocation.MyCommand.Path
 $repoRoot = Resolve-Path (Join-Path $scriptDir '..')
-$buildDir = Join-Path $repoRoot 'build-mingw'
-$logRoot = Join-Path $repoRoot 'logs'
-$runtimeDir = Join-Path $repoRoot 'logs\runtime'
-$protocolEventsDir = Join-Path $repoRoot 'logs\protocol_events'
+$generatedRoot = Join-Path $repoRoot '_generated'
+$buildDir = Join-Path $generatedRoot 'build-mingw'
+$logRoot = Join-Path $generatedRoot 'logs'
+$runtimeDir = Join-Path $logRoot 'runtime'
+$protocolEventsDir = Join-Path $logRoot 'protocol_events'
 $configPath = Resolve-RepoPath $Config
 
 Set-Location $repoRoot
 Add-ToolPathIfPresent 'E:\Qt\Tools\CMake_64\bin'
 Add-ToolPathIfPresent 'E:\Qt\Tools\Ninja'
 Add-ToolPathIfPresent 'E:\Qt\Tools\mingw1120_64\bin'
+New-Item -ItemType Directory -Force $generatedRoot | Out-Null
 New-Item -ItemType Directory -Force $logRoot | Out-Null
 New-Item -ItemType Directory -Force $runtimeDir | Out-Null
 New-Item -ItemType Directory -Force $protocolEventsDir | Out-Null
@@ -185,4 +187,4 @@ foreach ($process in $processes) {
 Write-Host ("Client bridge: ws://127.0.0.1:{0}" -f $UiPort)
 Write-Host ("Protocol monitor: ws://127.0.0.1:{0}" -f $MonitorPort)
 Write-Host ("Open UI after starting web-ui: http://127.0.0.1:5173/?client=ws://127.0.0.1:{0}&monitor=ws://127.0.0.1:{1}" -f $UiPort, $MonitorPort)
-Write-Host 'Logs: logs\runtime\*.out and logs\runtime\*.err'
+Write-Host 'Logs: _generated\logs\runtime\*.out and _generated\logs\runtime\*.err'

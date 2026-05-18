@@ -7,7 +7,6 @@
 #include <array>
 #include <map>
 #include <mutex>
-#include <string>
 #include <vector>
 
 namespace cyber::game
@@ -17,12 +16,11 @@ class BattleRoom
 public:
     BattleRoom();
 
-    bool join(EntityId client_id, const std::string& name, std::uint64_t now_ms);
+    bool join(EntityId client_id, std::uint64_t now_ms);
     void leave(EntityId client_id);
     void handle_move(EntityId client_id, std::int8_t x, std::int8_t y);
     void handle_target(EntityId client_id, float angle);
-    void handle_shoot(EntityId client_id, bool shooting);
-    void handle_name(EntityId client_id, const std::string& name);
+    void handle_shoot(EntityId client_id);
     void tick(std::uint64_t now_ms);
     BattleStateSnapshot snapshot(std::uint64_t now_ms) const;
 
@@ -45,7 +43,6 @@ private:
     std::uint8_t pick_weakest_team() const;
     void spawn_position(TankState& tank) const;
     void create_bullet(TankItem& tank, std::uint64_t now_ms);
-    bool valid_name(const std::string& name) const;
     void rebuild_world();
 
     mutable std::mutex mutex_;

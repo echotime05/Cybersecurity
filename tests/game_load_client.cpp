@@ -198,7 +198,7 @@ void client_worker(const cyber::Config& config, const cyber::ClientSecret& secre
         });
 
         send_signed_game_packet(socket, *logger, auth_state, cyber::game::GameMsgType::join,
-                                cyber::game::build_join({secret.id, std::string(cyber::to_string(secret.id))}),
+                                cyber::game::build_join({secret.id}),
                                 send_mutex, stats);
 
         const auto end_time = Clock::now() + std::chrono::seconds(duration_seconds);
@@ -223,7 +223,7 @@ void client_worker(const cyber::Config& config, const cyber::ClientSecret& secre
             {
                 send_signed_game_packet(socket, *logger, auth_state,
                                         cyber::game::GameMsgType::shoot,
-                                        cyber::game::build_shoot({true}), send_mutex, stats);
+                                        cyber::game::build_shoot({}), send_mutex, stats);
             }
             ++frame;
             std::this_thread::sleep_until(next_frame);

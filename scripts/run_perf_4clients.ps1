@@ -1,8 +1,8 @@
 param(
-    [string]$BuildDir = 'build-mingw',
+    [string]$BuildDir = '_generated\build-mingw',
     [int]$DurationSeconds = 30,
     [int]$InputHz = 10,
-    [string]$OutputRoot = 'perf_runs',
+    [string]$OutputRoot = '_generated\perf_runs',
     [switch]$SkipBuild
 )
 

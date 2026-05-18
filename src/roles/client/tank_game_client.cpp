@@ -164,7 +164,7 @@ void TankGameClient::handle_join()
         client = self_;
         state_ = State::joined;
     }
-    send_game_message(GameMsgType::join, build_join({client, default_client_name(client)}));
+    send_game_message(GameMsgType::join, build_join({client}));
     bridge_->broadcast_text(cyber::ui::join_state_json("joined"));
 }
 

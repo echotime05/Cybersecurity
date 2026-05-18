@@ -43,7 +43,7 @@ int main(int argc, char** argv)
 
         const cyber::Bytes plaintext_join = cyber::game::build_game_message(
             {cyber::game::GameMsgType::join,
-             cyber::game::build_join({client_id, "PlaintextShouldFail"})});
+             cyber::game::build_join({client_id})});
 
         cyber::send_packet_logged(auth.socket,
                                   cyber::make_packet(cyber::MsgType::app, client_id,
