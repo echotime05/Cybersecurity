@@ -17,7 +17,7 @@ Shared/UI files usually modified for monitor behavior:
 
 ```text
 src/shared/protocol/protocol_event.cpp
-include/cyber/common/protocol_event.hpp
+include/cyber/protocol/protocol_event.hpp
 include/cyber/monitor/protocol_monitor.hpp
 web-ui/src/ProtocolMonitor.ts
 web-ui/src/protocolPayload.ts

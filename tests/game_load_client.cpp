@@ -3,7 +3,7 @@
 #include "cyber/common/crypto.hpp"
 #include "cyber/common/net_packet.hpp"
 #include "cyber/common/net_socket.hpp"
-#include "cyber/common/protocol_event.hpp"
+#include "cyber/protocol/protocol_event.hpp"
 #include "cyber/game/app_payload_codec.hpp"
 #include "cyber/game/game_non_repudiation.hpp"
 #include "cyber/game/game_protocol.hpp"

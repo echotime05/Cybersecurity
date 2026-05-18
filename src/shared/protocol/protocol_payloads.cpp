@@ -1,4 +1,6 @@
-#include "cyber/common/protocol_payloads.hpp"
+#include "cyber/protocol/app_envelope.hpp"
+#include "cyber/protocol/certificate_messages.hpp"
+#include "cyber/protocol/kerberos_messages.hpp"
 
 #include <limits>
 

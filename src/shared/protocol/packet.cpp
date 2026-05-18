@@ -1,4 +1,4 @@
-#include "cyber/common/packet.hpp"
+#include "cyber/protocol/packet.hpp"
 
 #include <cctype>
 #include <iomanip>

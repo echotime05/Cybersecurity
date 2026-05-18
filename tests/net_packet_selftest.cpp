@@ -1,6 +1,6 @@
 #include "cyber/common/net_packet.hpp"
 #include "cyber/common/net_socket.hpp"
-#include "cyber/common/packet.hpp"
+#include "cyber/protocol/packet.hpp"
 
 #include <chrono>
 #include <exception>

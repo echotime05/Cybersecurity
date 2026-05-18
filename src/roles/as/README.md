@@ -21,7 +21,7 @@ src/shared/auth/auth_credentials.cpp
 src/shared/protocol/protocol_payloads.cpp
 src/shared/crypto/crypto.cpp
 include/cyber/common/auth_credentials.hpp
-include/cyber/common/protocol_payloads.hpp
+include/cyber/protocol/kerberos_messages.hpp
 ```
 
 Responsibilities:

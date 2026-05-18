@@ -3,7 +3,7 @@
 #include "cyber/common/config.hpp"
 #include "cyber/common/net_packet.hpp"
 #include "cyber/common/net_socket.hpp"
-#include "cyber/common/protocol_event.hpp"
+#include "cyber/protocol/protocol_event.hpp"
 #include "cyber/common/runtime_paths.hpp"
 #include "cyber/roles/client/tank_game_client.hpp"
 #include "cyber/roles/v/tank_game_server.hpp"

@@ -1,7 +1,7 @@
 #pragma once
 
 #include "cyber/common/crypto.hpp"
-#include "cyber/common/protocol_payloads.hpp"
+#include "cyber/protocol/app_envelope.hpp"
 #include "cyber/game/game_protocol.hpp"
 
 #include <cstdint>

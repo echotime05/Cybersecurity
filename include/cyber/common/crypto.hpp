@@ -1,6 +1,6 @@
 #pragma once
 
-#include "cyber/common/packet.hpp"
+#include "cyber/protocol/packet.hpp"
 #include "cyber/common/types.hpp"
 
 #include <cstdint>

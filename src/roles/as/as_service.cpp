@@ -2,8 +2,8 @@
 
 #include "cyber/common/auth_credentials.hpp"
 #include "cyber/common/crypto.hpp"
-#include "cyber/common/protocol_event.hpp"
-#include "cyber/common/protocol_payloads.hpp"
+#include "cyber/protocol/protocol_event.hpp"
+#include "cyber/protocol/kerberos_messages.hpp"
 
 #include <chrono>
 #include <stdexcept>

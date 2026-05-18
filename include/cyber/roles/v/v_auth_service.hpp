@@ -3,7 +3,8 @@
 #include "cyber/common/config.hpp"
 #include "cyber/common/crypto.hpp"
 #include "cyber/common/net_packet.hpp"
-#include "cyber/common/protocol_payloads.hpp"
+#include "cyber/protocol/certificate_messages.hpp"
+#include "cyber/protocol/kerberos_messages.hpp"
 
 #include <cstdint>
 #include <map>

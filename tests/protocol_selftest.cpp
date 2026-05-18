@@ -1,5 +1,5 @@
 #include "cyber/common/config.hpp"
-#include "cyber/common/packet.hpp"
+#include "cyber/protocol/packet.hpp"
 
 #include <array>
 #include <filesystem>

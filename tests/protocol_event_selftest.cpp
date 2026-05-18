@@ -1,6 +1,6 @@
-#include "cyber/common/protocol_event.hpp"
+#include "cyber/protocol/protocol_event.hpp"
 
-#include "cyber/common/packet.hpp"
+#include "cyber/protocol/packet.hpp"
 
 #include <iostream>
 #include <stdexcept>

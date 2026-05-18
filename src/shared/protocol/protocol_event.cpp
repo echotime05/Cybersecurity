@@ -1,4 +1,4 @@
-#include "cyber/common/protocol_event.hpp"
+#include "cyber/protocol/protocol_event.hpp"
 
 #include "cyber/common/crypto.hpp"
 #include "cyber/common/logger.hpp"

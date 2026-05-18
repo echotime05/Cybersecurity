@@ -19,7 +19,7 @@ Shared files usually modified for TGS behavior:
 ```text
 src/shared/protocol/protocol_payloads.cpp
 src/shared/crypto/crypto.cpp
-include/cyber/common/protocol_payloads.hpp
+include/cyber/protocol/kerberos_messages.hpp
 ```
 
 Responsibilities:

@@ -4,7 +4,7 @@
 
 #include "cyber/common/net_packet.hpp"
 
-#include "cyber/common/protocol_event.hpp"
+#include "cyber/protocol/protocol_event.hpp"
 
 #include <algorithm>
 #include <limits>

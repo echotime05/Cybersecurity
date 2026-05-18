@@ -2,7 +2,7 @@
 
 #include "cyber/common/auth_credentials.hpp"
 #include "cyber/common/net_packet.hpp"
-#include "cyber/common/protocol_event.hpp"
+#include "cyber/protocol/protocol_event.hpp"
 #include "cyber/common/runtime_paths.hpp"
 #include "cyber/game/app_payload_codec.hpp"
 #include "cyber/game/game_non_repudiation.hpp"
