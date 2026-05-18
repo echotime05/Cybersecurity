@@ -19,8 +19,8 @@
 示例：
 
 ```cpp
-as_process_packet()
-tgs_process_packet()
+as_process_connection()
+tgs_process_connection()
 v_auth_build_req_payload_view()
 app_build_payload_view()
 ack_log_verified_packet()
@@ -82,7 +82,10 @@ config_find_default_path()
 
 | 文件 | 当前问题 | 第一批处理 |
 | --- | --- | --- |
-| `src/shared/auth/auth_flow.cpp` | AS/TGS/V_AUTH helper 混用 `handle_`、`ensure_`、`encrypted_` 等泛名 | 改为 `as_`、`tgs_`、`packet_`、`protocol_`、`auth_` 前缀 |
+| `src/roles/as/as_service.cpp` | AS helper 统一使用 `as_`、`packet_`、`protocol_` 前缀 | 已按角色前缀整理 |
+| `src/roles/tgs/tgs_service.cpp` | TGS helper 统一使用 `tgs_`、`packet_`、`protocol_` 前缀 | 已按角色前缀整理 |
+| `src/roles/v/v_auth_service.cpp` | V_AUTH/CERT helper 统一使用 `v_auth_`、`cert_`、`packet_` 前缀 | 已按角色前缀整理 |
+| `src/roles/client/client_auth_flow.cpp` | Client 认证链路 helper 统一使用 `client_auth_`、`auth_`、`packet_` 前缀 | 已迁移到 Client 角色目录 |
 | `src/roles/v/tank_game_server.cpp` | V 内部 payload view helper 和游戏时间 helper 缺少领域前缀 | 改为 `app_`、`protocol_`、`v_auth_`、`game_` 前缀 |
 | `src/roles/client/tank_game_client.cpp` | Client 内部 `app_payload_view` 与 V 同名但语义是应用层 view 构造 | 改为 `app_build_payload_view` |
 | `src/shared/runtime/role_runtime.cpp` | 角色运行时 helper 命名偏泛，如 `spec_for`、`run_server` | 改为 `runtime_`、`config_`、`net_` 前缀 |

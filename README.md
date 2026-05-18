@@ -28,6 +28,20 @@ _generated/                 构建产物、运行日志、压测输出、Web dis
 
 `_generated/` 是生成物目录，正常修改功能时不用进入。现场改功能主要看 `src/roles/*`、`src/shared/*`、`include/cyber/*` 和 `web-ui/src/*`。
 
+## 现场修改入口
+
+现场被要求改功能时，先看 [docs/live_change_guide.md](docs/live_change_guide.md)。四个主要角色的代码入口分别是：
+
+```text
+AS:      src/roles/as/README.md
+TGS:     src/roles/tgs/README.md
+V:       src/roles/v/README.md
+Client:  src/roles/client/README.md
+Monitor: src/roles/monitor/README.md
+```
+
+协议字段和报文展示规则集中见 `src/shared/protocol/`、`src/shared/game/` 和后续协议参考文档。
+
 ## 2. 环境要求
 
 - Windows

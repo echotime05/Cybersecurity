@@ -15,6 +15,7 @@ src/roles/v/tank_game_server.cpp
 src/roles/v/battle_room.cpp
 src/roles/v/game_world.cpp
 include/cyber/roles/v/v_auth_service.hpp
+include/cyber/roles/v/tank_game_server.hpp
 ```
 
 Shared files usually modified for V behavior:
@@ -42,6 +43,7 @@ Common live modification points:
 
 ```text
 Game input handling:     src/roles/v/tank_game_server.cpp
+V role header:           include/cyber/roles/v/tank_game_server.hpp
 Tank/world rules:        src/roles/v/battle_room.cpp
 Map, bullets, pickups:   src/roles/v/game_world.cpp
 Game payload layout:     src/shared/game/game_protocol.cpp

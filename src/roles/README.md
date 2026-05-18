@@ -13,6 +13,10 @@ src/roles/monitor/main.cpp
 Role-owned behavior lives with the role when it is practical to modify during a live demo. Cross-role protocol, crypto, network, logging, and runtime helpers live under `src/shared`.
 
 ```text
+include/cyber/roles/as/        AS public role headers
+include/cyber/roles/tgs/       TGS public role headers
+include/cyber/roles/v/         V public role headers
+include/cyber/roles/client/    Client public role headers
 src/roles/as/README.md       AS ownership guide
 src/roles/tgs/README.md      TGS ownership guide
 src/roles/v/README.md        V/game-server ownership guide

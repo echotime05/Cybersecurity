@@ -15,6 +15,7 @@ src/roles/client/tank_game_client.cpp
 src/roles/client/ui_bridge.cpp
 src/roles/client/websocket.cpp
 include/cyber/roles/client/client_auth_flow.hpp
+include/cyber/roles/client/tank_game_client.hpp
 web-ui/src/Game.ts
 web-ui/src/Network.ts
 web-ui/src/ProtocolMonitor.ts
@@ -48,6 +49,7 @@ Common live modification points:
 ```text
 Login/game command flow: src/roles/client/tank_game_client.cpp
 AS/TGS/V auth sequence: src/roles/client/client_auth_flow.cpp
+Client role header:     include/cyber/roles/client/tank_game_client.hpp
 Browser bridge JSON:    src/roles/client/ui_bridge.cpp
 WebSocket framing:      src/roles/client/websocket.cpp
 Game UI behavior:       web-ui/src/Game.ts
