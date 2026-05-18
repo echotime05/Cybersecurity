@@ -2,7 +2,6 @@
 
 #include "cyber/common/auth_flow.hpp"
 #include "cyber/common/config.hpp"
-#include "cyber/common/logger.hpp"
 #include "cyber/common/net_packet.hpp"
 #include "cyber/common/net_socket.hpp"
 #include "cyber/common/protocol_event.hpp"
@@ -12,7 +11,6 @@
 
 #include <filesystem>
 #include <iostream>
-#include <memory>
 #include <stdexcept>
 #include <string>
 #include <thread>
@@ -108,40 +106,6 @@ void config_print_deployment(const Config& config, const RoleSpec& spec)
     }
 }
 
-std::string runtime_role_log_file(RoleKind role)
-{
-    switch (role)
-    {
-    case RoleKind::as_server:
-        return "as.log";
-    case RoleKind::tgs_server:
-        return "tgs.log";
-    case RoleKind::v_server:
-        return "v_game.log";
-    case RoleKind::client:
-        return "client_game.log";
-    default:
-        throw std::runtime_error("unknown role");
-    }
-}
-
-std::string runtime_main_thread_name(RoleKind role)
-{
-    switch (role)
-    {
-    case RoleKind::as_server:
-        return "ASMainThread";
-    case RoleKind::tgs_server:
-        return "TGSMainThread";
-    case RoleKind::v_server:
-        return "VMainThread";
-    case RoleKind::client:
-        return "UI/GameThread";
-    default:
-        throw std::runtime_error("unknown role");
-    }
-}
-
 std::string net_format_endpoint(const TcpEndpoint& endpoint)
 {
     return endpoint.ip + ":" + std::to_string(endpoint.port);
@@ -156,38 +120,18 @@ TcpEndpoint runtime_bind_endpoint(const Config& config, const RoleSpec& spec)
     return {config.get_string(spec.bind_ip_key), config.get_u16(spec.port_key)};
 }
 
-std::string runtime_worker_thread_name(RoleKind role)
+void runtime_handle_server_connection(SocketHandle socket, RoleKind role, RoleSpec spec,
+                                      Config config)
 {
-    switch (role)
-    {
-    case RoleKind::as_server:
-        return "ASWorker";
-    case RoleKind::tgs_server:
-        return "TGSWorker";
-    case RoleKind::v_server:
-        return "VWorker";
-    default:
-        throw std::runtime_error("client does not have a server worker");
-    }
-}
-
-void runtime_handle_server_connection(SocketHandle socket, std::shared_ptr<Logger> logger,
-                                      RoleKind role, RoleSpec spec, Config config)
-{
-    const std::string thread_name = runtime_worker_thread_name(role);
-    logger->write(spec.name, thread_name, "THREAD_START", thread_name + " start");
     try
     {
-        const Packet request = recv_packet_logged(socket, *logger, spec.name, thread_name);
-        auth_handle_packet(role, socket, request, config, *logger, thread_name);
-        logger->write(spec.name, thread_name, "SOCKET_CLOSE", "close auth connection");
-        logger->write(spec.name, thread_name, "THREAD_EXIT", thread_name + " exit");
+        const Packet request = recv_packet_logged(socket);
+        auth_handle_packet(role, socket, request, config);
     }
     catch (const std::exception& ex)
     {
-        logger->write(spec.name, thread_name, "ERROR", ex.what());
+        std::cerr << spec.name << " worker failed: " << ex.what() << '\n';
         close_socket(socket);
-        logger->write(spec.name, thread_name, "THREAD_EXIT", thread_name + " failed");
     }
 }
 
@@ -204,15 +148,12 @@ void runtime_run_auth_server(RoleKind role, const Config& config, const RoleSpec
     }
 
     SocketRuntime runtime;
-    auto logger = std::make_shared<Logger>(log_path(config, runtime_role_log_file(role)));
-    const std::string main_thread = runtime_main_thread_name(role);
     const TcpEndpoint endpoint = runtime_bind_endpoint(config, spec);
-    logger->write(spec.name, main_thread, "THREAD_START",
-                  main_thread + " start listen=" + net_format_endpoint(endpoint));
 
     SocketHandle listener = listen_tcp(endpoint);
     std::cout << spec.name << " listening on " << net_format_endpoint(endpoint) << std::endl;
-    std::cout << "log file: " << logger->path().string() << std::endl;
+    std::cout << "protocol events: " << log_root_from_config(config).string()
+              << "\\protocol_events" << std::endl;
 
     try
     {
@@ -222,10 +163,8 @@ void runtime_run_auth_server(RoleKind role, const Config& config, const RoleSpec
             std::string peer;
             SocketHandle accepted = accept_tcp(listener, &peer);
             ++accepted_count;
-            logger->write(spec.name, main_thread, "ACCEPT", "accept connection from " + peer);
 
-            std::thread worker(runtime_handle_server_connection, accepted, logger, role, spec,
-                               config);
+            std::thread worker(runtime_handle_server_connection, accepted, role, spec, config);
             if (max_connections > 0)
             {
                 worker.join();
@@ -240,12 +179,10 @@ void runtime_run_auth_server(RoleKind role, const Config& config, const RoleSpec
             }
         }
         close_socket(listener);
-        logger->write(spec.name, main_thread, "THREAD_EXIT", main_thread + " exit");
     }
     catch (...)
     {
         close_socket(listener);
-        logger->write(spec.name, main_thread, "THREAD_EXIT", main_thread + " failed");
         throw;
     }
 }

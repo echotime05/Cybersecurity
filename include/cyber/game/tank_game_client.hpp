@@ -2,7 +2,6 @@
 
 #include "cyber/common/auth_flow.hpp"
 #include "cyber/common/config.hpp"
-#include "cyber/common/logger.hpp"
 #include "cyber/game/game_protocol.hpp"
 #include "cyber/ui/ui_bridge.hpp"
 
@@ -53,8 +52,6 @@ private:
     std::mutex state_mutex_;
     std::mutex send_mutex_;
     std::atomic<bool> stopping_{false};
-    Logger logger_;
-    Logger ack_logger_;
     std::unique_ptr<cyber::ui::UiBridge> bridge_;
     std::thread rx_thread_;
 };

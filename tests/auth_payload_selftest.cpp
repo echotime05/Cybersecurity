@@ -1,7 +1,6 @@
 #include "cyber/common/auth_flow.hpp"
 #include "cyber/common/config.hpp"
 #include "cyber/common/crypto.hpp"
-#include "cyber/common/logger.hpp"
 #include "cyber/common/protocol_payloads.hpp"
 
 #include <filesystem>
@@ -121,9 +120,8 @@ int main()
         cyber::Packet v_request =
             cyber::make_packet(cyber::MsgType::v_auth_req, cyber::EntityId::client1,
                                cyber::EntityId::v, cyber::v_auth_build_req(v_auth_req));
-        cyber::Logger logger(std::filesystem::temp_directory_path() / "auth_payload_v_auth.log");
         cyber::Packet v_response =
-            cyber::v_auth_process_request(v_request, config, runtime, logger, "AuthPayloadTest");
+            cyber::v_auth_process_request(v_request, config, runtime);
         require(v_response.msg_type == cyber::MsgType::v_auth_rep, "V_AUTH response type mismatch");
         require(v_response.src == cyber::EntityId::v, "V_AUTH response source mismatch");
         require(v_response.dst == cyber::EntityId::client1, "V_AUTH response destination mismatch");

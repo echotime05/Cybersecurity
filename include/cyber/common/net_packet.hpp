@@ -1,6 +1,5 @@
 #pragma once
 
-#include "cyber/common/logger.hpp"
 #include "cyber/common/packet.hpp"
 
 #include <cstdint>
@@ -26,13 +25,9 @@ public:
 
 void close_socket(SocketHandle socket);
 
-bool send_packet_logged(SocketHandle socket, const Packet& packet, Logger& logger,
-                        std::string_view entity, std::string_view thread_name);
-bool send_packet_logged(SocketHandle socket, const Packet& packet, Logger& logger,
-                        std::string_view entity, std::string_view thread_name,
+bool send_packet_logged(SocketHandle socket, const Packet& packet);
+bool send_packet_logged(SocketHandle socket, const Packet& packet,
                         const ProtocolPayloadView& payload_view);
-Packet recv_packet_logged(SocketHandle socket, Logger& logger, std::string_view entity,
-                          std::string_view thread_name);
+Packet recv_packet_logged(SocketHandle socket);
 
-std::string format_packet_log_message(const Packet& packet);
 } // namespace cyber

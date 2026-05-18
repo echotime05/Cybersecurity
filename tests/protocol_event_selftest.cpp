@@ -31,7 +31,8 @@ int main()
                     "message=MSG_APP.GAME_MOVE category=app msg_type=MSG_APP "
                     "msg_type_raw=0x66 src=Client1 src_raw=0x01 dst=V dst_raw=0x13 "
                     "payload_len=2 payload_len_raw=0x00000002 reserved=0 "
-                    "reserved_raw=0x00000000 payload_hex=aabb",
+                    "reserved_raw=0x00000000 packet_hex=6601130000000200000000aabb "
+                    "payload_hex=aabb",
                 "protocol event message mismatch");
 
         const cyber::ProtocolEvent parsed = cyber::parse_protocol_event_line(
@@ -48,6 +49,8 @@ int main()
         require(parsed.header.payload_len.label == "2", "parsed payload len mismatch");
         require(parsed.header.payload_len.raw == "0x00000002",
                 "parsed payload len raw mismatch");
+        require(parsed.packet_hex == "6601130000000200000000aabb",
+                "parsed packet hex mismatch");
         require(parsed.payload_hex == "aabb", "parsed payload hex mismatch");
 
         const std::string json = cyber::protocol_event_json(parsed, 7);
@@ -60,6 +63,9 @@ int main()
                 "json category missing");
         require(json.find("\"payloadHex\":\"aabb\"") != std::string::npos,
                 "json payload missing");
+        require(json.find("\"packetHex\":\"6601130000000200000000aabb\"") !=
+                    std::string::npos,
+                "json packet missing");
 
         cyber::ProtocolPayloadView payload_view;
         payload_view.plain_hex = "010203";

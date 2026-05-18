@@ -1,7 +1,6 @@
 #pragma once
 
 #include "cyber/common/crypto.hpp"
-#include "cyber/common/logger.hpp"
 #include "cyber/common/protocol_payloads.hpp"
 #include "cyber/game/game_protocol.hpp"
 
@@ -34,7 +33,4 @@ Packet ack_build_signed_packet(const Packet& received_packet,
 
 AppAckPayload ack_parse_verified_payload(const SignedAppPayload& signed_payload,
                                          const RsaPublicKey& public_key);
-
-void ack_log_verified_packet(Logger& ack_logger, std::string_view entity,
-                             std::string_view thread_name, const Packet& packet);
 } // namespace cyber::game

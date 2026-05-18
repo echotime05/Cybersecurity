@@ -36,9 +36,7 @@ TankGameClient::TankGameClient(Config config, std::uint16_t ui_port,
                                bool encrypt_app_payloads)
     : config_(std::move(config)),
       ui_port_(ui_port),
-      encrypt_app_payloads_(encrypt_app_payloads),
-      logger_(log_path(config_, "client_game.log")),
-      ack_logger_(log_path(config_, "client_ack.log"))
+      encrypt_app_payloads_(encrypt_app_payloads)
 {
     set_protocol_event_log_root(log_root_from_config(config_));
 }
@@ -123,8 +121,7 @@ void TankGameClient::handle_login(const cyber::ui::UiCommand& command)
 
         const std::uint64_t kc = auth_derive_client_key(command.client_id, command.password);
         VAuthenticatedSocket auth =
-            client_auth_connect_to_v_socket(config_, command.client_id, kc, logger_,
-                                            "TankGameClient");
+            client_auth_connect_to_v_socket(config_, command.client_id, kc);
         {
             std::lock_guard<std::mutex> lock(state_mutex_);
             self_ = command.client_id;
@@ -141,7 +138,7 @@ void TankGameClient::handle_login(const cyber::ui::UiCommand& command)
     }
     catch (const std::exception& ex)
     {
-        logger_.write("Client", "TankGameClient", "ERROR", ex.what());
+        std::cerr << "Client auth failed: " << ex.what() << '\n';
         close_v_socket();
         {
             std::lock_guard<std::mutex> lock(state_mutex_);
@@ -195,7 +192,7 @@ void TankGameClient::send_game_message(GameMsgType type, const Bytes& payload)
     const Packet packet =
         app_build_signed_game_packet(self_, EntityId::v, type, payload, kc_v_, encrypt_app_payloads_,
                                  client_key_pair_.private_key);
-    send_packet_logged(v_socket_, packet, logger_, "Client", "TankGameTx");
+    send_packet_logged(v_socket_, packet);
     write_protocol_event(ProtocolDirection::send, packet,
                          protocol_app_message(app_map_game_message_code(type)),
                          app_build_payload_view(packet, kc_v_, encrypt_app_payloads_));
@@ -209,8 +206,7 @@ void TankGameClient::receive_loop()
     {
         while (!stopping_)
         {
-            const Packet packet = recv_packet_logged(v_socket_, logger_, "Client",
-                                                     "TankGameRx");
+            const Packet packet = recv_packet_logged(v_socket_);
             if (packet.msg_type != MsgType::app)
             {
                 continue;
@@ -223,7 +219,6 @@ void TankGameClient::receive_loop()
                                      protocol_app_message(AppCode::app_ack),
                                      app_build_payload_view(packet, kc_v_, encrypt_app_payloads_));
                 (void)ack_parse_verified_payload(signed_payload, v_public_key_);
-                ack_log_verified_packet(ack_logger_, "Client", "TankGameRx", packet);
                 continue;
             }
 
@@ -239,7 +234,7 @@ void TankGameClient::receive_loop()
                 std::lock_guard<std::mutex> lock(send_mutex_);
                 if (v_socket_ != 0)
                 {
-                    send_packet_logged(v_socket_, ack, logger_, "Client", "TankGameAck");
+                    send_packet_logged(v_socket_, ack);
                     write_protocol_event(ProtocolDirection::send, ack,
                                          protocol_app_message(AppCode::app_ack),
                                          app_build_payload_view(ack, kc_v_, encrypt_app_payloads_));
@@ -255,7 +250,7 @@ void TankGameClient::receive_loop()
     {
         if (!stopping_)
         {
-            logger_.write("Client", "TankGameRx", "ERROR", ex.what());
+            std::cerr << "Client receive failed: " << ex.what() << '\n';
             bridge_->broadcast_text(cyber::ui::login_state_json(
                 "failed", EntityId::unknown, "", "V connection closed"));
         }

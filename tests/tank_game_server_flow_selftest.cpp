@@ -45,13 +45,11 @@ cyber::Config make_test_config()
     return cyber::Config::load(config_path);
 }
 
-bool wait_for_state(cyber::SocketHandle client, cyber::Logger& logger, std::uint64_t kc_v,
-                    bool encrypted)
+bool wait_for_state(cyber::SocketHandle client, std::uint64_t kc_v, bool encrypted)
 {
     for (int i = 0; i < 10; ++i)
     {
-        const cyber::Packet packet =
-            cyber::recv_packet_logged(client, logger, "Client", "PlainGameTest");
+        const cyber::Packet packet = cyber::recv_packet_logged(client);
         const cyber::Bytes plain =
             cyber::game::app_decode_payload(packet.payload, kc_v, encrypted);
         const cyber::game::GameMessage message = cyber::game::game_parse_message(plain);
@@ -78,8 +76,6 @@ int main()
         const std::uint16_t port = server.start_for_test();
         std::thread server_thread([&]() { server.run_until_stopped(); });
 
-        cyber::Logger client_logger(std::filesystem::temp_directory_path() /
-                                    "plain_game_flow_client.log");
         cyber::SocketHandle client = cyber::connect_tcp({"127.0.0.1", port});
         const auto join = cyber::game::game_build_message(
             {cyber::game::GameMsgType::join,
@@ -87,9 +83,8 @@ int main()
         cyber::send_packet_logged(client,
                                   cyber::make_packet(cyber::MsgType::app,
                                                      cyber::EntityId::client1, cyber::EntityId::v,
-                                                     join),
-                                  client_logger, "Client", "PlainGameTest");
-        require(wait_for_state(client, client_logger, 0, false),
+                                                     join));
+        require(wait_for_state(client, 0, false),
                 "did not receive state with joined tank");
 
         cyber::close_socket(client);
@@ -108,13 +103,11 @@ int main()
         cyber::send_packet_logged(unauthenticated,
                                   cyber::make_packet(cyber::MsgType::app,
                                                      cyber::EntityId::client1, cyber::EntityId::v,
-                                                     bad_join),
-                                  client_logger, "Client", "AuthGateTest");
+                                                     bad_join));
         bool closed_or_failed = false;
         try
         {
-            (void)cyber::recv_packet_logged(unauthenticated, client_logger, "Client",
-                                            "AuthGateTest");
+            (void)cyber::recv_packet_logged(unauthenticated);
         }
         catch (const std::exception&)
         {
@@ -138,9 +131,8 @@ int main()
         cyber::send_packet_logged(encrypted_client,
                                   cyber::make_packet(cyber::MsgType::app,
                                                      cyber::EntityId::client1, cyber::EntityId::v,
-                                                     encrypted_join),
-                                  client_logger, "Client", "EncryptedGameTest");
-        require(wait_for_state(encrypted_client, client_logger, 0, true),
+                                                     encrypted_join));
+        require(wait_for_state(encrypted_client, 0, true),
                 "encrypted server did not return encrypted state");
         cyber::close_socket(encrypted_client);
         encrypted_server.stop();
@@ -155,13 +147,11 @@ int main()
         cyber::send_packet_logged(plaintext_client,
                                   cyber::make_packet(cyber::MsgType::app,
                                                      cyber::EntityId::client1, cyber::EntityId::v,
-                                                     encrypted_join_plain),
-                                  client_logger, "Client", "EncryptedRejectPlainTest");
+                                                     encrypted_join_plain));
         bool plaintext_closed_or_failed = false;
         try
         {
-            (void)cyber::recv_packet_logged(plaintext_client, client_logger, "Client",
-                                            "EncryptedRejectPlainTest");
+            (void)cyber::recv_packet_logged(plaintext_client);
         }
         catch (const std::exception&)
         {

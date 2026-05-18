@@ -2,7 +2,6 @@
 
 #include "cyber/common/config.hpp"
 #include "cyber/common/crypto.hpp"
-#include "cyber/common/logger.hpp"
 #include "cyber/common/net_socket.hpp"
 #include "cyber/common/protocol_payloads.hpp"
 #include "cyber/common/role_runtime.hpp"
@@ -72,16 +71,13 @@ struct VAuthenticatedSocket
 
 AuthRuntime auth_make_runtime(const Config& config);
 
-Packet v_auth_process_request(const Packet& request, const Config& config, AuthRuntime& runtime,
-                              Logger& logger, const std::string& thread_name);
+Packet v_auth_process_request(const Packet& request, const Config& config, AuthRuntime& runtime);
 
-Packet cert_process_c2v_request(const Packet& request, AuthRuntime& runtime, Logger& logger,
-                                const std::string& thread_name);
+Packet cert_process_c2v_request(const Packet& request, AuthRuntime& runtime);
 
 VAuthenticatedSocket client_auth_connect_to_v_socket(const Config& config, EntityId client_id,
-                                                     std::uint64_t kc, Logger& logger,
-                                                     const std::string& thread_name);
+                                                     std::uint64_t kc);
 
 void auth_handle_packet(RoleKind role, SocketHandle socket, const Packet& request,
-                        const Config& config, Logger& logger, const std::string& thread_name);
+                        const Config& config);
 } // namespace cyber

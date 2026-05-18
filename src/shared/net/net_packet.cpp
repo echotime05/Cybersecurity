@@ -4,13 +4,10 @@
 
 #include "cyber/common/net_packet.hpp"
 
-#include "cyber/common/crypto.hpp"
 #include "cyber/common/protocol_event.hpp"
 
 #include <algorithm>
-#include <iomanip>
 #include <limits>
-#include <sstream>
 #include <stdexcept>
 
 #define WIN32_LEAN_AND_MEAN
@@ -71,64 +68,6 @@ void recv_exact(SocketHandle socket, std::uint8_t* out, std::size_t size)
     }
 }
 
-std::string hex_id(EntityId id)
-{
-    std::ostringstream oss;
-    oss << "0x" << std::hex << std::uppercase << std::setfill('0') << std::setw(2)
-        << static_cast<int>(static_cast<std::uint8_t>(id));
-    return oss.str();
-}
-
-std::string format_payload_summary(const Packet& packet)
-{
-    const auto encrypted_summary = [&](const char* label) {
-        std::ostringstream oss;
-        oss << label << "{encrypted=true, cipher_hash=0x" << std::hex << std::uppercase
-            << std::setfill('0') << std::setw(16) << hash64(packet.payload) << std::dec
-            << ", cipher_len=" << packet.payload.size() << '}';
-        return oss.str();
-    };
-
-    if (packet.msg_type == MsgType::as_rep || packet.msg_type == MsgType::tgs_rep ||
-        packet.msg_type == MsgType::v_auth_rep || packet.msg_type == MsgType::cert_c2v ||
-        packet.msg_type == MsgType::cert_v2c)
-    {
-        return encrypted_summary("payload");
-    }
-
-    if (packet.msg_type == MsgType::app && !packet.payload.empty() &&
-        packet.payload.size() % 8U == 0U)
-    {
-        return encrypted_summary("MSG_APP");
-    }
-
-    if (packet.msg_type == MsgType::app && !packet.payload.empty())
-    {
-        const AppCode code = parse_app_code(packet.payload);
-        std::ostringstream oss;
-        oss << "MSG_APP{APP_code=" << to_string(code)
-            << ", app_payload_len=" << parse_app_payload(packet.payload).size() << '}';
-        return oss.str();
-    }
-
-    if (packet.msg_type == MsgType::error && !packet.payload.empty())
-    {
-        const ErrorCode code = parse_error_code(packet.payload);
-        std::ostringstream oss;
-        oss << "MSG_ERROR{err_code=" << to_string(code)
-            << ", err_msg=" << parse_error_message(packet.payload) << '}';
-        return oss.str();
-    }
-
-    std::ostringstream oss;
-    oss << "payload{len=" << packet.payload.size();
-    if (!packet.payload.empty() && packet.payload.size() <= 32U)
-    {
-        oss << ", hex=" << bytes_to_hex(packet.payload);
-    }
-    oss << '}';
-    return oss.str();
-}
 } // namespace
 
 SocketRuntime::SocketRuntime()
@@ -154,18 +93,15 @@ void close_socket(SocketHandle socket)
     }
 }
 
-bool send_packet_logged(SocketHandle socket, const Packet& packet, Logger& logger,
-                        std::string_view entity, std::string_view thread_name)
+bool send_packet_logged(SocketHandle socket, const Packet& packet)
 {
-    return send_packet_logged(socket, packet, logger, entity, thread_name, {});
+    return send_packet_logged(socket, packet, {});
 }
 
-bool send_packet_logged(SocketHandle socket, const Packet& packet, Logger& logger,
-                        std::string_view entity, std::string_view thread_name,
+bool send_packet_logged(SocketHandle socket, const Packet& packet,
                         const ProtocolPayloadView& payload_view)
 {
     send_all(socket, serialize_packet(packet));
-    logger.write(entity, thread_name, "PACKET_SEND", format_packet_log_message(packet));
     if (packet.msg_type != MsgType::app)
     {
         try
@@ -179,8 +115,7 @@ bool send_packet_logged(SocketHandle socket, const Packet& packet, Logger& logge
     return true;
 }
 
-Packet recv_packet_logged(SocketHandle socket, Logger& logger, std::string_view entity,
-                          std::string_view thread_name)
+Packet recv_packet_logged(SocketHandle socket)
 {
     Bytes raw(kPacketHeaderSize);
     recv_exact(socket, raw.data(), raw.size());
@@ -198,7 +133,6 @@ Packet recv_packet_logged(SocketHandle socket, Logger& logger, std::string_view 
     }
 
     Packet packet = parse_packet(raw);
-    logger.write(entity, thread_name, "PACKET_RECV", format_packet_log_message(packet));
     if (packet.msg_type != MsgType::app)
     {
         try
@@ -212,14 +146,4 @@ Packet recv_packet_logged(SocketHandle socket, Logger& logger, std::string_view 
     return packet;
 }
 
-std::string format_packet_log_message(const Packet& packet)
-{
-    const PacketHeader header = packet_header(packet);
-    std::ostringstream oss;
-    oss << "header={msg_type=" << to_string(header.msg_type) << ", src_ID="
-        << hex_id(header.src) << ", dst_ID=" << hex_id(header.dst)
-        << ", payload_len=" << header.payload_len << ", reserved=" << header.reserved
-        << "}; payload=" << format_payload_summary(packet);
-    return oss.str();
-}
 } // namespace cyber

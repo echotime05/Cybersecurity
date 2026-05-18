@@ -150,19 +150,7 @@ if (-not $NoStop) {
 
 if (-not $NoStop -and -not $KeepLogs) {
     Clear-LogFiles $logRoot @(
-        'as.log',
-        'tgs.log',
-        'v_game.log',
-        'client_game.log',
-        'v_ack.log',
-        'client_ack.log'
-    )
-    Clear-LogFiles $logRoot @(
-        'v.log',
-        'client_0*.log',
-        '*_plain_game.log',
-        '*_server.out',
-        '*_server.err',
+        '*.log',
         'all_services_config.txt',
         'report_revision_text.txt'
     )

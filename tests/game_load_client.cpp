@@ -15,7 +15,6 @@
 #include <filesystem>
 #include <iomanip>
 #include <iostream>
-#include <memory>
 #include <mutex>
 #include <sstream>
 #include <stdexcept>
@@ -41,14 +40,6 @@ struct ClientStats
     std::uint64_t state_interval_count = 0;
     std::string error_message;
 };
-
-std::string client_log_stem(cyber::EntityId id)
-{
-    std::ostringstream oss;
-    oss << "perf_client_" << std::setw(2) << std::setfill('0')
-        << static_cast<int>(id) << ".log";
-    return oss.str();
-}
 
 cyber::ProtocolPayloadView app_payload_view(const cyber::Packet& packet, std::uint64_t kc_v)
 {
@@ -80,8 +71,7 @@ void record_state_interval(ClientStats& stats, Clock::time_point& last_state,
     last_state = current;
 }
 
-void send_signed_game_packet(cyber::SocketHandle socket, cyber::Logger& logger,
-                             const cyber::AuthClientState& auth_state,
+void send_signed_game_packet(cyber::SocketHandle socket, const cyber::AuthClientState& auth_state,
                              cyber::game::GameMsgType type, const cyber::Bytes& payload,
                              std::mutex& send_mutex, ClientStats& stats)
 {
@@ -90,7 +80,7 @@ void send_signed_game_packet(cyber::SocketHandle socket, cyber::Logger& logger,
         auth_state.client_key_pair.private_key);
 
     std::lock_guard<std::mutex> lock(send_mutex);
-    cyber::send_packet_logged(socket, packet, logger, "PerfClient", "LoadTx");
+    cyber::send_packet_logged(socket, packet);
     cyber::write_protocol_event(
         cyber::ProtocolDirection::send, packet,
         cyber::protocol_app_message(cyber::game::app_map_game_message_code(type)),
@@ -98,8 +88,7 @@ void send_signed_game_packet(cyber::SocketHandle socket, cyber::Logger& logger,
     ++stats.input_sent;
 }
 
-void send_state_ack(cyber::SocketHandle socket, cyber::Logger& logger,
-                    const cyber::AuthClientState& auth_state,
+void send_state_ack(cyber::SocketHandle socket, const cyber::AuthClientState& auth_state,
                     const cyber::Packet& received_packet,
                     const cyber::SignedAppPayload& received_payload,
                     std::mutex& send_mutex, ClientStats& stats)
@@ -109,15 +98,15 @@ void send_state_ack(cyber::SocketHandle socket, cyber::Logger& logger,
         auth_state.kc_v, true, auth_state.client_key_pair.private_key);
 
     std::lock_guard<std::mutex> lock(send_mutex);
-    cyber::send_packet_logged(socket, ack, logger, "PerfClient", "LoadAck");
+    cyber::send_packet_logged(socket, ack);
     cyber::write_protocol_event(cyber::ProtocolDirection::send, ack,
                                 cyber::protocol_app_message(cyber::AppCode::app_ack),
                                 app_payload_view(ack, auth_state.kc_v));
     ++stats.state_ack_sent;
 }
 
-void receiver_loop(cyber::SocketHandle socket, cyber::Logger& logger,
-                   const cyber::AuthClientState& auth_state, std::atomic<bool>& stopping,
+void receiver_loop(cyber::SocketHandle socket, const cyber::AuthClientState& auth_state,
+                   std::atomic<bool>& stopping,
                    std::mutex& send_mutex, ClientStats& stats)
 {
     Clock::time_point last_state;
@@ -125,8 +114,7 @@ void receiver_loop(cyber::SocketHandle socket, cyber::Logger& logger,
     {
         try
         {
-            const cyber::Packet packet =
-                cyber::recv_packet_logged(socket, logger, "PerfClient", "LoadRx");
+            const cyber::Packet packet = cyber::recv_packet_logged(socket);
             if (packet.msg_type != cyber::MsgType::app)
             {
                 continue;
@@ -156,8 +144,7 @@ void receiver_loop(cyber::SocketHandle socket, cyber::Logger& logger,
             {
                 ++stats.state_recv;
                 record_state_interval(stats, last_state, Clock::now());
-                send_state_ack(socket, logger, auth_state, packet, signed_payload, send_mutex,
-                               stats);
+                send_state_ack(socket, auth_state, packet, signed_payload, send_mutex, stats);
             }
         }
         catch (const std::exception& ex)
@@ -180,24 +167,20 @@ void client_worker(const cyber::Config& config, const cyber::ClientSecret& secre
     std::atomic<bool> stopping{false};
     std::mutex send_mutex;
     std::thread receiver;
-    std::unique_ptr<cyber::Logger> logger;
     cyber::AuthClientState auth_state;
     try
     {
-        logger = std::make_unique<cyber::Logger>(std::filesystem::path("logs") /
-                                                 client_log_stem(secret.id));
         const std::uint64_t kc = cyber::auth_derive_client_key(secret.id, secret.password);
         cyber::VAuthenticatedSocket auth =
-            cyber::client_auth_connect_to_v_socket(config, secret.id, kc, *logger,
-                                                   "PerfClientAuth");
+            cyber::client_auth_connect_to_v_socket(config, secret.id, kc);
         socket = auth.socket;
         auth_state = auth.state;
 
         receiver = std::thread([&]() {
-            receiver_loop(socket, *logger, auth_state, stopping, send_mutex, stats);
+            receiver_loop(socket, auth_state, stopping, send_mutex, stats);
         });
 
-        send_signed_game_packet(socket, *logger, auth_state, cyber::game::GameMsgType::join,
+        send_signed_game_packet(socket, auth_state, cyber::game::GameMsgType::join,
                                 cyber::game::game_build_join({secret.id}),
                                 send_mutex, stats);
 
@@ -215,14 +198,13 @@ void client_worker(const cyber::Config& config, const cyber::ClientSecret& secre
             const float angle = static_cast<float>((frame * 19 + static_cast<int>(secret.id) * 37) %
                                                    360);
 
-            send_signed_game_packet(socket, *logger, auth_state, cyber::game::GameMsgType::move,
+            send_signed_game_packet(socket, auth_state, cyber::game::GameMsgType::move,
                                     cyber::game::game_build_move({x, y}), send_mutex, stats);
-            send_signed_game_packet(socket, *logger, auth_state, cyber::game::GameMsgType::target,
+            send_signed_game_packet(socket, auth_state, cyber::game::GameMsgType::target,
                                     cyber::game::game_build_target({angle}), send_mutex, stats);
             if (frame % 5 == 0)
             {
-                send_signed_game_packet(socket, *logger, auth_state,
-                                        cyber::game::GameMsgType::shoot,
+                send_signed_game_packet(socket, auth_state, cyber::game::GameMsgType::shoot,
                                         cyber::game::game_build_shoot({}), send_mutex, stats);
             }
             ++frame;

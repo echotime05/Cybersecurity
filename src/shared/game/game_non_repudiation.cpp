@@ -102,11 +102,4 @@ AppAckPayload ack_parse_verified_payload(const SignedAppPayload& signed_payload,
     }
     return ack_parse_payload(signed_payload.app_payload);
 }
-
-void ack_log_verified_packet(Logger& ack_logger, std::string_view entity,
-                             std::string_view thread_name, const Packet& packet)
-{
-    ack_logger.write(entity, thread_name, "APP_NON_REPUDIATION_ACK",
-                     std::string("packet_hex=") + bytes_to_hex(serialize_packet(packet)));
-}
 } // namespace cyber::game

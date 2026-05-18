@@ -2,7 +2,6 @@
 
 #include "cyber/common/auth_flow.hpp"
 #include "cyber/common/config.hpp"
-#include "cyber/common/logger.hpp"
 #include "cyber/common/net_socket.hpp"
 #include "cyber/game/battle_room.hpp"
 
@@ -59,7 +58,5 @@ private:
     std::map<EntityId, ClientConnection> connections_;
     std::vector<std::thread> client_threads_;
     BattleRoom room_;
-    Logger logger_;
-    Logger ack_logger_;
 };
 } // namespace cyber::game

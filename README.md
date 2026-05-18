@@ -120,7 +120,7 @@ TGS 负责第二阶段认证，验证 `Ticket_tgs` 和 `Authenticator_tgs`，返
 .\_generated\build-mingw\v_server.exe --config .\config\course_config.txt --game-auth-encrypted
 ```
 
-V 负责 V_AUTH、Client/V 证书交换、游戏输入处理、权威世界状态计算、状态广播和 V 侧 ACK 证据日志。
+V 负责 V_AUTH、Client/V 证书交换、游戏输入处理、权威世界状态计算、状态广播和 V 侧 `MSG_APP.APP_ACK` 协议事件。
 
 代码入口：`src/roles/v/README.md`
 
@@ -130,7 +130,7 @@ V 负责 V_AUTH、Client/V 证书交换、游戏输入处理、权威世界状�
 .\_generated\build-mingw\client.exe --config .\config\course_config.txt --game-auth-encrypted --ui-port 7001
 ```
 
-Client 负责浏览器 WebSocket bridge、真实密码登录、AS/TGS/V 完整认证、游戏输入上报、状态接收、本地 UI 状态转发和 Client 侧 ACK 证据日志。
+Client 负责浏览器 WebSocket bridge、真实密码登录、AS/TGS/V 完整认证、游戏输入上报、状态接收、本地 UI 状态转发和 Client 侧 `MSG_APP.APP_ACK` 协议事件。
 
 代码入口：`src/roles/client/README.md`
 
@@ -208,13 +208,6 @@ _generated/perf_runs/<timestamp>/perf_report.txt
 
 ```text
 _generated/logs/
-  as.log
-  tgs.log
-  v_game.log
-  client_game.log
-  v_ack.log
-  client_ack.log
-
   protocol_events/
     as_xxx.txt
     tgs_xxx.txt
@@ -234,9 +227,9 @@ _generated/logs/
     monitor.err
 ```
 
-`v_ack.log` 和 `client_ack.log` 是双向不可否认证据日志。每条已验证 ACK 都会记录完整 ACK packet 的十六进制。
+`protocol_events/*.txt` 是唯一的业务/协议日志，也是 Protocol 面板输入源。AS、TGS、V、Client 的发送和接收报文都写入这里；每行包含固定首部、`payload_hex`、`packet_hex`，以及可视化需要的 `payload_plain_hex`、`payload_encrypted_hex` 和加密字段拆分。双向不可否认的 `APP_ACK` 不再写单独 ACK 日志，而是作为 `MSG_APP.APP_ACK` 报文事件写入 `protocol_events`，其完整 ACK packet 由 `packet_hex` 保存。
 
-`protocol_events/*.txt` 是 Protocol 面板输入源。Monitor 只读取这些文件，不读取普通运行日志。
+`runtime/*.out` 和 `runtime/*.err` 只是脚本启动进程时重定向的 stdout/stderr，用来排查进程是否崩溃；Monitor 不读取它们。
 
 ## 10. 常见问题
 

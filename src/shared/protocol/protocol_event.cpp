@@ -280,6 +280,7 @@ std::string format_protocol_event_message(ProtocolDirection direction, const Pac
         << " payload_len=" << header.payload_len
         << " payload_len_raw=" << hex_u32(header.payload_len)
         << " reserved=" << header.reserved << " reserved_raw=" << hex_u32(header.reserved)
+        << " packet_hex=" << bytes_to_hex(serialize_packet(packet))
         << " payload_hex=" << bytes_to_hex(packet.payload);
     if (!payload_view.plain_hex.empty())
     {
@@ -349,6 +350,7 @@ ProtocolEvent parse_protocol_event_line(const std::string& line)
                                 required_value(values, "payload_len_raw")};
     event.header.reserved = {required_value(values, "reserved"),
                              required_value(values, "reserved_raw")};
+    event.packet_hex = optional_value(values, "packet_hex");
     event.payload_hex = required_value(values, "payload_hex");
     if (const auto it = values.find("payload_plain_hex"); it != values.end())
     {
@@ -397,7 +399,8 @@ std::string protocol_event_json(const ProtocolEvent& event, std::uint64_t id)
         << ",\"src\":" << field_json(event.header.src)
         << ",\"dst\":" << field_json(event.header.dst)
         << ",\"payloadLen\":" << field_json(event.header.payload_len)
-        << ",\"reserved\":" << field_json(event.header.reserved) << "},\"payloadHex\":\""
+        << ",\"reserved\":" << field_json(event.header.reserved) << "},\"packetHex\":\""
+        << json_escape(event.packet_hex) << "\",\"payloadHex\":\""
         << json_escape(event.payload_hex) << "\",\"payloadPlainHex\":\""
         << json_escape(event.payload_plain_hex) << "\",\"payloadEncryptedHex\":\""
         << json_escape(event.payload_encrypted_hex) << "\",\"payloadFields\":[";

@@ -6,7 +6,6 @@
 #include "cyber/game/app_payload_codec.hpp"
 #include "cyber/game/game_protocol.hpp"
 
-#include <filesystem>
 #include <iostream>
 #include <stdexcept>
 
@@ -33,13 +32,11 @@ int main(int argc, char** argv)
     {
         cyber::SocketRuntime runtime;
         const cyber::Config config = cyber::Config::load(argv[1]);
-        cyber::Logger logger(std::filesystem::temp_directory_path() /
-                             "encrypted_plaintext_rejection_client.log");
 
         const cyber::EntityId client_id = cyber::EntityId::client1;
         const std::uint64_t kc = cyber::auth_derive_client_key(client_id, "123456");
         cyber::VAuthenticatedSocket auth = cyber::client_auth_connect_to_v_socket(
-            config, client_id, kc, logger, "EncryptedPlainReject");
+            config, client_id, kc);
 
         const cyber::Bytes plaintext_join = cyber::game::game_build_message(
             {cyber::game::GameMsgType::join,
@@ -47,15 +44,13 @@ int main(int argc, char** argv)
 
         cyber::send_packet_logged(auth.socket,
                                   cyber::make_packet(cyber::MsgType::app, client_id,
-                                                     cyber::EntityId::v, plaintext_join),
-                                  logger, "Client", "EncryptedPlainReject");
+                                                     cyber::EntityId::v, plaintext_join));
 
         bool rejected = false;
         try
         {
             const cyber::Packet response =
-                cyber::recv_packet_logged(auth.socket, logger, "Client",
-                                          "EncryptedPlainReject");
+                cyber::recv_packet_logged(auth.socket);
             if (response.msg_type != cyber::MsgType::app)
             {
                 rejected = true;

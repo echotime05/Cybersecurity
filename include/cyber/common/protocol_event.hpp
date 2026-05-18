@@ -53,6 +53,7 @@ struct ProtocolEvent
     std::string message;
     std::string category;
     ProtocolHeaderView header;
+    std::string packet_hex;
     std::string payload_hex;
     std::string payload_plain_hex;
     std::string payload_encrypted_hex;
