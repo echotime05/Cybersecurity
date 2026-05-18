@@ -1,80 +1,43 @@
-# Cyber Tank Battle
+# Cyber Tank Battle 现场运行说明
 
-This project is a Windows C++17 Kerberos-style tank battle demo with a browser
-UI. The supported deployment mode is:
-
-```text
-Browser UI <-> local C++ client WebSocket bridge <-> AS/TGS/V over TCP
-Protocol panel <-> local monitor.exe WebSocket bridge <-> local packet logs
-```
-
-The browser never connects to V directly. It connects to the local `client.exe`
-bridge on `ws://127.0.0.1:<ui-port>`. The C++ client performs AS, TGS, and V
-authentication, then forwards game input to V. V owns the authoritative game
-state and broadcasts snapshots back to clients.
-
-The optional protocol panel connects only to local `monitor.exe` on
-`ws://127.0.0.1:<monitor-port>`. `monitor.exe` tails local text logs under
-`logs/protocol_events/`, so each physical machine displays only packets sent
-and received by processes running on that machine.
-
-## Supported Runtime
-
-The public runtime uses Kerberos authentication, encrypted game payloads, and
-application-level non-repudiation:
+这是一个 Windows C++17 坦克大战课程设计。最终链路固定为：
 
 ```text
-as_server.exe --serve
-tgs_server.exe --serve
-v_server.exe --game-auth-encrypted
-client.exe --game-auth-encrypted --ui-port 7001
-monitor.exe --ui-port 7010
+Browser Web UI <-> local client.exe WebSocket bridge <-> AS/TGS/V TCP services
+Protocol panel <-> local monitor.exe WebSocket bridge <-> logs/protocol_events
 ```
 
-Additional non-deployment modes are kept only for internal tests. Do not use
-them for normal deployment.
+浏览器不直接连接 V。浏览器只连接本机 `client.exe`，`client.exe` 完成 Kerberos 认证、V 认证、证书交换、游戏报文签名加密和 ACK 不可否认证据记录。V 负责权威游戏状态计算并广播状态。
 
-## Security Model
-
-`--game-auth-encrypted` runs the complete application chain:
-
-1. `client.exe` obtains `Kc_tgs` from AS.
-2. `client.exe` obtains `Kc_v` and `Ticket_v` from TGS.
-3. `client.exe` authenticates to V and completes the client/V certificate
-   exchange.
-4. Client-to-V and V-to-client game `MSG_APP` payloads are signed and encrypted
-   with `Kc_v`.
-5. Every non-ACK game packet is acknowledged by the receiver with a signed and
-   encrypted `APP_ACK`. ACK packets are evidence only and are not acknowledged
-   again.
-
-The browser UI connection is local development traffic between the browser and
-`client.exe`; it is not encrypted. Security is applied on the C++ client-to-V
-game channel.
-
-## Prerequisites
+## 1. 环境要求
 
 - Windows
-- CMake 3.16 or newer
-- Ninja and a C++17 compiler available on `PATH`
-- Node.js and npm available on `PATH`
+- CMake 3.16+
+- Ninja 和 C++17 编译器在 `PATH` 中
+- Node.js 和 npm 在 `PATH` 中
 
-## Build
+如果本机使用 Qt 自带工具链，但命令行找不到 CMake/Ninja/MinGW，可以先临时加入 PATH：
 
-From the repository root:
+```powershell
+$env:Path = 'E:\Qt\Tools\CMake_64\bin;E:\Qt\Tools\Ninja;E:\Qt\Tools\mingw1120_64\bin;' + $env:Path
+```
+
+## 2. 构建
+
+在仓库根目录执行：
 
 ```powershell
 cmake -S . -B build-mingw -G Ninja
 cmake --build build-mingw
 ```
 
-Run the C++ and integration tests:
+运行测试：
 
 ```powershell
 ctest --test-dir build-mingw --output-on-failure
 ```
 
-Run the Web UI protocol parser selftest and production build:
+检查 Web UI：
 
 ```powershell
 cd web-ui
@@ -82,81 +45,141 @@ npm run verify
 cd ..
 ```
 
-## Single-Machine Demo
+## 3. 单机一键启动
 
-The default `config/course_config.txt` is a single-machine config. It binds AS,
-TGS, and V to localhost and uses `Client1` as the local client.
+默认配置 `config/course_config.txt` 是本机演示配置，AS/TGS/V 都在 `127.0.0.1`，本机 Client 是 `Client1`。
 
-Start the C++ backend:
+启动 C++ 后端：
 
 ```powershell
 .\scripts\run_local.ps1
 ```
 
-`run_local.ps1` stops old local role processes and clears local runtime/protocol
-logs before starting the new demo, so the Protocol panel shows packets from the
-current run. Add `-KeepLogs` if you intentionally want to keep old local logs.
-
-Start the Web UI in another terminal:
+启动 Web UI：
 
 ```powershell
 .\scripts\run_web.ps1
 ```
 
-Open:
+浏览器打开：
 
 ```text
 http://127.0.0.1:5173/?client=ws://127.0.0.1:7001&monitor=ws://127.0.0.1:7010
 ```
 
-Stop the local C++ backend:
+停止 C++ 后端：
 
 ```powershell
 .\scripts\stop_local.ps1
 ```
 
-## Manual Startup
+## 4. 分角色手动启动
 
-Use these commands if you want to start each role yourself. Run each command
-from the repository root.
+如果 4 个人分别汇报，可以在不同终端手动启动各角色。以下命令都在仓库根目录执行。
 
-Terminal 1:
+### AS
 
 ```powershell
 .\build-mingw\as_server.exe --config .\config\course_config.txt --serve
 ```
 
-Terminal 2:
+AS 负责 Client 到 AS 的第一阶段认证，验证 Client ID 和长期密钥，返回 `Kc_tgs` 与 `Ticket_tgs`。
+
+主要源码：
+
+```text
+src/roles/as/main.cpp
+src/common/role_runtime.cpp
+src/common/auth_flow.cpp
+src/common/protocol_payloads.cpp
+src/common/auth_credentials.cpp
+src/common/crypto.cpp
+```
+
+### TGS
 
 ```powershell
 .\build-mingw\tgs_server.exe --config .\config\course_config.txt --serve
 ```
 
-Terminal 3:
+TGS 负责第二阶段认证，验证 `Ticket_tgs` 和 `Authenticator_tgs`，返回 `Kc_v` 与 `Ticket_v`。
+
+主要源码：
+
+```text
+src/roles/tgs/main.cpp
+src/common/role_runtime.cpp
+src/common/auth_flow.cpp
+src/common/protocol_payloads.cpp
+src/common/crypto.cpp
+```
+
+### V
 
 ```powershell
 .\build-mingw\v_server.exe --config .\config\course_config.txt --game-auth-encrypted
 ```
 
-Terminal 4:
+V 负责 V_AUTH、Client/V 证书交换、加密签名游戏报文处理、权威世界状态计算、状态广播和 V 侧 ACK 证据日志。
+
+主要源码：
+
+```text
+src/roles/v/main.cpp
+src/common/role_runtime.cpp
+src/common/auth_flow.cpp
+src/game/tank_game_server.cpp
+src/game/battle_room.cpp
+src/game/game_world.cpp
+src/game/game_protocol.cpp
+src/game/app_payload_codec.cpp
+src/game/game_non_repudiation.cpp
+```
+
+### Client
 
 ```powershell
 .\build-mingw\client.exe --config .\config\course_config.txt --game-auth-encrypted --ui-port 7001
 ```
 
-Terminal 5:
+Client 负责浏览器 WebSocket 桥接、真实密码登录、AS/TGS/V 完整认证、游戏输入上报、状态接收、本地 UI 状态转发和 Client 侧 ACK 证据日志。
+
+主要源码：
+
+```text
+src/roles/client/main.cpp
+src/common/role_runtime.cpp
+src/common/auth_flow.cpp
+src/game/tank_game_client.cpp
+src/game/game_protocol.cpp
+src/game/app_payload_codec.cpp
+src/game/game_non_repudiation.cpp
+src/ui/ui_bridge.cpp
+src/ui/websocket.cpp
+web-ui/src/Game.ts
+web-ui/src/Network.ts
+```
+
+### Monitor 和 Web UI
 
 ```powershell
 .\build-mingw\monitor.exe --ui-port 7010 --events-dir .\logs\protocol_events
-```
-
-Terminal 6:
-
-```powershell
 .\scripts\run_web.ps1
 ```
 
-## Login Passwords
+Monitor 不参与认证和游戏计算。它只读取本机 `logs/protocol_events/*.txt`，把本机进程发包/收包事件推给浏览器 Protocol 面板。
+
+主要源码：
+
+```text
+src/roles/monitor/main.cpp
+src/monitor/protocol_monitor.cpp
+src/common/protocol_event.cpp
+web-ui/src/ProtocolMonitor.ts
+web-ui/src/protocolPayload.ts
+```
+
+## 5. 登录密码
 
 ```text
 Client1: 123456
@@ -165,29 +188,9 @@ Client3: hehe12345
 Client4: &wxh@147
 ```
 
-## Four-Client Performance Test
+## 6. 四机部署
 
-Use the headless performance script to measure the encrypted AS/TGS/V game
-link without browser rendering cost:
-
-```powershell
-powershell -NoProfile -ExecutionPolicy Bypass -File .\scripts\run_perf_4clients.ps1 -DurationSeconds 60 -InputHz 10
-```
-
-The script builds the needed targets, starts isolated localhost AS/TGS/V
-processes on random ports, runs four simulated authenticated clients, and
-writes a report under `perf_runs/<timestamp>/perf_report.txt`. The report
-includes `GAME_STATE` interval jitter, input/ACK counts, process CPU/memory
-deltas, and log growth rates. This is a server/protocol load test; use the
-normal browser demo separately when you want to inspect rendering smoothness.
-
-## Four-Host Deployment
-
-Each host needs the same AS, TGS, and V addresses in its config file. The
-templates under `config/lan/` are examples. Edit the IP addresses for your LAN,
-then copy the matching file to `config/course_config.txt` on each host.
-
-Recommended role layout:
+四台机器必须使用一致的 AS/TGS/V 地址和端口。可以从 `config/lan/` 复制模板到各机器的 `config/course_config.txt`，再按现场 IP 修改：
 
 ```text
 Host 1: Client1
@@ -196,28 +199,31 @@ Host 3: TGS + Client3
 Host 4: V + Client4
 ```
 
-On Host 2:
+每台机器上：
+
+- `*_IP` 是其他进程连接的地址。
+- `*_BIND_IP` 是本机监听地址。局域网演示通常用 `0.0.0.0`。
+- 浏览器仍然只连接本机 `127.0.0.1:7001` 和 `127.0.0.1:7010`。
+
+AS 机器启动：
 
 ```powershell
-Copy-Item .\config\lan\host2_as_client2.txt .\config\course_config.txt -Force
 .\build-mingw\as_server.exe --config .\config\course_config.txt --serve
 ```
 
-On Host 3:
+TGS 机器启动：
 
 ```powershell
-Copy-Item .\config\lan\host3_tgs_client3.txt .\config\course_config.txt -Force
 .\build-mingw\tgs_server.exe --config .\config\course_config.txt --serve
 ```
 
-On Host 4:
+V 机器启动：
 
 ```powershell
-Copy-Item .\config\lan\host4_v_client4.txt .\config\course_config.txt -Force
 .\build-mingw\v_server.exe --config .\config\course_config.txt --game-auth-encrypted
 ```
 
-On each player host, including Host 1 if it is client-only:
+每个玩家机器启动：
 
 ```powershell
 .\build-mingw\client.exe --config .\config\course_config.txt --game-auth-encrypted --ui-port 7001
@@ -225,76 +231,86 @@ On each player host, including Host 1 if it is client-only:
 .\scripts\run_web.ps1
 ```
 
-Open the same local URL on each player host:
+浏览器打开：
 
 ```text
 http://127.0.0.1:5173/?client=ws://127.0.0.1:7001&monitor=ws://127.0.0.1:7010
 ```
 
-Start `monitor.exe` on AS/TGS/V-only hosts too if you want a browser on that
-host to inspect that host's local packet send/receive events.
+## 7. 脚本入口
 
-## Configuration Rules
-
-- AS, TGS, V, and each client must agree on `AS_IP`, `TGS_IP`, `V_IP`, and the
-  corresponding ports.
-- `*_IP` values are the addresses clients connect to.
-- `*_BIND_IP` values are the addresses servers listen on. Use `127.0.0.1` for a
-  local demo and `0.0.0.0` for LAN servers.
-- Every local browser still connects to its own local client bridge at
-  `ws://127.0.0.1:7001`.
-
-## Logs
-
-Runtime logs are written under `logs/`:
+当前保留的脚本只有这些：
 
 ```text
-logs/as.log
-logs/tgs.log
-logs/v_game.log
-logs/client_game.log
-logs/v_ack.log
-logs/client_ack.log
-logs/protocol_events/*.txt
-logs/runtime/*.out
-logs/runtime/*.err
+scripts/run_local.ps1          单机启动 AS/TGS/V/Client/Monitor
+scripts/stop_local.ps1         停止本机 AS/TGS/V/Client/Monitor
+scripts/run_web.ps1            启动 Web UI dev server
+scripts/run_perf_4clients.ps1  四 Client 加密链路压测
 ```
 
-`logs/v_ack.log` and `logs/client_ack.log` are the non-repudiation evidence
-logs. Each verified ACK is recorded as `APP_NON_REPUDIATION_ACK packet_hex=...`,
-where `packet_hex` is the complete ACK packet including header and encrypted
-signed payload.
+四 Client 压测：
 
-`logs/protocol_events/*.txt` are local protocol monitor logs. Each line keeps
-the existing text-log style and includes structured packet fields such as
-timestamp, direction, endpoint, message name, fixed header fields, and payload
-hex. `monitor.exe` tails these files and sends `protocolEvent` messages to the
-browser Protocol panel.
+```powershell
+powershell -NoProfile -ExecutionPolicy Bypass -File .\scripts\run_perf_4clients.ps1 -DurationSeconds 60 -InputHz 10
+```
 
-## Project Layout
+压测报告写入：
 
 ```text
-src/roles/       Role entry points for AS, TGS, V, and Client
-src/common/      Shared protocol, auth, crypto, network, config, and logging code
-src/game/        Tank battle protocol and authoritative game state
-src/ui/          Local WebSocket bridge used by client.exe
-include/cyber/   Public C++ headers
-config/          Default and LAN config files
-tests/           C++ and PowerShell selftests
-web-ui/          Browser UI
-scripts/         Portable startup helpers
+perf_runs/<timestamp>/perf_report.txt
 ```
 
-## Troubleshooting
+## 8. 日志
 
-If the browser says `ERR_CONNECTION_REFUSED` for `127.0.0.1:5173`, the Web UI
-dev server is not running. Start it with `.\scripts\run_web.ps1`.
+运行日志位于 `logs/`：
 
-If login stays on `Authenticating`, check that AS, TGS, V, and `client.exe` are
-all running and using the same config file. Also check that V was started with
-`--game-auth-encrypted`.
+```text
+logs/
+  as.log
+  tgs.log
+  v_game.log
+  client_game.log
+  v_ack.log
+  client_ack.log
 
-If `client.exe` cannot listen on port 7001, stop the old client process:
+  protocol_events/
+    as_xxx.txt
+    tgs_xxx.txt
+    v_xxx.txt
+    client_xx_xxx.txt
+
+  runtime/
+    as_server.out
+    as_server.err
+    tgs_server.out
+    tgs_server.err
+    v_server.out
+    v_server.err
+    client.out
+    client.err
+    monitor.out
+    monitor.err
+```
+
+`v_ack.log` 和 `client_ack.log` 是双向不可否认证据日志。每条已验证 ACK 都会记录完整 ACK packet 的十六进制。
+
+`protocol_events/*.txt` 是 Protocol 面板输入源。Monitor 只读取这些文件，不读取普通运行日志。
+
+## 9. 常见问题
+
+如果浏览器提示 `127.0.0.1:5173` 拒绝连接，说明 Web UI 没启动，运行：
+
+```powershell
+.\scripts\run_web.ps1
+```
+
+如果登录卡在 `Authenticating`，检查 AS、TGS、V、Client 是否都在运行，并确认 V 使用的是：
+
+```powershell
+--game-auth-encrypted
+```
+
+如果 `client.exe` 无法监听 7001，先停掉旧进程：
 
 ```powershell
 .\scripts\stop_local.ps1

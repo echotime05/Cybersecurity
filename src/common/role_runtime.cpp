@@ -5,7 +5,6 @@
 #include "cyber/common/logger.hpp"
 #include "cyber/common/net_packet.hpp"
 #include "cyber/common/net_socket.hpp"
-#include "cyber/common/packet.hpp"
 #include "cyber/game/tank_game_client.hpp"
 #include "cyber/game/tank_game_server.hpp"
 
@@ -60,8 +59,8 @@ RoleSpec spec_for(RoleKind role)
 void print_usage(const RoleSpec& spec)
 {
     std::cout << "Usage: " << spec.binary
-              << " [--config PATH] [--self-test] [--print-config] [--serve] [--once]"
-                 " [--max-connections N] [--connect-test] [--auth-test]"
+              << " [--config PATH] [--print-config] [--serve]"
+                 " [--max-connections N]"
                  " [--game-auth-encrypted] [--ui-port PORT]\n";
 }
 
@@ -80,55 +79,6 @@ std::filesystem::path find_default_config()
         }
     }
     return candidates.front();
-}
-
-void run_common_self_test(const Config& config, const RoleSpec& spec)
-{
-    const EntityId configured_id = config.get_entity_id(spec.id_key);
-    if (spec.id != EntityId::unknown && configured_id != spec.id)
-    {
-        throw std::runtime_error(std::string("unexpected id for role ") + spec.name);
-    }
-
-    Packet packet;
-    packet.msg_type = MsgType::app;
-    packet.src = EntityId::client1;
-    packet.dst = EntityId::v;
-    packet.payload = make_app_payload(AppCode::app_ack, Bytes{0x00, 0x00, 0x00, 0x01});
-
-    const Bytes encoded = serialize_packet(packet);
-    const Packet decoded = parse_packet(encoded);
-    if (decoded.msg_type != packet.msg_type || decoded.src != packet.src ||
-        decoded.dst != packet.dst || decoded.payload != packet.payload)
-    {
-        throw std::runtime_error("packet roundtrip failed");
-    }
-
-    if (parse_app_code(decoded.payload) != AppCode::app_ack)
-    {
-        throw std::runtime_error("app payload parse failed");
-    }
-
-    const auto clients = config.clients();
-    if (clients.size() != 4U)
-    {
-        throw std::runtime_error("client secret table is incomplete");
-    }
-
-    const EntityId local_client = config.get_entity_id("LOCAL_CLIENT_ID");
-    bool local_client_found = false;
-    for (const ClientSecret& client : clients)
-    {
-        if (client.id == local_client)
-        {
-            local_client_found = true;
-            break;
-        }
-    }
-    if (!local_client_found)
-    {
-        throw std::runtime_error("LOCAL_CLIENT_ID is not one of C1_ID..C4_ID");
-    }
 }
 
 void print_endpoint(const Config& config, const char* name, const char* ip_key,
@@ -156,24 +106,7 @@ void print_deployment_config(const Config& config, const RoleSpec& spec)
     }
 }
 
-std::string client_log_filename(EntityId client_id)
-{
-    switch (client_id)
-    {
-    case EntityId::client1:
-        return "client_01.log";
-    case EntityId::client2:
-        return "client_02.log";
-    case EntityId::client3:
-        return "client_03.log";
-    case EntityId::client4:
-        return "client_04.log";
-    default:
-        throw std::runtime_error("LOCAL_CLIENT_ID is not a client id");
-    }
-}
-
-std::filesystem::path role_log_path(RoleKind role, const Config& config)
+std::filesystem::path role_log_path(RoleKind role)
 {
     const std::filesystem::path log_dir = "logs";
     switch (role)
@@ -183,9 +116,9 @@ std::filesystem::path role_log_path(RoleKind role, const Config& config)
     case RoleKind::tgs_server:
         return log_dir / "tgs.log";
     case RoleKind::v_server:
-        return log_dir / "v.log";
+        return log_dir / "v_game.log";
     case RoleKind::client:
-        return log_dir / client_log_filename(config.get_entity_id("LOCAL_CLIENT_ID"));
+        return log_dir / "client_game.log";
     default:
         throw std::runtime_error("unknown role");
     }
@@ -208,32 +141,6 @@ std::string main_thread_name(RoleKind role)
     }
 }
 
-void run_logged_self_test(RoleKind role, const Config& config, const RoleSpec& spec)
-{
-    Logger logger(role_log_path(role, config));
-    const std::string thread_name = main_thread_name(role);
-    logger.write(spec.name, thread_name, "THREAD_START", "self-test start");
-    logger.write(spec.name, thread_name, "LOG", "log file=" + logger.path().generic_string());
-    try
-    {
-        run_common_self_test(config, spec);
-        logger.write(spec.name, thread_name, "THREAD_EXIT", "self-test exit");
-        std::cout << "log file: " << logger.path().string() << '\n';
-        std::cout << "self-test: ok\n";
-    }
-    catch (const std::exception& ex)
-    {
-        logger.write(spec.name, thread_name, "ERROR", ex.what());
-        logger.write(spec.name, thread_name, "THREAD_EXIT", "self-test failed");
-        throw;
-    }
-}
-
-Bytes text_payload(const std::string& text)
-{
-    return Bytes(text.begin(), text.end());
-}
-
 std::string endpoint_text(const TcpEndpoint& endpoint)
 {
     return endpoint.ip + ":" + std::to_string(endpoint.port);
@@ -248,85 +155,31 @@ TcpEndpoint bind_endpoint(const Config& config, const RoleSpec& spec)
     return {config.get_string(spec.bind_ip_key), config.get_u16(spec.port_key)};
 }
 
-TcpEndpoint connect_endpoint(const Config& config, const char* ip_key, const char* port_key)
-{
-    return {config.get_string(ip_key), config.get_u16(port_key)};
-}
-
 std::string worker_thread_name(RoleKind role)
 {
     switch (role)
     {
     case RoleKind::as_server:
-        return "ASWorker-Probe";
+        return "ASWorker";
     case RoleKind::tgs_server:
-        return "TGSWorker-Probe";
+        return "TGSWorker";
     case RoleKind::v_server:
-        return "VWorker-Probe";
+        return "VWorker";
     default:
         throw std::runtime_error("client does not have a server worker");
     }
 }
 
-Packet make_probe_response(RoleKind role, const RoleSpec& spec, const Packet& request)
-{
-    if (role == RoleKind::as_server && request.msg_type == MsgType::as_req)
-    {
-        return make_packet(MsgType::as_rep, spec.id, request.src, text_payload("probe_as_rep"));
-    }
-    if (role == RoleKind::tgs_server && request.msg_type == MsgType::tgs_req)
-    {
-        return make_packet(MsgType::tgs_rep, spec.id, request.src, text_payload("probe_tgs_rep"));
-    }
-    if (role == RoleKind::v_server && request.msg_type == MsgType::v_auth_req)
-    {
-        return make_packet(MsgType::v_auth_rep, spec.id, request.src,
-                           text_payload("probe_v_auth_rep"));
-    }
-    if (role == RoleKind::v_server && request.msg_type == MsgType::cert_c2v)
-    {
-        return make_packet(MsgType::cert_v2c, spec.id, request.src, text_payload("probe_cert_v2c"));
-    }
-    if (role == RoleKind::v_server && request.msg_type == MsgType::app)
-    {
-        return make_packet(MsgType::app, spec.id, request.src,
-                           make_app_payload(AppCode::app_ack, Bytes{0x01}));
-    }
-
-    return make_packet(MsgType::error, spec.id, request.src,
-                       make_error_payload(ErrorCode::unsupported_msg_type, "probe unsupported msg_type"));
-}
-
-bool is_probe_packet(const Packet& packet)
-{
-    const std::string payload(packet.payload.begin(), packet.payload.end());
-    return payload.rfind("probe_", 0) == 0;
-}
-
 void handle_server_connection(SocketHandle socket, std::shared_ptr<Logger> logger,
-                              std::shared_ptr<AuthRuntime> auth_runtime, RoleKind role,
-                              RoleSpec spec, Config config)
+                              RoleKind role, RoleSpec spec, Config config)
 {
     const std::string thread_name = worker_thread_name(role);
     logger->write(spec.name, thread_name, "THREAD_START", thread_name + " start");
     try
     {
         const Packet request = recv_packet_logged(socket, *logger, spec.name, thread_name);
-        if (is_probe_packet(request))
-        {
-            const Packet response = make_probe_response(role, spec, request);
-            if (response.msg_type == MsgType::error)
-            {
-                logger->write(spec.name, thread_name, "ERROR", "ERR_UNSUPPORTED_MSG_TYPE");
-            }
-            send_packet_logged(socket, response, *logger, spec.name, thread_name);
-            close_socket(socket);
-        }
-        else
-        {
-            handle_auth_packet(role, socket, request, config, *auth_runtime, *logger, thread_name);
-        }
-        logger->write(spec.name, thread_name, "SOCKET_CLOSE", "close probe connection");
+        handle_auth_packet(role, socket, request, config, *logger, thread_name);
+        logger->write(spec.name, thread_name, "SOCKET_CLOSE", "close auth connection");
         logger->write(spec.name, thread_name, "THREAD_EXIT", thread_name + " exit");
     }
     catch (const std::exception& ex)
@@ -343,10 +196,13 @@ void run_server(RoleKind role, const Config& config, const RoleSpec& spec, int m
     {
         throw std::runtime_error("client cannot run --serve");
     }
+    if (role == RoleKind::v_server)
+    {
+        throw std::runtime_error("v_server uses --game-auth-encrypted in the final runtime");
+    }
 
     SocketRuntime runtime;
-    auto auth_runtime = std::make_shared<AuthRuntime>(make_auth_runtime(config));
-    auto logger = std::make_shared<Logger>(role_log_path(role, config));
+    auto logger = std::make_shared<Logger>(role_log_path(role));
     const std::string main_thread = main_thread_name(role);
     const TcpEndpoint endpoint = bind_endpoint(config, spec);
     logger->write(spec.name, main_thread, "THREAD_START",
@@ -366,8 +222,7 @@ void run_server(RoleKind role, const Config& config, const RoleSpec& spec, int m
             ++accepted_count;
             logger->write(spec.name, main_thread, "ACCEPT", "accept connection from " + peer);
 
-            std::thread worker(handle_server_connection, accepted, logger, auth_runtime, role, spec,
-                               config);
+            std::thread worker(handle_server_connection, accepted, logger, role, spec, config);
             if (max_connections > 0)
             {
                 worker.join();
@@ -392,73 +247,13 @@ void run_server(RoleKind role, const Config& config, const RoleSpec& spec, int m
     }
 }
 
-void run_client_probe_exchange(Logger& logger, EntityId local_client, const std::string& name,
-                               const TcpEndpoint& endpoint,
-                               MsgType request_type, MsgType expected_response,
-                               const std::string& auth_state)
-{
-    const std::string thread_name = "CAuthWorker";
-    logger.write("Client", thread_name, "CONNECT", "connect to " + name + " " + endpoint_text(endpoint));
-    SocketHandle socket = connect_tcp(endpoint);
-    try
-    {
-        const EntityId dst =
-            (name == "AS") ? EntityId::as : ((name == "TGS") ? EntityId::tgs : EntityId::v);
-        const Packet request =
-            make_packet(request_type, local_client, dst, text_payload("probe_" + name));
-        send_packet_logged(socket, request, logger, "Client", thread_name);
-        const Packet response = recv_packet_logged(socket, logger, "Client", thread_name);
-        if (response.msg_type != expected_response)
-        {
-            throw std::runtime_error("unexpected response from " + name);
-        }
-        logger.write("Client", thread_name, "AUTH_STATE", auth_state);
-        logger.write("Client", thread_name, "SOCKET_CLOSE", "close " + name + " probe connection");
-        close_socket(socket);
-    }
-    catch (...)
-    {
-        close_socket(socket);
-        throw;
-    }
-}
-
-void run_client_connect_test(const Config& config)
-{
-    SocketRuntime runtime;
-    Logger logger(role_log_path(RoleKind::client, config));
-    const EntityId local_client = config.get_entity_id("LOCAL_CLIENT_ID");
-    const std::string thread_name = "CAuthWorker";
-    logger.write("Client", thread_name, "THREAD_START", "connect-test start");
-
-    run_client_probe_exchange(logger, local_client, "AS", connect_endpoint(config, "AS_IP", "AS_PORT"),
-                              MsgType::as_req,
-                              MsgType::as_rep, "AS_OK");
-    run_client_probe_exchange(logger, local_client, "TGS",
-                              connect_endpoint(config, "TGS_IP", "TGS_PORT"), MsgType::tgs_req,
-                              MsgType::tgs_rep, "TGS_OK");
-    run_client_probe_exchange(logger, local_client, "V",
-                              connect_endpoint(config, "V_IP", "V_PORT"), MsgType::v_auth_req,
-                              MsgType::v_auth_rep, "V_AUTH_OK");
-    run_client_probe_exchange(logger, local_client, "V",
-                              connect_endpoint(config, "V_IP", "V_PORT"), MsgType::cert_c2v,
-                              MsgType::cert_v2c, "AUTH_DONE");
-
-    logger.write("Client", thread_name, "THREAD_EXIT", "connect-test exit");
-    std::cout << "connect-test: ok\n";
-    std::cout << "log file: " << logger.path().string() << '\n';
-}
 } // namespace
 
 int run_role_main(RoleKind role, int argc, char** argv)
 {
     const RoleSpec spec = spec_for(role);
-    bool self_test = false;
     bool print_config = false;
     bool serve = false;
-    bool once = false;
-    bool connect_test = false;
-    bool auth_test = false;
     bool game_auth_encrypted = false;
     std::uint16_t ui_port = 0;
     int max_connections = 0;
@@ -467,21 +262,13 @@ int run_role_main(RoleKind role, int argc, char** argv)
     for (int i = 1; i < argc; ++i)
     {
         const std::string arg = argv[i];
-        if (arg == "--self-test")
-        {
-            self_test = true;
-        }
-        else if (arg == "--print-config")
+        if (arg == "--print-config")
         {
             print_config = true;
         }
         else if (arg == "--serve")
         {
             serve = true;
-        }
-        else if (arg == "--once")
-        {
-            once = true;
         }
         else if (arg == "--max-connections")
         {
@@ -496,14 +283,6 @@ int run_role_main(RoleKind role, int argc, char** argv)
                 std::cerr << "--max-connections must be positive\n";
                 return 2;
             }
-        }
-        else if (arg == "--connect-test")
-        {
-            connect_test = true;
-        }
-        else if (arg == "--auth-test")
-        {
-            auth_test = true;
         }
         else if (arg == "--game-auth-encrypted")
         {
@@ -567,10 +346,7 @@ int run_role_main(RoleKind role, int argc, char** argv)
         if (print_config)
         {
             print_deployment_config(config, spec);
-            if (!self_test)
-            {
-                return 0;
-            }
+            return 0;
         }
 
         if (game_auth_encrypted)
@@ -597,34 +373,14 @@ int run_role_main(RoleKind role, int argc, char** argv)
                 "--game-auth-encrypted is only supported by v_server and client");
         }
 
-        if (self_test)
+        if (serve)
         {
-            run_logged_self_test(role, config, spec);
-        }
-        else if (serve)
-        {
-            run_server(role, config, spec, once ? 1 : max_connections);
-        }
-        else if (connect_test)
-        {
-            if (role != RoleKind::client)
-            {
-                throw std::runtime_error("--connect-test is only supported by client");
-            }
-            run_client_connect_test(config);
-        }
-        else if (auth_test)
-        {
-            if (role != RoleKind::client)
-            {
-                throw std::runtime_error("--auth-test is only supported by client");
-            }
-            Logger logger(role_log_path(RoleKind::client, config));
-            run_client_auth_test(config, logger);
+            run_server(role, config, spec, max_connections);
         }
         else
         {
-            std::cout << "network loop will be implemented in the next stage\n";
+            print_usage(spec);
+            throw std::runtime_error("no runtime mode selected");
         }
     }
     catch (const std::exception& ex)

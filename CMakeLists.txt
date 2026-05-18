@@ -138,20 +138,6 @@ add_test(NAME websocket_selftest COMMAND websocket_selftest)
 add_test(NAME ui_bridge_selftest COMMAND ui_bridge_selftest)
 
 add_test(
-    NAME connect_probe_selftest
-    COMMAND powershell -NoProfile -ExecutionPolicy Bypass
-            -File ${CMAKE_CURRENT_SOURCE_DIR}/tests/connect_probe_selftest.ps1
-            -BuildDir $<TARGET_FILE_DIR:client>
-)
-
-add_test(
-    NAME auth_flow_selftest
-    COMMAND powershell -NoProfile -ExecutionPolicy Bypass
-            -File ${CMAKE_CURRENT_SOURCE_DIR}/tests/auth_flow_selftest.ps1
-            -BuildDir $<TARGET_FILE_DIR:client>
-)
-
-add_test(
     NAME auth_encrypted_game_flow_selftest
     COMMAND powershell -NoProfile -ExecutionPolicy Bypass
             -File ${CMAKE_CURRENT_SOURCE_DIR}/tests/auth_encrypted_game_flow_selftest.ps1

@@ -28,6 +28,14 @@ function Require-Command {
     return $command.Source
 }
 
+function Add-ToolPathIfPresent {
+    param([string]$Path)
+
+    if ((Test-Path -LiteralPath $Path) -and ($env:PATH -notlike "*$Path*")) {
+        $env:PATH = "$Path;$env:PATH"
+    }
+}
+
 function Stop-RoleProcesses {
     $names = @('as_server', 'tgs_server', 'v_server', 'client', 'monitor')
     foreach ($name in $names) {
@@ -56,6 +64,25 @@ function Clear-LogFiles {
     }
 }
 
+function Clear-LogDirectories {
+    param(
+        [string]$Path,
+        [string[]]$Names
+    )
+
+    $resolvedPath = Resolve-Path -LiteralPath $Path -ErrorAction SilentlyContinue
+    if (-not $resolvedPath) {
+        return
+    }
+    foreach ($name in $Names) {
+        $target = Join-Path $resolvedPath.Path $name
+        $resolvedTarget = Resolve-Path -LiteralPath $target -ErrorAction SilentlyContinue
+        if ($resolvedTarget -and $resolvedTarget.Path.StartsWith($resolvedPath.Path, [System.StringComparison]::OrdinalIgnoreCase)) {
+            Remove-Item -LiteralPath $resolvedTarget.Path -Recurse -Force
+        }
+    }
+}
+
 function Start-RoleProcess {
     param(
         [string]$ExeName,
@@ -81,11 +108,16 @@ function Start-RoleProcess {
 $scriptDir = Split-Path -Parent $MyInvocation.MyCommand.Path
 $repoRoot = Resolve-Path (Join-Path $scriptDir '..')
 $buildDir = Join-Path $repoRoot 'build-mingw'
+$logRoot = Join-Path $repoRoot 'logs'
 $runtimeDir = Join-Path $repoRoot 'logs\runtime'
 $protocolEventsDir = Join-Path $repoRoot 'logs\protocol_events'
 $configPath = Resolve-RepoPath $Config
 
 Set-Location $repoRoot
+Add-ToolPathIfPresent 'E:\Qt\Tools\CMake_64\bin'
+Add-ToolPathIfPresent 'E:\Qt\Tools\Ninja'
+Add-ToolPathIfPresent 'E:\Qt\Tools\mingw1120_64\bin'
+New-Item -ItemType Directory -Force $logRoot | Out-Null
 New-Item -ItemType Directory -Force $runtimeDir | Out-Null
 New-Item -ItemType Directory -Force $protocolEventsDir | Out-Null
 
@@ -115,6 +147,24 @@ if (-not $NoStop) {
 }
 
 if (-not $NoStop -and -not $KeepLogs) {
+    Clear-LogFiles $logRoot @(
+        'as.log',
+        'tgs.log',
+        'v_game.log',
+        'client_game.log',
+        'v_ack.log',
+        'client_ack.log'
+    )
+    Clear-LogFiles $logRoot @(
+        'v.log',
+        'client_0*.log',
+        '*_plain_game.log',
+        '*_server.out',
+        '*_server.err',
+        'all_services_config.txt',
+        'report_revision_text.txt'
+    )
+    Clear-LogDirectories $logRoot @('run_plain_game')
     Clear-LogFiles $runtimeDir @('*.out', '*.err')
     Clear-LogFiles $protocolEventsDir @('*.txt')
 }

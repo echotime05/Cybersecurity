@@ -83,8 +83,5 @@ VAuthenticatedSocket authenticate_client_to_v_socket(const Config& config, Entit
                                                      const std::string& thread_name);
 
 void handle_auth_packet(RoleKind role, SocketHandle socket, const Packet& request,
-                        const Config& config, AuthRuntime& runtime, Logger& logger,
-                        const std::string& thread_name);
-
-void run_client_auth_test(const Config& config, Logger& logger);
+                        const Config& config, Logger& logger, const std::string& thread_name);
 } // namespace cyber

@@ -12,7 +12,7 @@ net_packet.cpp         packet send/recv with required PACKET_SEND/PACKET_RECV lo
 net_socket.cpp         TCP socket helpers with TCP_NODELAY for low-latency small packets
 packet.cpp             packet header serialization and generic MSG_ERROR / MSG_APP helpers
 protocol_payloads.cpp  binary payload builders/parsers for Kerberos and APP_ACK
-role_runtime.cpp       common CLI and role runtime dispatch
+role_runtime.cpp       final role CLI plus AS/TGS server dispatch
 ```
 
 Keep role-specific `main.cpp` files under `src/roles`. Put reusable protocol, logging, socket, crypto, and testable flow code in this directory.

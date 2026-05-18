@@ -50,7 +50,7 @@ int main()
 
         {
             cyber::Logger logger(log_path);
-            logger.write("Client", "UI/GameThread", "THREAD_START", "self-test start");
+            logger.write("Client", "UI/GameThread", "THREAD_START", "logger test start");
             logger.write("Client", "UI/GameThread", "LOG", "log file=logs/selftest.log");
 
             std::thread thread_a([&]() {
@@ -72,14 +72,14 @@ int main()
             const std::vector<std::string> flushed_lines = read_lines(log_path);
             require(flushed_lines.size() == 42U, "flush did not make queued log lines visible");
 
-            logger.write("Client", "UI/GameThread", "THREAD_EXIT", "self-test exit");
+            logger.write("Client", "UI/GameThread", "THREAD_EXIT", "logger test exit");
         }
 
         const std::vector<std::string> lines = read_lines(log_path);
         require(lines.size() == 43U, "unexpected log line count");
-        require(lines.front() == "[Client][UI/GameThread][THREAD_START] self-test start",
+        require(lines.front() == "[Client][UI/GameThread][THREAD_START] logger test start",
                 "first log line mismatch");
-        require(lines.back() == "[Client][UI/GameThread][THREAD_EXIT] self-test exit",
+        require(lines.back() == "[Client][UI/GameThread][THREAD_EXIT] logger test exit",
                 "last log line mismatch");
 
         for (const std::string& line : lines)
@@ -100,7 +100,7 @@ int main()
         require(first.entity == "Client", "parsed first entity mismatch");
         require(first.thread_name == "UI/GameThread", "parsed first thread mismatch");
         require(first.event == "THREAD_START", "parsed first event mismatch");
-        require(first.message == "self-test start", "parsed first message mismatch");
+        require(first.message == "logger test start", "parsed first message mismatch");
 
         cyber::LogEntry ignored;
         require(!cyber::parse_log_line("", ignored), "empty line unexpectedly parsed");
