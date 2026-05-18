@@ -33,6 +33,7 @@ add_library(cyber_common
     src/shared/game/app_payload_codec.cpp
     src/shared/game/game_protocol.cpp
     src/shared/game/game_non_repudiation.cpp
+    src/roles/as/as_service.cpp
     src/roles/v/game_world.cpp
     src/roles/v/battle_room.cpp
     src/roles/v/tank_game_server.cpp

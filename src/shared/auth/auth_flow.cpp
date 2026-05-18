@@ -27,18 +27,6 @@ TcpEndpoint config_build_endpoint(const Config& config, const char* ip_key, cons
     return {config.get_string(ip_key), config.get_u16(port_key)};
 }
 
-ClientSecret auth_find_client_secret(const Config& config, EntityId id)
-{
-    for (const ClientSecret& secret : config.clients())
-    {
-        if (secret.id == id)
-        {
-            return secret;
-        }
-    }
-    throw std::runtime_error("missing client secret for id");
-}
-
 Packet packet_build_encrypted(MsgType type, EntityId src, EntityId dst, const Bytes& plain,
                               std::uint64_t key)
 {
@@ -79,26 +67,6 @@ void auth_send_error_packet(SocketHandle socket, EntityId src, EntityId dst,
         make_packet(MsgType::error, src, dst,
                     make_error_payload(ErrorCode::unsupported_msg_type, message));
     send_packet_logged(socket, packet);
-}
-
-void as_process_packet(SocketHandle socket, const Packet& request, const Config& config)
-{
-    packet_require_msg_type(request, MsgType::as_req);
-    const AsReq as_req = as_parse_req(request.payload);
-    const ClientSecret secret = auth_find_client_secret(config, as_req.idc);
-    const std::uint64_t kc_tgs = generate_des_key56();
-    const std::uint64_t ts2 = auth_time_now_ms();
-    const TicketTgsBody ticket_body{
-        kc_tgs, as_req.idc, kDefaultAdc, EntityId::tgs, ts2, kDefaultLifetimeMs};
-    const Bytes ticket_tgs = tgs_ticket_encrypt(ticket_body, config.get_u64("KTGS"));
-    const AsRepBody rep_body{kc_tgs, EntityId::tgs, ts2, kDefaultLifetimeMs, ticket_tgs};
-    const Bytes rep_plain = as_build_rep_body(rep_body);
-    const Packet response =
-        packet_build_encrypted(MsgType::as_rep, EntityId::as, as_req.idc, rep_plain, secret.kc);
-    ProtocolPayloadView view = protocol_build_encrypted_payload_view(rep_plain, response.payload);
-    protocol_add_encrypted_field(view, "ticket_tgs", ticket_tgs,
-                                 tgs_ticket_build_body(ticket_body));
-    send_packet_logged(socket, response, view);
 }
 
 void tgs_process_packet(SocketHandle socket, const Packet& request, const Config& config)
@@ -372,11 +340,7 @@ void auth_handle_packet(RoleKind role, SocketHandle socket, const Packet& reques
 {
     try
     {
-        if (role == RoleKind::as_server)
-        {
-            as_process_packet(socket, request, config);
-        }
-        else if (role == RoleKind::tgs_server)
+        if (role == RoleKind::tgs_server)
         {
             tgs_process_packet(socket, request, config);
         }

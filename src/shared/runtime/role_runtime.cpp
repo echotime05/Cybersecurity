@@ -8,6 +8,7 @@
 #include "cyber/common/runtime_paths.hpp"
 #include "cyber/game/tank_game_client.hpp"
 #include "cyber/game/tank_game_server.hpp"
+#include "cyber/roles/as/as_service.hpp"
 
 #include <filesystem>
 #include <iostream>
@@ -125,8 +126,15 @@ void runtime_handle_server_connection(SocketHandle socket, RoleKind role, RoleSp
 {
     try
     {
-        const Packet request = recv_packet_logged(socket);
-        auth_handle_packet(role, socket, request, config);
+        if (role == RoleKind::as_server)
+        {
+            cyber::roles::as::as_process_connection(socket, config);
+        }
+        else
+        {
+            const Packet request = recv_packet_logged(socket);
+            auth_handle_packet(role, socket, request, config);
+        }
     }
     catch (const std::exception& ex)
     {
