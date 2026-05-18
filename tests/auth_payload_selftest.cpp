@@ -1,7 +1,7 @@
-#include "cyber/common/auth_flow.hpp"
 #include "cyber/common/config.hpp"
 #include "cyber/common/crypto.hpp"
 #include "cyber/common/protocol_payloads.hpp"
+#include "cyber/roles/v/v_auth_service.hpp"
 
 #include <filesystem>
 #include <fstream>
@@ -116,12 +116,12 @@ int main()
                 << "SK_CA_D=0xA1A84610F63E7E9BA04B9BBCD043B2D891C75316A7AC70BEC7C3CEB1477AFB69\n";
         }
         const cyber::Config config = cyber::Config::load(config_path);
-        cyber::AuthRuntime runtime = cyber::auth_make_runtime(config);
+        cyber::roles::v::AuthRuntime runtime = cyber::roles::v::v_auth_make_runtime(config);
         cyber::Packet v_request =
             cyber::make_packet(cyber::MsgType::v_auth_req, cyber::EntityId::client1,
                                cyber::EntityId::v, cyber::v_auth_build_req(v_auth_req));
         cyber::Packet v_response =
-            cyber::v_auth_process_request(v_request, config, runtime);
+            cyber::roles::v::v_auth_process_request(v_request, config, runtime);
         require(v_response.msg_type == cyber::MsgType::v_auth_rep, "V_AUTH response type mismatch");
         require(v_response.src == cyber::EntityId::v, "V_AUTH response source mismatch");
         require(v_response.dst == cyber::EntityId::client1, "V_AUTH response destination mismatch");

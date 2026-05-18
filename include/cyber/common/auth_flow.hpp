@@ -6,10 +6,6 @@
 #include "cyber/common/protocol_payloads.hpp"
 #include "cyber/common/role_runtime.hpp"
 
-#include <map>
-#include <mutex>
-#include <string>
-
 namespace cyber
 {
 struct AuthClientState
@@ -25,41 +21,6 @@ struct AuthClientState
     RsaPublicKey v_public_key;
 };
 
-struct AuthSession
-{
-    EntityId client_id = EntityId::unknown;
-    std::uint32_t adc = 0;
-    std::uint64_t kc_v = 0;
-    RsaPublicKey client_public_key;
-    bool v_auth_done = false;
-    bool cert_done = false;
-};
-
-class AuthSessionTable
-{
-public:
-    AuthSessionTable() = default;
-    AuthSessionTable(const AuthSessionTable&) = delete;
-    AuthSessionTable& operator=(const AuthSessionTable&) = delete;
-    AuthSessionTable(AuthSessionTable&& other) noexcept;
-    AuthSessionTable& operator=(AuthSessionTable&& other) noexcept;
-
-    void put_v_auth(EntityId client_id, std::uint32_t adc, std::uint64_t kc_v);
-    AuthSession get(EntityId client_id) const;
-    void put_client_public_key(EntityId client_id, const RsaPublicKey& public_key);
-
-private:
-    mutable std::mutex mutex_;
-    std::map<EntityId, AuthSession> sessions_;
-};
-
-struct AuthRuntime
-{
-    RsaKeyPair ca_key_pair;
-    RsaKeyPair v_key_pair;
-    AuthSessionTable v_sessions;
-};
-
 // Handoff from Kerberos to the tank game layer. The authenticated socket keeps
 // the open V connection plus Kc_v and public keys needed by encrypted signed
 // MSG_APP traffic.
@@ -68,12 +29,6 @@ struct VAuthenticatedSocket
     AuthClientState state;
     SocketHandle socket = 0;
 };
-
-AuthRuntime auth_make_runtime(const Config& config);
-
-Packet v_auth_process_request(const Packet& request, const Config& config, AuthRuntime& runtime);
-
-Packet cert_process_c2v_request(const Packet& request, AuthRuntime& runtime);
 
 VAuthenticatedSocket client_auth_connect_to_v_socket(const Config& config, EntityId client_id,
                                                      std::uint64_t kc);

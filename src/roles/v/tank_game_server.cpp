@@ -99,7 +99,7 @@ TankGameServer::TankGameServer(TcpEndpoint endpoint, Config config, bool require
       config_(std::move(config)),
       require_auth_(require_auth),
       encrypt_app_payloads_(encrypt_app_payloads),
-      auth_runtime_(auth_make_runtime(config_))
+      auth_runtime_(cyber::roles::v::v_auth_make_runtime(config_))
 {
     set_protocol_event_log_root(log_root_from_config(config_));
 }
@@ -355,10 +355,12 @@ bool TankGameServer::authenticate_socket(SocketHandle socket, const std::string&
         std::cerr << "V auth failed for " << peer << ": app traffic before V_AUTH\n";
         return false;
     }
-    const Packet response = v_auth_process_request(auth_packet, config_, auth_runtime_);
+    const Packet response =
+        cyber::roles::v::v_auth_process_request(auth_packet, config_, auth_runtime_);
     write_protocol_event(ProtocolDirection::recv, auth_packet, {},
                          v_auth_build_req_payload_view(auth_packet, config_));
-    const AuthSession auth_session = auth_runtime_.v_sessions.get(auth_packet.src);
+    const cyber::roles::v::AuthSession auth_session =
+        auth_runtime_.v_sessions.get(auth_packet.src);
     send_packet_logged(socket, response,
                        protocol_build_decrypted_payload_view(response, auth_session.kc_v));
     const Packet cert_packet = recv_packet_logged(socket);
@@ -367,14 +369,16 @@ bool TankGameServer::authenticate_socket(SocketHandle socket, const std::string&
         std::cerr << "V auth failed for " << peer << ": missing CERT_C2V\n";
         return false;
     }
-    const AuthSession cert_session = auth_runtime_.v_sessions.get(cert_packet.src);
+    const cyber::roles::v::AuthSession cert_session =
+        auth_runtime_.v_sessions.get(cert_packet.src);
     write_protocol_event(ProtocolDirection::recv, cert_packet, {},
                          protocol_build_decrypted_payload_view(cert_packet, cert_session.kc_v));
-    const Packet cert_response = cert_process_c2v_request(cert_packet, auth_runtime_);
+    const Packet cert_response =
+        cyber::roles::v::cert_process_c2v_request(cert_packet, auth_runtime_);
     send_packet_logged(socket, cert_response,
                        protocol_build_decrypted_payload_view(cert_response, cert_session.kc_v));
 
-    const AuthSession session = auth_runtime_.v_sessions.get(auth_packet.src);
+    const cyber::roles::v::AuthSession session = auth_runtime_.v_sessions.get(auth_packet.src);
     client_id = auth_packet.src;
     kc_v = session.kc_v;
     client_public_key = session.client_public_key;

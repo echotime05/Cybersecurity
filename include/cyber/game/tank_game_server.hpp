@@ -1,9 +1,9 @@
 #pragma once
 
-#include "cyber/common/auth_flow.hpp"
 #include "cyber/common/config.hpp"
 #include "cyber/common/net_socket.hpp"
 #include "cyber/game/battle_room.hpp"
+#include "cyber/roles/v/v_auth_service.hpp"
 
 #include <atomic>
 #include <cstdint>
@@ -51,7 +51,7 @@ private:
     Config config_;
     bool require_auth_ = false;
     bool encrypt_app_payloads_ = false;
-    AuthRuntime auth_runtime_;
+    cyber::roles::v::AuthRuntime auth_runtime_;
     SocketHandle listener_ = 0;
     std::atomic<bool> stopping_{false};
     std::mutex connections_mutex_;
