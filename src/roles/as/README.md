@@ -18,7 +18,7 @@ Shared files usually modified for AS behavior:
 
 ```text
 src/shared/auth/auth_credentials.cpp
-src/shared/protocol/protocol_payloads.cpp
+src/shared/protocol/kerberos_messages.cpp
 src/shared/crypto/crypto.cpp
 include/cyber/common/auth_credentials.hpp
 include/cyber/protocol/kerberos_messages.hpp
@@ -38,6 +38,6 @@ Common live modification points:
 ```text
 Client credential table: src/shared/auth/auth_credentials.cpp
 AS packet handling:     src/roles/as/as_service.cpp
-AS/TGS payload fields:  src/shared/protocol/protocol_payloads.cpp
+AS/TGS payload fields:  src/shared/protocol/kerberos_messages.cpp
 Role CLI/startup:       src/shared/runtime/role_runtime.cpp
 ```

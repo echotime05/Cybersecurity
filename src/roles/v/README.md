@@ -24,7 +24,9 @@ Shared files usually modified for V behavior:
 src/shared/game/game_protocol.cpp
 src/shared/game/app_payload_codec.cpp
 src/shared/game/game_non_repudiation.cpp
-src/shared/protocol/protocol_payloads.cpp
+src/shared/protocol/kerberos_messages.cpp
+src/shared/protocol/certificate_messages.cpp
+src/shared/protocol/app_envelope.cpp
 include/cyber/game/battle_room.hpp
 include/cyber/game/game_world.hpp
 include/cyber/game/game_protocol.hpp

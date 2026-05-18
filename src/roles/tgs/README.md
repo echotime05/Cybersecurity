@@ -17,7 +17,7 @@ include/cyber/roles/tgs/tgs_service.hpp
 Shared files usually modified for TGS behavior:
 
 ```text
-src/shared/protocol/protocol_payloads.cpp
+src/shared/protocol/kerberos_messages.cpp
 src/shared/crypto/crypto.cpp
 include/cyber/protocol/kerberos_messages.hpp
 ```
@@ -35,7 +35,7 @@ Common live modification points:
 
 ```text
 TGS packet handling:      src/roles/tgs/tgs_service.cpp
-Ticket_v field layout:   src/shared/protocol/protocol_payloads.cpp
+Ticket_v field layout:   src/shared/protocol/kerberos_messages.cpp
 Replay/time validation:  src/roles/tgs/tgs_service.cpp
 Role CLI/startup:        src/shared/runtime/role_runtime.cpp
 ```

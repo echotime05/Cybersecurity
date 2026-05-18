@@ -19,7 +19,7 @@
 | 修改 AS 收包、校验、发包流程 | `src/roles/as/as_service.cpp` |
 | 修改 AS 对外函数声明 | `include/cyber/roles/as/as_service.hpp` |
 | 修改 Client 密码、长期密钥派生 | `src/shared/auth/auth_credentials.cpp` |
-| 修改 AS_REP/Ticket_tgs 字段 | `src/shared/protocol/protocol_payloads.cpp` |
+| 修改 AS_REP/Ticket_tgs 字段 | `src/shared/protocol/kerberos_messages.cpp` |
 
 AS 只处理 `MSG_AS_REQ -> MSG_AS_REP`。它不维护游戏状态，也不直接连接 Web UI。
 
@@ -29,7 +29,7 @@ AS 只处理 `MSG_AS_REQ -> MSG_AS_REP`。它不维护游戏状态，也不直�
 | --- | --- |
 | 修改 TGS 收包、票据校验、发包流程 | `src/roles/tgs/tgs_service.cpp` |
 | 修改 TGS 对外函数声明 | `include/cyber/roles/tgs/tgs_service.hpp` |
-| 修改 Ticket_tgs/Ticket_v/Authenticator 字段 | `src/shared/protocol/protocol_payloads.cpp` |
+| 修改 Ticket_tgs/Ticket_v/Authenticator 字段 | `src/shared/protocol/kerberos_messages.cpp` |
 | 修改加密、解密、时间戳相关基础能力 | `src/shared/crypto/crypto.cpp` |
 
 TGS 只处理 `MSG_TGS_REQ -> MSG_TGS_REP`。如果老师要求“票据多加字段”，优先看协议 payload 文件和 TGS service。
@@ -75,7 +75,9 @@ Protocol 面板只展示 `monitor.exe` 从 `_generated/logs/protocol_events/*.tx
 | 修改目标 | 入口文件 |
 | --- | --- |
 | 修改固定 11B Packet header | `src/shared/protocol/packet.cpp` |
-| 修改 Kerberos/证书/APP_ACK/SignedAppPayload 字段 | `src/shared/protocol/protocol_payloads.cpp` |
+| 修改 Kerberos 字段 | `src/shared/protocol/kerberos_messages.cpp` |
+| 修改证书交换字段 | `src/shared/protocol/certificate_messages.cpp` |
+| 修改 APP_ACK/SignedAppPayload 字段 | `src/shared/protocol/app_envelope.cpp` |
 | 修改游戏 GameMessage 和快照字段 | `src/shared/game/game_protocol.cpp` |
 | 修改应用层加密、明文/密文日志视图 | `src/shared/game/app_payload_codec.cpp` |
 | 修改双向不可否认 ACK | `src/shared/game/game_non_repudiation.cpp` |
@@ -98,4 +100,3 @@ cd web-ui
 npm run verify
 cd ..
 ```
-

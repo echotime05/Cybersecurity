@@ -26,7 +26,9 @@ add_library(cyber_common
     src/shared/net/net_socket.cpp
     src/shared/protocol/packet.cpp
     src/shared/protocol/protocol_event.cpp
-    src/shared/protocol/protocol_payloads.cpp
+    src/shared/protocol/kerberos_messages.cpp
+    src/shared/protocol/certificate_messages.cpp
+    src/shared/protocol/app_envelope.cpp
     src/shared/runtime/role_runtime.cpp
     src/shared/runtime/runtime_paths.cpp
     src/shared/game/app_payload_codec.cpp
