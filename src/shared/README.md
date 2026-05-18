@@ -15,7 +15,9 @@ net/net_packet.cpp              Packet send/recv plus protocol event hooks
 net/net_socket.cpp              TCP socket helpers with TCP_NODELAY
 protocol/packet.cpp             Fixed 11-byte packet header and generic MSG_ERROR/MSG_APP helpers
 protocol/protocol_event.cpp     Protocol monitor event writer/parser
-protocol/protocol_payloads.cpp  Kerberos, certificate, APP_ACK, SignedAppPayload payload builders/parsers
+protocol/kerberos_messages.cpp  Kerberos payload builders/parsers
+protocol/certificate_messages.cpp  Client/V certificate payload builders/parsers
+protocol/app_envelope.cpp       APP_ACK and SignedAppPayload builders/parsers
 runtime/role_runtime.cpp        Final role CLI dispatch and AS/TGS server loop
 ```
 
