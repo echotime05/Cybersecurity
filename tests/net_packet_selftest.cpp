@@ -202,7 +202,7 @@ int main()
                 const cyber::Packet received =
                     cyber::recv_packet_logged(to_handle(accepted), logger, "V", "VWorker-C1-GAME");
                 require(received.msg_type == cyber::MsgType::app, "server msg_type mismatch");
-                require(cyber::parse_app_code(received.payload) == cyber::AppCode::key_down,
+                require(cyber::parse_app_code(received.payload) == cyber::AppCode::game_move,
                         "server app_code mismatch");
 
                 const cyber::Packet ack = cyber::make_packet(
@@ -224,11 +224,11 @@ int main()
         NativeSocket client_socket = connect_loopback(port);
         {
             cyber::Logger client_logger(client_log_path);
-            const cyber::Packet key_down = cyber::make_packet(
+            const cyber::Packet move = cyber::make_packet(
                 cyber::MsgType::app, cyber::EntityId::client1, cyber::EntityId::v,
-                cyber::make_app_payload(cyber::AppCode::key_down,
+                cyber::make_app_payload(cyber::AppCode::game_move,
                                         cyber::Bytes{static_cast<std::uint8_t>('W')}));
-            cyber::send_packet_logged(to_handle(client_socket), key_down, client_logger, "Client",
+            cyber::send_packet_logged(to_handle(client_socket), move, client_logger, "Client",
                                        "SendThread");
             const cyber::Packet ack = cyber::recv_packet_logged(to_handle(client_socket),
                                                                 client_logger, "Client", "RxThread");
@@ -255,7 +255,7 @@ int main()
         require(entry.event == "PACKET_RECV", "server recv event mismatch");
         require(entry.message.find("msg_type=MSG_APP") != std::string::npos,
                 "server recv msg_type missing");
-        require(entry.message.find("APP_code=KEY_DOWN") != std::string::npos,
+        require(entry.message.find("APP_code=GAME_MOVE") != std::string::npos,
                 "server recv app code missing");
 
         require(cyber::parse_log_line(client_lines[1], entry), "client recv log did not parse");

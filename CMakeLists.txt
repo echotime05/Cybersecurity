@@ -29,6 +29,7 @@ add_library(cyber_common
     src/shared/protocol/protocol_event.cpp
     src/shared/protocol/protocol_payloads.cpp
     src/shared/runtime/role_runtime.cpp
+    src/shared/runtime/runtime_paths.cpp
     src/shared/game/app_payload_codec.cpp
     src/shared/game/game_protocol.cpp
     src/shared/game/game_non_repudiation.cpp

@@ -64,12 +64,7 @@ const msgLabels = new Map<number, string>([
 ]);
 
 const appLabels = new Map<number, string>([
-  [0x01, "KEY_DOWN"],
-  [0x02, "KEY_UP"],
-  [0x03, "AIM_EVENT"],
-  [0x04, "FIRE_EVENT"],
   [0x05, "GAME_JOIN_REQ"],
-  [0x06, "GAME_START"],
   [0x07, "GAME_STATE"],
   [0x08, "APP_ACK"],
   [0x09, "GAME_MOVE"],

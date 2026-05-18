@@ -1,4 +1,5 @@
 #include "cyber/common/net_socket.hpp"
+#include "cyber/common/runtime_paths.hpp"
 #include "cyber/monitor/protocol_monitor.hpp"
 
 #include <filesystem>
@@ -19,7 +20,7 @@ int main(int argc, char** argv)
     try
     {
         std::uint16_t port = 7010;
-        std::filesystem::path events_dir = std::filesystem::path("logs") / "protocol_events";
+        std::filesystem::path events_dir = cyber::protocol_events_dir();
 
         for (int i = 1; i < argc; ++i)
         {

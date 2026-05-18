@@ -204,6 +204,8 @@ _generated/perf_runs/<timestamp>/perf_report.txt
 
 运行日志位于 `_generated/logs/`：
 
+该目录由配置项 `LOG_ROOT=_generated/logs` 控制。最终演示配置都显式设置该值；如果临时测试配置没有写 `LOG_ROOT`，程序会优先使用当前目录下的 `_generated/logs`，否则回退到 `logs`。
+
 ```text
 _generated/logs/
   as.log

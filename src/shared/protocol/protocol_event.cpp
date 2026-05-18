@@ -2,6 +2,7 @@
 
 #include "cyber/common/crypto.hpp"
 #include "cyber/common/logger.hpp"
+#include "cyber/common/runtime_paths.hpp"
 
 #include <chrono>
 #include <ctime>
@@ -124,6 +125,8 @@ std::string role_file_stem(EntityId role)
     }
 }
 
+std::filesystem::path& protocol_event_log_root();
+
 std::string json_escape(const std::string& value)
 {
     std::string out;
@@ -192,7 +195,7 @@ std::string optional_value(const std::map<std::string, std::string>& values,
 std::filesystem::path event_log_path(EntityId role)
 {
     const DWORD pid = GetCurrentProcessId();
-    return std::filesystem::path("logs") / "protocol_events" /
+    return protocol_event_log_root() / "protocol_events" /
            (role_file_stem(role) + "_" + std::to_string(pid) + ".txt");
 }
 
@@ -206,6 +209,12 @@ std::map<EntityId, std::unique_ptr<Logger>>& protocol_loggers()
 {
     static std::map<EntityId, std::unique_ptr<Logger>> loggers;
     return loggers;
+}
+
+std::filesystem::path& protocol_event_log_root()
+{
+    static std::filesystem::path root = default_log_root();
+    return root;
 }
 } // namespace
 
@@ -229,6 +238,13 @@ std::string protocol_timestamp_now()
 std::string protocol_app_message(AppCode code)
 {
     return std::string("MSG_APP.") + std::string(to_string(code));
+}
+
+void set_protocol_event_log_root(std::filesystem::path root)
+{
+    std::lock_guard<std::mutex> lock(logger_mutex());
+    protocol_event_log_root() = std::move(root);
+    protocol_loggers().clear();
 }
 
 std::string format_protocol_event_message(ProtocolDirection direction, const Packet& packet,

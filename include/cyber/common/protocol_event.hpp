@@ -3,6 +3,7 @@
 #include "cyber/common/packet.hpp"
 
 #include <cstdint>
+#include <filesystem>
 #include <string>
 #include <string_view>
 #include <vector>
@@ -73,5 +74,6 @@ void write_protocol_event(ProtocolDirection direction, const Packet& packet,
 void write_protocol_event(ProtocolDirection direction, const Packet& packet,
                           std::string_view message_override,
                           const ProtocolPayloadView& payload_view);
+void set_protocol_event_log_root(std::filesystem::path root);
 std::string protocol_app_message(AppCode code);
 } // namespace cyber

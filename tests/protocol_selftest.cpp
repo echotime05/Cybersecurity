@@ -55,17 +55,13 @@ int main()
         require(!cyber::is_known(static_cast<cyber::MsgType>(0xEE)),
                 "unknown msg type unexpectedly recognized");
 
-        const std::array<cyber::AppCode, 11> app_codes = {
-            cyber::AppCode::key_down,      cyber::AppCode::key_up,
-            cyber::AppCode::aim_event,     cyber::AppCode::fire_event,
-            cyber::AppCode::game_join_req, cyber::AppCode::game_start,
-            cyber::AppCode::game_state,    cyber::AppCode::app_ack,
-            cyber::AppCode::game_move,     cyber::AppCode::game_target,
-            cyber::AppCode::game_shoot};
-        const std::array<std::string, 11> app_names = {
-            "KEY_DOWN", "KEY_UP", "AIM_EVENT", "FIRE_EVENT", "GAME_JOIN_REQ",
-            "GAME_START", "GAME_STATE", "APP_ACK", "GAME_MOVE", "GAME_TARGET",
-            "GAME_SHOOT"};
+        const std::array<cyber::AppCode, 6> app_codes = {
+            cyber::AppCode::game_join_req, cyber::AppCode::game_state,
+            cyber::AppCode::app_ack,       cyber::AppCode::game_move,
+            cyber::AppCode::game_target,   cyber::AppCode::game_shoot};
+        const std::array<std::string, 6> app_names = {
+            "GAME_JOIN_REQ", "GAME_STATE", "APP_ACK",
+            "GAME_MOVE",     "GAME_TARGET", "GAME_SHOOT"};
         for (std::size_t i = 0; i < app_codes.size(); ++i)
         {
             require(cyber::is_known(app_codes[i]), "known app code not recognized");
@@ -100,7 +96,7 @@ int main()
 
         cyber::Packet packet = cyber::make_packet(
             cyber::MsgType::app, cyber::EntityId::client1, cyber::EntityId::v,
-            cyber::make_app_payload(cyber::AppCode::key_down,
+            cyber::make_app_payload(cyber::AppCode::game_move,
                                     cyber::Bytes{static_cast<std::uint8_t>('W')}),
             0x01020304U);
         const cyber::PacketHeader direct_header = cyber::packet_header(packet);
@@ -134,7 +130,7 @@ int main()
         require(decoded.dst == packet.dst, "dst mismatch");
         require(decoded.reserved == packet.reserved, "reserved mismatch");
         require(decoded.payload == packet.payload, "payload mismatch");
-        require(cyber::parse_app_code(decoded.payload) == cyber::AppCode::key_down,
+        require(cyber::parse_app_code(decoded.payload) == cyber::AppCode::game_move,
                 "app_code mismatch");
         require(cyber::parse_app_payload(decoded.payload) == cyber::Bytes{static_cast<std::uint8_t>('W')},
                 "app_payload mismatch");

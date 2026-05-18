@@ -47,12 +47,7 @@ enum class ErrorCode : std::uint8_t
 
 enum class AppCode : std::uint8_t
 {
-    key_down = 0x01,
-    key_up = 0x02,
-    aim_event = 0x03,
-    fire_event = 0x04,
     game_join_req = 0x05,
-    game_start = 0x06,
     game_state = 0x07,
     app_ack = 0x08,
     game_move = 0x09,
@@ -145,12 +140,7 @@ inline bool is_known(AppCode code)
 {
     switch (code)
     {
-    case AppCode::key_down:
-    case AppCode::key_up:
-    case AppCode::aim_event:
-    case AppCode::fire_event:
     case AppCode::game_join_req:
-    case AppCode::game_start:
     case AppCode::game_state:
     case AppCode::app_ack:
     case AppCode::game_move:
@@ -241,18 +231,8 @@ inline std::string_view to_string(AppCode code)
 {
     switch (code)
     {
-    case AppCode::key_down:
-        return "KEY_DOWN";
-    case AppCode::key_up:
-        return "KEY_UP";
-    case AppCode::aim_event:
-        return "AIM_EVENT";
-    case AppCode::fire_event:
-        return "FIRE_EVENT";
     case AppCode::game_join_req:
         return "GAME_JOIN_REQ";
-    case AppCode::game_start:
-        return "GAME_START";
     case AppCode::game_state:
         return "GAME_STATE";
     case AppCode::app_ack:

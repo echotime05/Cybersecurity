@@ -24,6 +24,9 @@ V_ID=0x13
 #   host 4 Client4: 0x04
 LOCAL_CLIENT_ID=0x01
 
+# Runtime output root relative to the repository root.
+LOG_ROOT=_generated/logs
+
 # Servers listen on all local interfaces.
 AS_BIND_IP=0.0.0.0
 TGS_BIND_IP=0.0.0.0

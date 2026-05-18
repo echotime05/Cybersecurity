@@ -5,6 +5,8 @@
 #include "cyber/common/logger.hpp"
 #include "cyber/common/net_packet.hpp"
 #include "cyber/common/net_socket.hpp"
+#include "cyber/common/protocol_event.hpp"
+#include "cyber/common/runtime_paths.hpp"
 #include "cyber/game/tank_game_client.hpp"
 #include "cyber/game/tank_game_server.hpp"
 
@@ -106,19 +108,18 @@ void print_deployment_config(const Config& config, const RoleSpec& spec)
     }
 }
 
-std::filesystem::path role_log_path(RoleKind role)
+std::string role_log_file(RoleKind role)
 {
-    const std::filesystem::path log_dir = "logs";
     switch (role)
     {
     case RoleKind::as_server:
-        return log_dir / "as.log";
+        return "as.log";
     case RoleKind::tgs_server:
-        return log_dir / "tgs.log";
+        return "tgs.log";
     case RoleKind::v_server:
-        return log_dir / "v_game.log";
+        return "v_game.log";
     case RoleKind::client:
-        return log_dir / "client_game.log";
+        return "client_game.log";
     default:
         throw std::runtime_error("unknown role");
     }
@@ -202,7 +203,7 @@ void run_server(RoleKind role, const Config& config, const RoleSpec& spec, int m
     }
 
     SocketRuntime runtime;
-    auto logger = std::make_shared<Logger>(role_log_path(role));
+    auto logger = std::make_shared<Logger>(log_path(config, role_log_file(role)));
     const std::string main_thread = main_thread_name(role);
     const TcpEndpoint endpoint = bind_endpoint(config, spec);
     logger->write(spec.name, main_thread, "THREAD_START",
@@ -327,6 +328,7 @@ int run_role_main(RoleKind role, int argc, char** argv)
     try
     {
         const Config config = Config::load(config_path);
+        set_protocol_event_log_root(log_root_from_config(config));
         std::cout << spec.name << " role loaded config: " << config_path.string() << '\n';
         std::cout << "entity id: 0x" << std::hex
                   << static_cast<int>(config.get_entity_id(spec.id_key)) << std::dec << '\n';

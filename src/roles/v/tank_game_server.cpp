@@ -3,6 +3,7 @@
 #include "cyber/common/crypto.hpp"
 #include "cyber/common/net_packet.hpp"
 #include "cyber/common/protocol_event.hpp"
+#include "cyber/common/runtime_paths.hpp"
 #include "cyber/game/app_payload_codec.hpp"
 #include "cyber/game/game_non_repudiation.hpp"
 
@@ -81,9 +82,10 @@ ProtocolPayloadView v_auth_req_payload_view(const Packet& packet, const Config& 
 
 TankGameServer::TankGameServer(TcpEndpoint endpoint)
     : endpoint_(std::move(endpoint)),
-      logger_(std::filesystem::path("logs") / "v_game.log"),
-      ack_logger_(std::filesystem::path("logs") / "v_ack.log")
+      logger_(log_path("v_game.log")),
+      ack_logger_(log_path("v_ack.log"))
 {
+    set_protocol_event_log_root(default_log_root());
 }
 
 TankGameServer::TankGameServer(TcpEndpoint endpoint, Config config, bool require_auth)
@@ -98,9 +100,10 @@ TankGameServer::TankGameServer(TcpEndpoint endpoint, Config config, bool require
       require_auth_(require_auth),
       encrypt_app_payloads_(encrypt_app_payloads),
       auth_runtime_(make_auth_runtime(config_)),
-      logger_(std::filesystem::path("logs") / "v_game.log"),
-      ack_logger_(std::filesystem::path("logs") / "v_ack.log")
+      logger_(log_path(config_, "v_game.log")),
+      ack_logger_(log_path(config_, "v_ack.log"))
 {
+    set_protocol_event_log_root(log_root_from_config(config_));
 }
 
 TankGameServer::~TankGameServer()

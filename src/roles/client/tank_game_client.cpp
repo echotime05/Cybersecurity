@@ -3,6 +3,7 @@
 #include "cyber/common/auth_credentials.hpp"
 #include "cyber/common/net_packet.hpp"
 #include "cyber/common/protocol_event.hpp"
+#include "cyber/common/runtime_paths.hpp"
 #include "cyber/game/app_payload_codec.hpp"
 #include "cyber/game/game_non_repudiation.hpp"
 
@@ -36,9 +37,10 @@ TankGameClient::TankGameClient(Config config, std::uint16_t ui_port,
     : config_(std::move(config)),
       ui_port_(ui_port),
       encrypt_app_payloads_(encrypt_app_payloads),
-      logger_(std::filesystem::path("logs") / "client_game.log"),
-      ack_logger_(std::filesystem::path("logs") / "client_ack.log")
+      logger_(log_path(config_, "client_game.log")),
+      ack_logger_(log_path(config_, "client_ack.log"))
 {
+    set_protocol_event_log_root(log_root_from_config(config_));
 }
 
 TankGameClient::~TankGameClient()
