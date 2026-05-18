@@ -21,7 +21,7 @@ namespace cyber::game
 {
 namespace
 {
-std::uint64_t now_system_ms()
+std::uint64_t game_time_now_ms()
 {
     return static_cast<std::uint64_t>(
         std::chrono::duration_cast<std::chrono::milliseconds>(
@@ -29,7 +29,7 @@ std::uint64_t now_system_ms()
             .count());
 }
 
-ProtocolPayloadView app_payload_view(const Packet& packet, std::uint64_t kc_v, bool encrypted)
+ProtocolPayloadView app_build_payload_view(const Packet& packet, std::uint64_t kc_v, bool encrypted)
 {
     ProtocolPayloadView view;
     if (encrypted)
@@ -44,7 +44,8 @@ ProtocolPayloadView app_payload_view(const Packet& packet, std::uint64_t kc_v, b
     return view;
 }
 
-ProtocolPayloadView encrypted_payload_view(const Bytes& plain, const Bytes& encrypted)
+ProtocolPayloadView protocol_build_encrypted_payload_view(const Bytes& plain,
+                                                          const Bytes& encrypted)
 {
     ProtocolPayloadView view;
     view.plain_hex = bytes_to_hex(plain);
@@ -52,13 +53,14 @@ ProtocolPayloadView encrypted_payload_view(const Bytes& plain, const Bytes& encr
     return view;
 }
 
-ProtocolPayloadView decrypted_payload_view(const Packet& packet, std::uint64_t key)
+ProtocolPayloadView protocol_build_decrypted_payload_view(const Packet& packet, std::uint64_t key)
 {
-    return encrypted_payload_view(des_decrypt_payload(packet.payload, key), packet.payload);
+    return protocol_build_encrypted_payload_view(des_decrypt_payload(packet.payload, key),
+                                                 packet.payload);
 }
 
-void add_encrypted_field(ProtocolPayloadView& view, std::string name, const Bytes& encrypted,
-                         const Bytes& plain = {})
+void protocol_add_encrypted_field(ProtocolPayloadView& view, std::string name,
+                                  const Bytes& encrypted, const Bytes& plain = {})
 {
     ProtocolPayloadView::Field field;
     field.name = std::move(name);
@@ -67,15 +69,15 @@ void add_encrypted_field(ProtocolPayloadView& view, std::string name, const Byte
     view.fields.push_back(std::move(field));
 }
 
-ProtocolPayloadView v_auth_req_payload_view(const Packet& packet, const Config& config)
+ProtocolPayloadView v_auth_build_req_payload_view(const Packet& packet, const Config& config)
 {
     const VAuthReq request = parse_v_auth_req(packet.payload);
     const TicketVBody ticket = decrypt_ticket_v(request.ticket_v, config.get_u64("KV"));
     const AuthenticatorBody auth = decrypt_authenticator(request.authenticator_v, ticket.kc_v);
     ProtocolPayloadView view;
-    add_encrypted_field(view, "ticket_v", request.ticket_v, build_ticket_v_body(ticket));
-    add_encrypted_field(view, "authenticator_v", request.authenticator_v,
-                        build_authenticator_body(auth));
+    protocol_add_encrypted_field(view, "ticket_v", request.ticket_v, build_ticket_v_body(ticket));
+    protocol_add_encrypted_field(view, "authenticator_v", request.authenticator_v,
+                                 build_authenticator_body(auth));
     return view;
 }
 } // namespace
@@ -278,7 +280,7 @@ void TankGameServer::handle_packet(SocketHandle socket, const Packet& packet,
             (void)parse_verified_ack_payload(signed_payload, client_public_key);
             write_protocol_event(ProtocolDirection::recv, packet,
                                  protocol_app_message(AppCode::app_ack),
-                                 app_payload_view(packet, kc_v, encrypt_app_payloads_));
+                                 app_build_payload_view(packet, kc_v, encrypt_app_payloads_));
             log_verified_ack_packet(ack_logger_, "V", "TankClient", packet);
             return;
         }
@@ -286,14 +288,14 @@ void TankGameServer::handle_packet(SocketHandle socket, const Packet& packet,
         message = parse_verified_game_message(signed_payload, client_public_key);
         write_protocol_event(ProtocolDirection::recv, packet,
                              protocol_app_message(signed_payload.app_code),
-                             app_payload_view(packet, kc_v, encrypt_app_payloads_));
+                             app_build_payload_view(packet, kc_v, encrypt_app_payloads_));
         const Packet ack = build_signed_ack_packet(packet, signed_payload, EntityId::v,
                                                    packet.src, kc_v, encrypt_app_payloads_,
                                                    auth_runtime_.v_key_pair.private_key);
         send_packet_logged(socket, ack, logger_, "V", "TankClientAck");
         write_protocol_event(ProtocolDirection::send, ack,
                              protocol_app_message(AppCode::app_ack),
-                             app_payload_view(ack, kc_v, encrypt_app_payloads_));
+                             app_build_payload_view(ack, kc_v, encrypt_app_payloads_));
     }
     else
     {
@@ -302,10 +304,10 @@ void TankGameServer::handle_packet(SocketHandle socket, const Packet& packet,
         message = parse_game_message(plain_payload);
         write_protocol_event(ProtocolDirection::recv, packet,
                              protocol_app_message(app_code_for_game_message_type(message.type)),
-                             app_payload_view(packet, kc_v, encrypt_app_payloads_));
+                             app_build_payload_view(packet, kc_v, encrypt_app_payloads_));
     }
 
-    const std::uint64_t now_ms = now_system_ms();
+    const std::uint64_t now_ms = game_time_now_ms();
     switch (message.type)
     {
     case GameMsgType::join:
@@ -368,10 +370,10 @@ bool TankGameServer::authenticate_socket(SocketHandle socket, const std::string&
     const Packet response =
         process_v_auth_request(auth_packet, config_, auth_runtime_, logger_, "TankAuth");
     write_protocol_event(ProtocolDirection::recv, auth_packet, {},
-                         v_auth_req_payload_view(auth_packet, config_));
+                         v_auth_build_req_payload_view(auth_packet, config_));
     const AuthSession auth_session = auth_runtime_.v_sessions.get(auth_packet.src);
     send_packet_logged(socket, response, logger_, "V", "TankAuth",
-                       decrypted_payload_view(response, auth_session.kc_v));
+                       protocol_build_decrypted_payload_view(response, auth_session.kc_v));
     const Packet cert_packet = recv_packet_logged(socket, logger_, "V", "TankCert");
     if (cert_packet.msg_type != MsgType::cert_c2v || cert_packet.src != auth_packet.src)
     {
@@ -381,11 +383,11 @@ bool TankGameServer::authenticate_socket(SocketHandle socket, const std::string&
     }
     const AuthSession cert_session = auth_runtime_.v_sessions.get(cert_packet.src);
     write_protocol_event(ProtocolDirection::recv, cert_packet, {},
-                         decrypted_payload_view(cert_packet, cert_session.kc_v));
+                         protocol_build_decrypted_payload_view(cert_packet, cert_session.kc_v));
     const Packet cert_response =
         process_cert_c2v_request(cert_packet, auth_runtime_, logger_, "TankCert");
     send_packet_logged(socket, cert_response, logger_, "V", "TankCert",
-                       decrypted_payload_view(cert_response, cert_session.kc_v));
+                       protocol_build_decrypted_payload_view(cert_response, cert_session.kc_v));
 
     const AuthSession session = auth_runtime_.v_sessions.get(auth_packet.src);
     client_id = auth_packet.src;
@@ -402,7 +404,7 @@ void TankGameServer::game_loop()
     {
         next_tick += std::chrono::milliseconds(kServerTickIntervalMs);
         std::this_thread::sleep_until(next_tick);
-        const std::uint64_t now_ms = now_system_ms();
+        const std::uint64_t now_ms = game_time_now_ms();
         room_.tick(now_ms);
         broadcast(room_.snapshot(now_ms));
     }
@@ -451,7 +453,8 @@ void TankGameServer::broadcast(const BattleStateSnapshot& snapshot)
             send_packet_logged(target.socket, packet, logger_, "V", "TankGameLoop");
             write_protocol_event(ProtocolDirection::send, packet,
                                  protocol_app_message(AppCode::game_state),
-                                 app_payload_view(packet, target.kc_v, encrypt_app_payloads_));
+                                 app_build_payload_view(packet, target.kc_v,
+                                                        encrypt_app_payloads_));
         }
         catch (const std::exception& ex)
         {

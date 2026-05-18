@@ -35,7 +35,7 @@ struct RoleSpec
     const char* stage_goal;
 };
 
-RoleSpec spec_for(RoleKind role)
+RoleSpec runtime_build_role_spec(RoleKind role)
 {
     switch (role)
     {
@@ -58,7 +58,7 @@ RoleSpec spec_for(RoleKind role)
     }
 }
 
-void print_usage(const RoleSpec& spec)
+void runtime_print_usage(const RoleSpec& spec)
 {
     std::cout << "Usage: " << spec.binary
               << " [--config PATH] [--print-config] [--serve]"
@@ -66,7 +66,7 @@ void print_usage(const RoleSpec& spec)
                  " [--game-auth-encrypted] [--ui-port PORT]\n";
 }
 
-std::filesystem::path find_default_config()
+std::filesystem::path config_find_default_path()
 {
     const std::vector<std::filesystem::path> candidates = {
         "config/course_config.txt",
@@ -83,8 +83,8 @@ std::filesystem::path find_default_config()
     return candidates.front();
 }
 
-void print_endpoint(const Config& config, const char* name, const char* ip_key,
-                    const char* bind_ip_key, const char* port_key)
+void config_print_endpoint(const Config& config, const char* name, const char* ip_key,
+                           const char* bind_ip_key, const char* port_key)
 {
     std::cout << name << " connect: " << config.get_string(ip_key) << ':'
               << config.get_u16(port_key) << '\n';
@@ -92,15 +92,15 @@ void print_endpoint(const Config& config, const char* name, const char* ip_key,
               << config.get_u16(port_key) << '\n';
 }
 
-void print_deployment_config(const Config& config, const RoleSpec& spec)
+void config_print_deployment(const Config& config, const RoleSpec& spec)
 {
     const EntityId local_client = config.get_entity_id("LOCAL_CLIENT_ID");
     std::cout << "role: " << spec.name << '\n';
     std::cout << "local client id: " << to_string(local_client) << " (0x" << std::hex
               << static_cast<int>(local_client) << std::dec << ")\n";
-    print_endpoint(config, "AS", "AS_IP", "AS_BIND_IP", "AS_PORT");
-    print_endpoint(config, "TGS", "TGS_IP", "TGS_BIND_IP", "TGS_PORT");
-    print_endpoint(config, "V", "V_IP", "V_BIND_IP", "V_PORT");
+    config_print_endpoint(config, "AS", "AS_IP", "AS_BIND_IP", "AS_PORT");
+    config_print_endpoint(config, "TGS", "TGS_IP", "TGS_BIND_IP", "TGS_PORT");
+    config_print_endpoint(config, "V", "V_IP", "V_BIND_IP", "V_PORT");
     if (spec.port_key != nullptr)
     {
         std::cout << "this server listen: " << config.get_string(spec.bind_ip_key) << ':'
@@ -108,7 +108,7 @@ void print_deployment_config(const Config& config, const RoleSpec& spec)
     }
 }
 
-std::string role_log_file(RoleKind role)
+std::string runtime_role_log_file(RoleKind role)
 {
     switch (role)
     {
@@ -125,7 +125,7 @@ std::string role_log_file(RoleKind role)
     }
 }
 
-std::string main_thread_name(RoleKind role)
+std::string runtime_main_thread_name(RoleKind role)
 {
     switch (role)
     {
@@ -142,12 +142,12 @@ std::string main_thread_name(RoleKind role)
     }
 }
 
-std::string endpoint_text(const TcpEndpoint& endpoint)
+std::string net_format_endpoint(const TcpEndpoint& endpoint)
 {
     return endpoint.ip + ":" + std::to_string(endpoint.port);
 }
 
-TcpEndpoint bind_endpoint(const Config& config, const RoleSpec& spec)
+TcpEndpoint runtime_bind_endpoint(const Config& config, const RoleSpec& spec)
 {
     if (spec.bind_ip_key == nullptr || spec.port_key == nullptr)
     {
@@ -156,7 +156,7 @@ TcpEndpoint bind_endpoint(const Config& config, const RoleSpec& spec)
     return {config.get_string(spec.bind_ip_key), config.get_u16(spec.port_key)};
 }
 
-std::string worker_thread_name(RoleKind role)
+std::string runtime_worker_thread_name(RoleKind role)
 {
     switch (role)
     {
@@ -171,10 +171,10 @@ std::string worker_thread_name(RoleKind role)
     }
 }
 
-void handle_server_connection(SocketHandle socket, std::shared_ptr<Logger> logger,
-                              RoleKind role, RoleSpec spec, Config config)
+void runtime_handle_server_connection(SocketHandle socket, std::shared_ptr<Logger> logger,
+                                      RoleKind role, RoleSpec spec, Config config)
 {
-    const std::string thread_name = worker_thread_name(role);
+    const std::string thread_name = runtime_worker_thread_name(role);
     logger->write(spec.name, thread_name, "THREAD_START", thread_name + " start");
     try
     {
@@ -191,7 +191,8 @@ void handle_server_connection(SocketHandle socket, std::shared_ptr<Logger> logge
     }
 }
 
-void run_server(RoleKind role, const Config& config, const RoleSpec& spec, int max_connections)
+void runtime_run_auth_server(RoleKind role, const Config& config, const RoleSpec& spec,
+                             int max_connections)
 {
     if (role == RoleKind::client)
     {
@@ -203,14 +204,14 @@ void run_server(RoleKind role, const Config& config, const RoleSpec& spec, int m
     }
 
     SocketRuntime runtime;
-    auto logger = std::make_shared<Logger>(log_path(config, role_log_file(role)));
-    const std::string main_thread = main_thread_name(role);
-    const TcpEndpoint endpoint = bind_endpoint(config, spec);
+    auto logger = std::make_shared<Logger>(log_path(config, runtime_role_log_file(role)));
+    const std::string main_thread = runtime_main_thread_name(role);
+    const TcpEndpoint endpoint = runtime_bind_endpoint(config, spec);
     logger->write(spec.name, main_thread, "THREAD_START",
-                  main_thread + " start listen=" + endpoint_text(endpoint));
+                  main_thread + " start listen=" + net_format_endpoint(endpoint));
 
     SocketHandle listener = listen_tcp(endpoint);
-    std::cout << spec.name << " listening on " << endpoint_text(endpoint) << std::endl;
+    std::cout << spec.name << " listening on " << net_format_endpoint(endpoint) << std::endl;
     std::cout << "log file: " << logger->path().string() << std::endl;
 
     try
@@ -223,7 +224,8 @@ void run_server(RoleKind role, const Config& config, const RoleSpec& spec, int m
             ++accepted_count;
             logger->write(spec.name, main_thread, "ACCEPT", "accept connection from " + peer);
 
-            std::thread worker(handle_server_connection, accepted, logger, role, spec, config);
+            std::thread worker(runtime_handle_server_connection, accepted, logger, role, spec,
+                               config);
             if (max_connections > 0)
             {
                 worker.join();
@@ -252,7 +254,7 @@ void run_server(RoleKind role, const Config& config, const RoleSpec& spec, int m
 
 int run_role_main(RoleKind role, int argc, char** argv)
 {
-    const RoleSpec spec = spec_for(role);
+    const RoleSpec spec = runtime_build_role_spec(role);
     bool print_config = false;
     bool serve = false;
     bool game_auth_encrypted = false;
@@ -309,20 +311,20 @@ int run_role_main(RoleKind role, int argc, char** argv)
         }
         else if (arg == "--help" || arg == "-h")
         {
-            print_usage(spec);
+            runtime_print_usage(spec);
             return 0;
         }
         else
         {
             std::cerr << "unknown argument: " << arg << '\n';
-            print_usage(spec);
+            runtime_print_usage(spec);
             return 2;
         }
     }
 
     if (config_path.empty())
     {
-        config_path = find_default_config();
+        config_path = config_find_default_path();
     }
 
     try
@@ -347,7 +349,7 @@ int run_role_main(RoleKind role, int argc, char** argv)
 
         if (print_config)
         {
-            print_deployment_config(config, spec);
+            config_print_deployment(config, spec);
             return 0;
         }
 
@@ -356,8 +358,8 @@ int run_role_main(RoleKind role, int argc, char** argv)
             if (role == RoleKind::v_server)
             {
                 SocketRuntime runtime;
-                cyber::game::TankGameServer server(bind_endpoint(config, spec), config, true,
-                                                    true);
+                cyber::game::TankGameServer server(runtime_bind_endpoint(config, spec), config,
+                                                    true, true);
                 server.run();
                 return 0;
             }
@@ -377,11 +379,11 @@ int run_role_main(RoleKind role, int argc, char** argv)
 
         if (serve)
         {
-            run_server(role, config, spec, max_connections);
+            runtime_run_auth_server(role, config, spec, max_connections);
         }
         else
         {
-            print_usage(spec);
+            runtime_print_usage(spec);
             throw std::runtime_error("no runtime mode selected");
         }
     }
