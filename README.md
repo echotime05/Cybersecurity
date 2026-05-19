@@ -67,6 +67,7 @@ Monitor: src/roles/monitor/README.md
 | 文件 | 职责 |
 | --- | --- |
 | `include/cyber/protocol/app_envelope.hpp` | 定义 `SignedAppPayload`、`AppAckPayload`，声明应用层签名 payload 和 ACK codec。 |
+| `include/cyber/protocol/binary_codec.hpp` | 定义二进制报文 codec helper，用于统一读写大端整数、float 和长度前缀字节串。 |
 | `include/cyber/protocol/certificate_messages.hpp` | 定义 Client/V 证书交换 payload，声明 `MSG_CERT_C2V`、`MSG_CERT_V2C` codec。 |
 | `include/cyber/protocol/kerberos_messages.hpp` | 定义 AS/TGS/V_AUTH 的票据、认证器、请求响应结构，声明 Kerberos payload codec。 |
 | `include/cyber/protocol/packet.hpp` | 定义固定 11B Packet header、`Packet`、错误 payload、简单 APP payload 和 hex 工具。 |
