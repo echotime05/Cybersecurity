@@ -43,6 +43,175 @@ Monitor: src/roles/monitor/README.md
 协议字段和报文展示规则集中见 `src/shared/protocol/`、`src/shared/game/` 和协议参考文档。
 完整报文字段表见 [docs/protocol_reference.md](docs/protocol_reference.md)。
 
+## 源码文件职责索引
+
+本节只覆盖 `include/` 和 `src/`。`include/` 主要是接口、类型和协议结构定义；`src/` 主要是具体实现和各角色入口。
+
+### include/cyber/common
+
+| 文件 | 职责 |
+| --- | --- |
+| `include/cyber/common/auth_credentials.hpp` | 声明 Client 密码、长期密钥派生、Client secret 查询等认证凭据接口。 |
+| `include/cyber/common/config.hpp` | 声明配置文件读取器 `Config` 和字符串、整数配置访问接口。 |
+| `include/cyber/common/crypto.hpp` | 声明 DES-style 加解密、hash、RSA 签名验签、公钥、证书序列化和验证接口。 |
+| `include/cyber/common/log_parser.hpp` | 声明旧文本日志解析工具，主要服务日志相关自测。 |
+| `include/cyber/common/logger.hpp` | 声明异步行日志写入器，被协议事件日志底层使用。 |
+| `include/cyber/common/net_packet.hpp` | 声明带协议事件记录的 TCP packet 收发函数。 |
+| `include/cyber/common/net_socket.hpp` | 声明 TCP socket、监听、连接、读写和运行时初始化接口。 |
+| `include/cyber/common/role_runtime.hpp` | 声明 AS/TGS/V/Client/Monitor 的命令行角色运行入口。 |
+| `include/cyber/common/runtime_paths.hpp` | 声明运行时路径解析和日志根目录推导接口。 |
+| `include/cyber/common/types.hpp` | 定义 `EntityId`、`MsgType`、`AppCode`、`ErrorCode` 等全局枚举和名称转换。 |
+
+### include/cyber/protocol
+
+| 文件 | 职责 |
+| --- | --- |
+| `include/cyber/protocol/app_envelope.hpp` | 定义 `SignedAppPayload`、`AppAckPayload`，声明应用层签名 payload 和 ACK codec。 |
+| `include/cyber/protocol/certificate_messages.hpp` | 定义 Client/V 证书交换 payload，声明 `MSG_CERT_C2V`、`MSG_CERT_V2C` codec。 |
+| `include/cyber/protocol/kerberos_messages.hpp` | 定义 AS/TGS/V_AUTH 的票据、认证器、请求响应结构，声明 Kerberos payload codec。 |
+| `include/cyber/protocol/packet.hpp` | 定义固定 11B Packet header、`Packet`、错误 payload、简单 APP payload 和 hex 工具。 |
+| `include/cyber/protocol/protocol_event.hpp` | 定义 Protocol Monitor 事件结构，声明协议事件格式化、解析、JSON 和写日志接口。 |
+
+### include/cyber/game
+
+| 文件 | 职责 |
+| --- | --- |
+| `include/cyber/game/app_payload_codec.hpp` | 声明游戏 `MSG_APP` payload 的明文/密文编码开关。 |
+| `include/cyber/game/battle_room.hpp` | 声明 V 侧权威房间 `BattleRoom`，负责玩家、输入、状态快照和世界 tick。 |
+| `include/cyber/game/game_non_repudiation.hpp` | 声明游戏报文签名、验签、构造 ACK、解析 ACK 的双向不可否认接口。 |
+| `include/cyber/game/game_protocol.hpp` | 定义坦克大战应用层 `GameMessage`、输入消息、状态快照和序列化接口。 |
+| `include/cyber/game/game_types.hpp` | 定义游戏世界内部实体类型，例如坦克、子弹、补给、障碍物和输入状态。 |
+| `include/cyber/game/game_world.hpp` | 声明 V 侧世界模拟 `GameWorld`，负责移动、碰撞、子弹、补给和快照生成。 |
+
+### include/cyber/roles
+
+| 文件 | 职责 |
+| --- | --- |
+| `include/cyber/roles/as/as_service.hpp` | 声明 AS 处理单个 TCP 连接的角色入口。 |
+| `include/cyber/roles/tgs/tgs_service.hpp` | 声明 TGS 处理单个 TCP 连接的角色入口。 |
+| `include/cyber/roles/v/v_auth_service.hpp` | 定义 V 认证会话表和运行时，声明 V_AUTH 与证书交换处理接口。 |
+| `include/cyber/roles/v/tank_game_server.hpp` | 声明 V 游戏服务器类，负责长连接、认证、游戏收包、广播和停止控制。 |
+| `include/cyber/roles/client/client_auth_flow.hpp` | 定义 Client 认证状态和已认证 V socket，声明 Client 侧完整认证流程。 |
+| `include/cyber/roles/client/tank_game_client.hpp` | 声明 Client 游戏客户端类，负责 UI bridge、登录、发包、收包和状态转发。 |
+
+### include/cyber/ui and include/cyber/monitor
+
+| 文件 | 职责 |
+| --- | --- |
+| `include/cyber/ui/ui_bridge.hpp` | 声明 Client 与浏览器 Web UI 之间的 JSON 命令和状态桥。 |
+| `include/cyber/ui/websocket.hpp` | 声明轻量 WebSocket server、连接对象和消息回调。 |
+| `include/cyber/monitor/protocol_monitor.hpp` | 声明 Protocol Monitor server，负责读取协议事件日志并推送给 Web UI。 |
+
+### src/roles/as
+
+| 文件 | 职责 |
+| --- | --- |
+| `src/roles/as/main.cpp` | AS 可执行程序入口，调用统一角色运行时。 |
+| `src/roles/as/as_service.cpp` | AS 核心逻辑：接收 `MSG_AS_REQ`、验证 Client、生成 `Kc_tgs` 和 `Ticket_tgs`、返回 `MSG_AS_REP`。 |
+| `src/roles/as/README.md` | AS 角色汇报和现场修改说明。 |
+
+### src/roles/tgs
+
+| 文件 | 职责 |
+| --- | --- |
+| `src/roles/tgs/main.cpp` | TGS 可执行程序入口，调用统一角色运行时。 |
+| `src/roles/tgs/tgs_service.cpp` | TGS 核心逻辑：解析 `Ticket_tgs` 和 `Authenticator_tgs`，生成 `Kc_v`、`Ticket_v` 和 `MSG_TGS_REP`。 |
+| `src/roles/tgs/README.md` | TGS 角色汇报和现场修改说明。 |
+
+### src/roles/v
+
+| 文件 | 职责 |
+| --- | --- |
+| `src/roles/v/main.cpp` | V 可执行程序入口，调用统一角色运行时。 |
+| `src/roles/v/v_auth_service.cpp` | V 认证逻辑：处理 `MSG_V_AUTH_REQ`，维护认证会话，处理 Client/V 证书交换。 |
+| `src/roles/v/tank_game_server.cpp` | V 长连接游戏服务器：接收 Client 连接、完成认证、处理 `MSG_APP`、发送 ACK、广播 `GAME_STATE`。 |
+| `src/roles/v/battle_room.cpp` | V 权威房间逻辑：玩家加入、输入应用、tick 推进、计分和状态快照。 |
+| `src/roles/v/game_world.cpp` | 游戏世界模拟：坦克移动、子弹飞行、碰撞、补给生成和世界规则。 |
+| `src/roles/v/README.md` | V 角色汇报和现场修改说明。 |
+
+### src/roles/client
+
+| 文件 | 职责 |
+| --- | --- |
+| `src/roles/client/main.cpp` | Client 可执行程序入口，调用统一角色运行时。 |
+| `src/roles/client/client_auth_flow.cpp` | Client 侧完整认证流程：AS_REQ、TGS_REQ、V_AUTH、证书交换，并复用 V socket。 |
+| `src/roles/client/tank_game_client.cpp` | Client 游戏逻辑：处理浏览器登录和输入，向 V 发送签名加密游戏报文，接收状态并回 ACK。 |
+| `src/roles/client/ui_bridge.cpp` | Client 与 Web UI 的 JSON bridge：解析浏览器命令，广播登录状态和游戏状态。 |
+| `src/roles/client/websocket.cpp` | 轻量 WebSocket 实现：HTTP upgrade、frame 解析、消息发送和连接管理。 |
+| `src/roles/client/README.md` | Client 角色汇报和现场修改说明。 |
+
+### src/roles/monitor
+
+| 文件 | 职责 |
+| --- | --- |
+| `src/roles/monitor/main.cpp` | Monitor 可执行程序入口，启动协议监控 WebSocket server。 |
+| `src/roles/monitor/protocol_monitor.cpp` | Protocol Monitor 实现：tail `protocol_events/*.txt`，去重排序后推送给浏览器。 |
+| `src/roles/monitor/README.md` | Monitor 角色汇报和现场修改说明。 |
+
+### src/shared/auth
+
+| 文件 | 职责 |
+| --- | --- |
+| `src/shared/auth/auth_credentials.cpp` | Client 密码、长期密钥派生、Client secret 查询和演示密钥表。 |
+
+### src/shared/config
+
+| 文件 | 职责 |
+| --- | --- |
+| `src/shared/config/config.cpp` | 配置文件解析和 `Config` 查询实现。 |
+
+### src/shared/crypto
+
+| 文件 | 职责 |
+| --- | --- |
+| `src/shared/crypto/crypto.cpp` | DES-style payload 加解密、hash64、演示 RSA、证书序列化和证书验证实现。 |
+
+### src/shared/game
+
+| 文件 | 职责 |
+| --- | --- |
+| `src/shared/game/app_payload_codec.cpp` | 根据开关对游戏应用层 payload 做明文传输或 `Kc_v` 加密/解密。 |
+| `src/shared/game/game_non_repudiation.cpp` | 构造和解析签名游戏报文，验证签名，构造和验证 `APP_ACK`。 |
+| `src/shared/game/game_protocol.cpp` | `GameMessage`、移动、瞄准、开火、加入、世界快照的二进制 codec 和 UI JSON 格式化。 |
+
+### src/shared/logging
+
+| 文件 | 职责 |
+| --- | --- |
+| `src/shared/logging/log_parser.cpp` | 旧 bracket-style 文本日志解析实现，主要用于日志自测。 |
+| `src/shared/logging/logger.cpp` | 异步线程安全日志写入器，供协议事件日志底层复用。 |
+
+### src/shared/net
+
+| 文件 | 职责 |
+| --- | --- |
+| `src/shared/net/net_packet.cpp` | Packet 级 TCP 收发实现，并在收发时写入 Protocol Monitor 事件。 |
+| `src/shared/net/net_socket.cpp` | Winsock 初始化、监听、连接、accept、send/recv 和 socket 关闭实现。 |
+
+### src/shared/protocol
+
+| 文件 | 职责 |
+| --- | --- |
+| `src/shared/protocol/packet.cpp` | 固定 11B Packet header、packet 序列化/解析、错误 payload、简单 APP payload 和 hex 工具实现。 |
+| `src/shared/protocol/kerberos_messages.cpp` | AS/TGS/V_AUTH 的请求、响应、票据、认证器 codec 和相关加解密包装。 |
+| `src/shared/protocol/certificate_messages.cpp` | Client/V 证书交换 payload codec。 |
+| `src/shared/protocol/app_envelope.cpp` | `SignedAppPayload` 和 `AppAckPayload` codec，包含签名输入字节构造和验签。 |
+| `src/shared/protocol/protocol_event.cpp` | 协议事件日志格式化、解析、JSON 输出和写入 `protocol_events/*.txt`。 |
+
+### src/shared/runtime
+
+| 文件 | 职责 |
+| --- | --- |
+| `src/shared/runtime/role_runtime.cpp` | 统一解析命令行并启动 AS/TGS/V/Client/Monitor 的运行时调度。 |
+| `src/shared/runtime/runtime_paths.cpp` | 运行时路径、默认配置路径和日志根目录解析。 |
+
+### src 目录说明文件
+
+| 文件 | 职责 |
+| --- | --- |
+| `src/roles/README.md` | 总览角色源码布局和各角色 README 入口。 |
+| `src/shared/README.md` | 总览共享源码布局和共享模块职责。 |
+
 ## 2. 环境要求
 
 - Windows
