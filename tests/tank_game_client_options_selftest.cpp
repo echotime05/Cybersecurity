@@ -9,7 +9,7 @@ int main()
     try
     {
         cyber::Config config;
-        cyber::game::TankGameClient encrypted(config, 7002, true);
+        cyber::game::TankGameClient encrypted(config, 7002);
         (void)encrypted;
         std::cout << "tank_game_client_options_selftest: ok\n";
     }

@@ -29,18 +29,11 @@ std::uint64_t game_time_now_ms()
             .count());
 }
 
-ProtocolPayloadView app_build_payload_view(const Packet& packet, std::uint64_t kc_v, bool encrypted)
+ProtocolPayloadView app_build_payload_view(const Packet& packet, std::uint64_t kc_v)
 {
     ProtocolPayloadView view;
-    if (encrypted)
-    {
-        view.plain_hex = bytes_to_hex(app_decode_payload(packet.payload, kc_v, true));
-        view.encrypted_hex = bytes_to_hex(packet.payload);
-    }
-    else
-    {
-        view.plain_hex = bytes_to_hex(packet.payload);
-    }
+    view.plain_hex = bytes_to_hex(app_decode_payload(packet.payload, kc_v));
+    view.encrypted_hex = bytes_to_hex(packet.payload);
     return view;
 }
 
@@ -89,16 +82,9 @@ TankGameServer::TankGameServer(TcpEndpoint endpoint)
 }
 
 TankGameServer::TankGameServer(TcpEndpoint endpoint, Config config, bool require_auth)
-    : TankGameServer(std::move(endpoint), std::move(config), require_auth, false)
-{
-}
-
-TankGameServer::TankGameServer(TcpEndpoint endpoint, Config config, bool require_auth,
-                               bool encrypt_app_payloads)
     : endpoint_(std::move(endpoint)),
       config_(std::move(config)),
       require_auth_(require_auth),
-      encrypt_app_payloads_(encrypt_app_payloads),
       auth_runtime_(cyber::roles::v::v_auth_make_runtime(config_))
 {
     set_protocol_event_log_root(log_root_from_config(config_));
@@ -113,8 +99,7 @@ TankGameServer::~TankGameServer()
 void TankGameServer::run()
 {
     listener_ = listen_tcp(endpoint_);
-    const char* mode =
-        encrypt_app_payloads_ ? "encrypted" : (require_auth_ ? "auth-plain" : "plain");
+    const char* mode = require_auth_ ? "auth-encrypted" : "direct-encrypted";
     std::cout << "V tank game listening on " << endpoint_.ip << ':' << endpoint_.port
               << " mode=" << mode << '\n';
     run_until_stopped();
@@ -264,37 +249,35 @@ void TankGameServer::handle_packet(SocketHandle socket, const Packet& packet,
     GameMessage message;
     if (require_auth_)
     {
-        const SignedAppPayload signed_payload =
-            app_decode_signed_packet(packet, kc_v, encrypt_app_payloads_);
+        const SignedAppPayload signed_payload = app_decode_signed_packet(packet, kc_v);
         if (signed_payload.app_code == AppCode::app_ack)
         {
             (void)ack_parse_verified_payload(signed_payload, client_public_key);
             write_protocol_event(ProtocolDirection::recv, packet,
                                  protocol_app_message(AppCode::app_ack),
-                                 app_build_payload_view(packet, kc_v, encrypt_app_payloads_));
+                                 app_build_payload_view(packet, kc_v));
             return;
         }
 
         message = app_parse_verified_game_message(signed_payload, client_public_key);
         write_protocol_event(ProtocolDirection::recv, packet,
                              protocol_app_message(signed_payload.app_code),
-                             app_build_payload_view(packet, kc_v, encrypt_app_payloads_));
+                             app_build_payload_view(packet, kc_v));
         const Packet ack = ack_build_signed_packet(packet, signed_payload, EntityId::v,
-                                                   packet.src, kc_v, encrypt_app_payloads_,
+                                                   packet.src, kc_v,
                                                    auth_runtime_.v_key_pair.private_key);
         send_packet_logged(socket, ack);
         write_protocol_event(ProtocolDirection::send, ack,
                              protocol_app_message(AppCode::app_ack),
-                             app_build_payload_view(ack, kc_v, encrypt_app_payloads_));
+                             app_build_payload_view(ack, kc_v));
     }
     else
     {
-        const Bytes plain_payload =
-            app_decode_payload(packet.payload, kc_v, encrypt_app_payloads_);
+        const Bytes plain_payload = app_decode_payload(packet.payload, kc_v);
         message = game_parse_message(plain_payload);
         write_protocol_event(ProtocolDirection::recv, packet,
                              protocol_app_message(app_map_game_message_code(message.type)),
-                             app_build_payload_view(packet, kc_v, encrypt_app_payloads_));
+                             app_build_payload_view(packet, kc_v));
     }
 
     const std::uint64_t now_ms = game_time_now_ms();
@@ -433,21 +416,19 @@ void TankGameServer::broadcast(const BattleStateSnapshot& snapshot)
             {
                 packet = app_build_signed_game_packet(
                     EntityId::v, target.client_id, GameMsgType::state, state_payload,
-                    target.kc_v, encrypt_app_payloads_, auth_runtime_.v_key_pair.private_key);
+                    target.kc_v, auth_runtime_.v_key_pair.private_key);
             }
             else
             {
                 const Bytes plain_payload =
                     game_build_message({GameMsgType::state, state_payload});
-                const Bytes wire_payload =
-                    app_encode_payload(plain_payload, target.kc_v, encrypt_app_payloads_);
+                const Bytes wire_payload = app_encode_payload(plain_payload, target.kc_v);
                 packet = make_packet(MsgType::app, EntityId::v, target.client_id, wire_payload);
             }
             send_packet_logged(target.socket, packet);
             write_protocol_event(ProtocolDirection::send, packet,
                                  protocol_app_message(AppCode::game_state),
-                                 app_build_payload_view(packet, target.kc_v,
-                                                        encrypt_app_payloads_));
+                                 app_build_payload_view(packet, target.kc_v));
         }
         catch (const std::exception& ex)
         {

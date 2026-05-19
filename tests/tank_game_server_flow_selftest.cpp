@@ -45,13 +45,12 @@ cyber::Config make_test_config()
     return cyber::Config::load(config_path);
 }
 
-bool wait_for_state(cyber::SocketHandle client, std::uint64_t kc_v, bool encrypted)
+bool wait_for_state(cyber::SocketHandle client, std::uint64_t kc_v)
 {
     for (int i = 0; i < 10; ++i)
     {
         const cyber::Packet packet = cyber::recv_packet_logged(client);
-        const cyber::Bytes plain =
-            cyber::game::app_decode_payload(packet.payload, kc_v, encrypted);
+        const cyber::Bytes plain = cyber::game::app_decode_payload(packet.payload, kc_v);
         const cyber::game::GameMessage message = cyber::game::game_parse_message(plain);
         if (message.type == cyber::game::GameMsgType::state)
         {
@@ -80,11 +79,12 @@ int main()
         const auto join = cyber::game::game_build_message(
             {cyber::game::GameMsgType::join,
              cyber::game::game_build_join({cyber::EntityId::client1})});
+        const cyber::Bytes encrypted_join = cyber::game::app_encode_payload(join, 0);
         cyber::send_packet_logged(client,
                                   cyber::make_packet(cyber::MsgType::app,
                                                      cyber::EntityId::client1, cyber::EntityId::v,
-                                                     join));
-        require(wait_for_state(client, 0, false),
+                                                     encrypted_join));
+        require(wait_for_state(client, 0),
                 "did not receive state with joined tank");
 
         cyber::close_socket(client);
@@ -118,7 +118,7 @@ int main()
         auth_server.stop();
         auth_thread.join();
 
-        cyber::game::TankGameServer encrypted_server({"127.0.0.1", 0}, config, false, true);
+        cyber::game::TankGameServer encrypted_server({"127.0.0.1", 0}, config, false);
         const std::uint16_t encrypted_port = encrypted_server.start_for_test();
         std::thread encrypted_thread([&]() { encrypted_server.run_until_stopped(); });
 
@@ -126,19 +126,19 @@ int main()
         const auto encrypted_join_plain = cyber::game::game_build_message(
             {cyber::game::GameMsgType::join,
              cyber::game::game_build_join({cyber::EntityId::client1})});
-        const cyber::Bytes encrypted_join =
-            cyber::game::app_encode_payload(encrypted_join_plain, 0, true);
+        const cyber::Bytes encrypted_join_direct =
+            cyber::game::app_encode_payload(encrypted_join_plain, 0);
         cyber::send_packet_logged(encrypted_client,
                                   cyber::make_packet(cyber::MsgType::app,
                                                      cyber::EntityId::client1, cyber::EntityId::v,
-                                                     encrypted_join));
-        require(wait_for_state(encrypted_client, 0, true),
+                                                     encrypted_join_direct));
+        require(wait_for_state(encrypted_client, 0),
                 "encrypted server did not return encrypted state");
         cyber::close_socket(encrypted_client);
         encrypted_server.stop();
         encrypted_thread.join();
 
-        cyber::game::TankGameServer reject_plain_server({"127.0.0.1", 0}, config, false, true);
+        cyber::game::TankGameServer reject_plain_server({"127.0.0.1", 0}, config, false);
         const std::uint16_t reject_plain_port = reject_plain_server.start_for_test();
         std::thread reject_plain_thread([&]() { reject_plain_server.run_until_stopped(); });
 

@@ -60,7 +60,7 @@ int main(int argc, char** argv)
                 try
                 {
                     const cyber::Bytes decrypted =
-                        cyber::game::app_decode_payload(response.payload, auth.state.kc_v, true);
+                        cyber::game::app_decode_payload(response.payload, auth.state.kc_v);
                     const cyber::game::GameMessage message =
                         cyber::game::game_parse_message(decrypted);
                     rejected = message.type != cyber::game::GameMsgType::state;

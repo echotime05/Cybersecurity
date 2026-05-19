@@ -77,7 +77,7 @@ Monitor: src/roles/monitor/README.md
 
 | 文件 | 职责 |
 | --- | --- |
-| `include/cyber/game/app_payload_codec.hpp` | 声明游戏 `MSG_APP` payload 的明文/密文编码开关。 |
+| `include/cyber/game/app_payload_codec.hpp` | 声明游戏 `MSG_APP` payload 的 `Kc_v` 加密/解密接口。 |
 | `include/cyber/game/battle_room.hpp` | 声明 V 侧权威房间 `BattleRoom`，负责玩家、输入、状态快照和世界 tick。 |
 | `include/cyber/game/game_non_repudiation.hpp` | 声明游戏报文签名、验签、构造 ACK、解析 ACK 的双向不可否认接口。 |
 | `include/cyber/game/game_protocol.hpp` | 定义坦克大战应用层 `GameMessage`、输入消息、状态快照和序列化接口。 |
@@ -171,7 +171,7 @@ Monitor: src/roles/monitor/README.md
 
 | 文件 | 职责 |
 | --- | --- |
-| `src/shared/game/app_payload_codec.cpp` | 根据开关对游戏应用层 payload 做明文传输或 `Kc_v` 加密/解密。 |
+| `src/shared/game/app_payload_codec.cpp` | 对游戏应用层 payload 做 `Kc_v` 加密/解密，固定 header 不参与加密。 |
 | `src/shared/game/game_non_repudiation.cpp` | 构造和解析签名游戏报文，验证签名，构造和验证 `APP_ACK`。 |
 | `src/shared/game/game_protocol.cpp` | `GameMessage`、移动、瞄准、开火、加入、世界快照的二进制 codec 和 UI JSON 格式化。 |
 

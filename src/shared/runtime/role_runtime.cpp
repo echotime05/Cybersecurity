@@ -309,7 +309,7 @@ int run_role_main(RoleKind role, int argc, char** argv)
             {
                 SocketRuntime runtime;
                 cyber::game::TankGameServer server(runtime_bind_endpoint(config, spec), config,
-                                                    true, true);
+                                                    true);
                 server.run();
                 return 0;
             }
@@ -319,7 +319,7 @@ int run_role_main(RoleKind role, int argc, char** argv)
                 {
                     throw std::runtime_error("client --game-auth-encrypted requires --ui-port");
                 }
-                cyber::game::TankGameClient client(config, ui_port, true);
+                cyber::game::TankGameClient client(config, ui_port);
                 client.run();
                 return 0;
             }

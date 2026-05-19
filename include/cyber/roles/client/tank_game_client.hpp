@@ -17,7 +17,7 @@ namespace cyber::game
 class TankGameClient
 {
 public:
-    TankGameClient(Config config, std::uint16_t ui_port, bool encrypt_app_payloads = false);
+    TankGameClient(Config config, std::uint16_t ui_port);
     ~TankGameClient();
 
     void run();
@@ -47,7 +47,6 @@ private:
     std::uint64_t kc_v_ = 0;
     RsaKeyPair client_key_pair_;
     RsaPublicKey v_public_key_;
-    bool encrypt_app_payloads_ = false;
     State state_ = State::waiting_for_login;
     std::mutex state_mutex_;
     std::mutex send_mutex_;

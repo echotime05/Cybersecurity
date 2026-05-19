@@ -44,8 +44,7 @@ struct ClientStats
 cyber::ProtocolPayloadView app_payload_view(const cyber::Packet& packet, std::uint64_t kc_v)
 {
     cyber::ProtocolPayloadView view;
-    view.plain_hex = cyber::bytes_to_hex(cyber::game::app_decode_payload(packet.payload, kc_v,
-                                                                          true));
+    view.plain_hex = cyber::bytes_to_hex(cyber::game::app_decode_payload(packet.payload, kc_v));
     view.encrypted_hex = cyber::bytes_to_hex(packet.payload);
     return view;
 }
@@ -77,7 +76,7 @@ void send_signed_game_packet(cyber::SocketHandle socket,
                              std::mutex& send_mutex, ClientStats& stats)
 {
     const cyber::Packet packet = cyber::game::app_build_signed_game_packet(
-        auth_state.client_id, cyber::EntityId::v, type, payload, auth_state.kc_v, true,
+        auth_state.client_id, cyber::EntityId::v, type, payload, auth_state.kc_v,
         auth_state.client_key_pair.private_key);
 
     std::lock_guard<std::mutex> lock(send_mutex);
@@ -97,7 +96,7 @@ void send_state_ack(cyber::SocketHandle socket,
 {
     const cyber::Packet ack = cyber::game::ack_build_signed_packet(
         received_packet, received_payload, auth_state.client_id, cyber::EntityId::v,
-        auth_state.kc_v, true, auth_state.client_key_pair.private_key);
+        auth_state.kc_v, auth_state.client_key_pair.private_key);
 
     std::lock_guard<std::mutex> lock(send_mutex);
     cyber::send_packet_logged(socket, ack);
@@ -124,7 +123,7 @@ void receiver_loop(cyber::SocketHandle socket,
             }
 
             const cyber::SignedAppPayload signed_payload =
-                cyber::game::app_decode_signed_packet(packet, auth_state.kc_v, true);
+                cyber::game::app_decode_signed_packet(packet, auth_state.kc_v);
             if (signed_payload.app_code == cyber::AppCode::app_ack)
             {
                 (void)cyber::game::ack_parse_verified_payload(signed_payload,

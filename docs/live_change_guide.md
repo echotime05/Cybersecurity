@@ -79,7 +79,7 @@ Protocol 面板只展示 `monitor.exe` 从 `_generated/logs/protocol_events/*.tx
 | 修改证书交换字段 | `src/shared/protocol/certificate_messages.cpp` |
 | 修改 APP_ACK/SignedAppPayload 字段 | `src/shared/protocol/app_envelope.cpp` |
 | 修改游戏 GameMessage 和快照字段 | `src/shared/game/game_protocol.cpp` |
-| 修改应用层加密、明文/密文日志视图 | `src/shared/game/app_payload_codec.cpp` |
+| 修改应用层加密、明文/密文日志视图 | `src/shared/game/app_payload_codec.cpp`、`src/shared/protocol/protocol_event.cpp` |
 | 修改双向不可否认 ACK | `src/shared/game/game_non_repudiation.cpp` |
 | 修改协议事件日志字段 | `src/shared/protocol/protocol_event.cpp` |
 

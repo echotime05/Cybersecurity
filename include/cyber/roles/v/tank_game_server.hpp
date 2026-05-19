@@ -19,8 +19,6 @@ class TankGameServer
 public:
     explicit TankGameServer(TcpEndpoint endpoint);
     TankGameServer(TcpEndpoint endpoint, Config config, bool require_auth);
-    TankGameServer(TcpEndpoint endpoint, Config config, bool require_auth,
-                   bool encrypt_app_payloads);
     ~TankGameServer();
 
     void run();
@@ -50,7 +48,6 @@ private:
     TcpEndpoint endpoint_;
     Config config_;
     bool require_auth_ = false;
-    bool encrypt_app_payloads_ = false;
     cyber::roles::v::AuthRuntime auth_runtime_;
     SocketHandle listener_ = 0;
     std::atomic<bool> stopping_{false};

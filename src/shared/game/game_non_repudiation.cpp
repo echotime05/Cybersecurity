@@ -27,24 +27,22 @@ AppCode app_map_game_message_code(GameMsgType type)
 }
 
 Packet app_build_signed_game_packet(EntityId src, EntityId dst, GameMsgType type,
-                                const Bytes& payload, std::uint64_t kc_v,
-                                bool encrypted, const RsaPrivateKey& private_key)
+                                    const Bytes& payload, std::uint64_t kc_v,
+                                    const RsaPrivateKey& private_key)
 {
     const Bytes game_message = game_build_message({type, payload});
     const Bytes signed_payload =
         app_build_signed_payload(app_map_game_message_code(type), game_message, private_key);
-    return make_packet(MsgType::app, src, dst,
-                       app_encode_payload(signed_payload, kc_v, encrypted));
+    return make_packet(MsgType::app, src, dst, app_encode_payload(signed_payload, kc_v));
 }
 
-SignedAppPayload app_decode_signed_packet(const Packet& packet, std::uint64_t kc_v,
-                                          bool encrypted)
+SignedAppPayload app_decode_signed_packet(const Packet& packet, std::uint64_t kc_v)
 {
     if (packet.msg_type != MsgType::app)
     {
         throw std::runtime_error("non-app packet cannot carry signed app payload");
     }
-    return app_parse_signed_payload(app_decode_payload(packet.payload, kc_v, encrypted));
+    return app_parse_signed_payload(app_decode_payload(packet.payload, kc_v));
 }
 
 GameMessage app_parse_verified_game_message(const SignedAppPayload& signed_payload,
@@ -70,7 +68,7 @@ GameMessage app_parse_verified_game_message(const SignedAppPayload& signed_paylo
 Packet ack_build_signed_packet(const Packet& received_packet,
                                const SignedAppPayload& received_signed_payload,
                                EntityId ack_src, EntityId ack_dst, std::uint64_t kc_v,
-                               bool encrypted, const RsaPrivateKey& private_key)
+                               const RsaPrivateKey& private_key)
 {
     if (received_signed_payload.app_code == AppCode::app_ack)
     {
@@ -85,8 +83,7 @@ Packet ack_build_signed_packet(const Packet& received_packet,
                             hash64(received_packet.payload)};
     const Bytes signed_ack =
         app_build_signed_payload(AppCode::app_ack, ack_build_payload(ack), private_key);
-    return make_packet(MsgType::app, ack_src, ack_dst,
-                       app_encode_payload(signed_ack, kc_v, encrypted));
+    return make_packet(MsgType::app, ack_src, ack_dst, app_encode_payload(signed_ack, kc_v));
 }
 
 AppAckPayload ack_parse_verified_payload(const SignedAppPayload& signed_payload,
