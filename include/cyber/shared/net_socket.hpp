@@ -1,6 +1,6 @@
 #pragma once
 
-#include "cyber/common/net_packet.hpp"
+#include "cyber/shared/net_packet.hpp"
 
 #include <cstdint>
 #include <string>

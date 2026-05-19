@@ -2,7 +2,7 @@
 #define NOMINMAX
 #endif
 
-#include "cyber/common/net_packet.hpp"
+#include "cyber/shared/net_packet.hpp"
 
 #include "cyber/protocol/protocol_event.hpp"
 

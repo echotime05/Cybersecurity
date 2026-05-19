@@ -1,6 +1,6 @@
 #pragma once
 
-#include "cyber/common/config.hpp"
+#include "cyber/shared/config.hpp"
 #include "cyber/game/game_protocol.hpp"
 #include "cyber/roles/client/client_auth_flow.hpp"
 #include "cyber/ui/ui_bridge.hpp"

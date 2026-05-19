@@ -1,5 +1,5 @@
-#include "cyber/common/auth_credentials.hpp"
-#include "cyber/common/types.hpp"
+#include "cyber/shared/auth_credentials.hpp"
+#include "cyber/shared/types.hpp"
 
 #include <iostream>
 #include <stdexcept>

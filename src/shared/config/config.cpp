@@ -1,4 +1,4 @@
-#include "cyber/common/config.hpp"
+#include "cyber/shared/config.hpp"
 
 #include <algorithm>
 #include <cctype>

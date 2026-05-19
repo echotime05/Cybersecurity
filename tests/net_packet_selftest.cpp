@@ -1,5 +1,5 @@
-#include "cyber/common/net_packet.hpp"
-#include "cyber/common/net_socket.hpp"
+#include "cyber/shared/net_packet.hpp"
+#include "cyber/shared/net_socket.hpp"
 #include "cyber/protocol/packet.hpp"
 
 #include <chrono>

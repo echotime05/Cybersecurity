@@ -1,4 +1,4 @@
-#include "cyber/common/runtime_paths.hpp"
+#include "cyber/shared/runtime_paths.hpp"
 
 #include <string>
 

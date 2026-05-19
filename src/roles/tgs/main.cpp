@@ -1,4 +1,4 @@
-#include "cyber/common/role_runtime.hpp"
+#include "cyber/shared/role_runtime.hpp"
 
 int main(int argc, char** argv)
 {

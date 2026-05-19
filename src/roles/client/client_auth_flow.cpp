@@ -1,6 +1,6 @@
 #include "cyber/roles/client/client_auth_flow.hpp"
 
-#include "cyber/common/net_packet.hpp"
+#include "cyber/shared/net_packet.hpp"
 #include "cyber/protocol/protocol_event.hpp"
 
 #include <chrono>

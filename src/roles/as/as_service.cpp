@@ -1,7 +1,7 @@
 #include "cyber/roles/as/as_service.hpp"
 
-#include "cyber/common/auth_credentials.hpp"
-#include "cyber/common/crypto.hpp"
+#include "cyber/shared/auth_credentials.hpp"
+#include "cyber/shared/crypto.hpp"
 #include "cyber/protocol/protocol_event.hpp"
 #include "cyber/protocol/kerberos_messages.hpp"
 

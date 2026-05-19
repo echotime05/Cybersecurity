@@ -2,7 +2,7 @@
 #define NOMINMAX
 #endif
 
-#include "cyber/common/net_socket.hpp"
+#include "cyber/shared/net_socket.hpp"
 
 #include <stdexcept>
 

@@ -1,5 +1,5 @@
-#include "cyber/common/net_socket.hpp"
-#include "cyber/common/runtime_paths.hpp"
+#include "cyber/shared/net_socket.hpp"
+#include "cyber/shared/runtime_paths.hpp"
 #include "cyber/monitor/protocol_monitor.hpp"
 
 #include <filesystem>

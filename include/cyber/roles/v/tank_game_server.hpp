@@ -1,7 +1,7 @@
 #pragma once
 
-#include "cyber/common/config.hpp"
-#include "cyber/common/net_socket.hpp"
+#include "cyber/shared/config.hpp"
+#include "cyber/shared/net_socket.hpp"
 #include "cyber/game/battle_room.hpp"
 #include "cyber/roles/v/v_auth_service.hpp"
 

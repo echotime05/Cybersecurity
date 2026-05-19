@@ -1,6 +1,6 @@
 #pragma once
 
-#include "cyber/common/config.hpp"
+#include "cyber/shared/config.hpp"
 
 #include <filesystem>
 #include <string_view>

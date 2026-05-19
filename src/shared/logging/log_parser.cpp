@@ -1,4 +1,4 @@
-#include "cyber/common/log_parser.hpp"
+#include "cyber/shared/log_parser.hpp"
 
 #include <stdexcept>
 

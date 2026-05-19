@@ -1,5 +1,5 @@
-#include "cyber/common/config.hpp"
-#include "cyber/common/crypto.hpp"
+#include "cyber/shared/config.hpp"
+#include "cyber/shared/crypto.hpp"
 #include "cyber/protocol/app_envelope.hpp"
 #include "cyber/protocol/certificate_messages.hpp"
 #include "cyber/protocol/kerberos_messages.hpp"

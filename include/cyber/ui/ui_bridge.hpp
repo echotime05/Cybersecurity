@@ -1,6 +1,6 @@
 #pragma once
 
-#include "cyber/common/net_socket.hpp"
+#include "cyber/shared/net_socket.hpp"
 #include "cyber/game/game_protocol.hpp"
 
 #include <atomic>

@@ -1,6 +1,6 @@
 #include "cyber/game/app_payload_codec.hpp"
 
-#include "cyber/common/crypto.hpp"
+#include "cyber/shared/crypto.hpp"
 
 namespace cyber::game
 {

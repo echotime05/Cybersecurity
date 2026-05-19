@@ -20,7 +20,7 @@ Shared files usually modified for AS behavior:
 src/shared/auth/auth_credentials.cpp
 src/shared/protocol/kerberos_messages.cpp
 src/shared/crypto/crypto.cpp
-include/cyber/common/auth_credentials.hpp
+include/cyber/shared/auth_credentials.hpp
 include/cyber/protocol/kerberos_messages.hpp
 ```
 

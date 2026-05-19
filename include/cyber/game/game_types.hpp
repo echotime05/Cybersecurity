@@ -1,6 +1,6 @@
 #pragma once
 
-#include "cyber/common/types.hpp"
+#include "cyber/shared/types.hpp"
 #include "cyber/game/game_protocol.hpp"
 
 #include <cstddef>

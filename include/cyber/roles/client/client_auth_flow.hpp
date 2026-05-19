@@ -1,8 +1,8 @@
 #pragma once
 
-#include "cyber/common/config.hpp"
-#include "cyber/common/crypto.hpp"
-#include "cyber/common/net_socket.hpp"
+#include "cyber/shared/config.hpp"
+#include "cyber/shared/crypto.hpp"
+#include "cyber/shared/net_socket.hpp"
 #include "cyber/protocol/certificate_messages.hpp"
 #include "cyber/protocol/kerberos_messages.hpp"
 

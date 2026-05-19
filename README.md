@@ -47,20 +47,20 @@ Monitor: src/roles/monitor/README.md
 
 本节只覆盖 `include/` 和 `src/`。`include/` 主要是接口、类型和协议结构定义；`src/` 主要是具体实现和各角色入口。
 
-### include/cyber/common
+### include/cyber/shared
 
 | 文件 | 职责 |
 | --- | --- |
-| `include/cyber/common/auth_credentials.hpp` | 声明 Client 密码、长期密钥派生、Client secret 查询等认证凭据接口。 |
-| `include/cyber/common/config.hpp` | 声明配置文件读取器 `Config` 和字符串、整数配置访问接口。 |
-| `include/cyber/common/crypto.hpp` | 声明 DES-style 加解密、hash、RSA 签名验签、公钥、证书序列化和验证接口。 |
-| `include/cyber/common/log_parser.hpp` | 声明旧文本日志解析工具，主要服务日志相关自测。 |
-| `include/cyber/common/logger.hpp` | 声明异步行日志写入器，被协议事件日志底层使用。 |
-| `include/cyber/common/net_packet.hpp` | 声明带协议事件记录的 TCP packet 收发函数。 |
-| `include/cyber/common/net_socket.hpp` | 声明 TCP socket、监听、连接、读写和运行时初始化接口。 |
-| `include/cyber/common/role_runtime.hpp` | 声明 AS/TGS/V/Client/Monitor 的命令行角色运行入口。 |
-| `include/cyber/common/runtime_paths.hpp` | 声明运行时路径解析和日志根目录推导接口。 |
-| `include/cyber/common/types.hpp` | 定义 `EntityId`、`MsgType`、`AppCode`、`ErrorCode` 等全局枚举和名称转换。 |
+| `include/cyber/shared/auth_credentials.hpp` | 声明 Client 密码、长期密钥派生、Client secret 查询等认证凭据接口。 |
+| `include/cyber/shared/config.hpp` | 声明配置文件读取器 `Config` 和字符串、整数配置访问接口。 |
+| `include/cyber/shared/crypto.hpp` | 声明 DES-style 加解密、hash、RSA 签名验签、公钥、证书序列化和验证接口。 |
+| `include/cyber/shared/log_parser.hpp` | 声明旧文本日志解析工具，主要服务日志相关自测。 |
+| `include/cyber/shared/logger.hpp` | 声明异步行日志写入器，被协议事件日志底层使用。 |
+| `include/cyber/shared/net_packet.hpp` | 声明带协议事件记录的 TCP packet 收发函数。 |
+| `include/cyber/shared/net_socket.hpp` | 声明 TCP socket、监听、连接、读写和运行时初始化接口。 |
+| `include/cyber/shared/role_runtime.hpp` | 声明 AS/TGS/V/Client/Monitor 的命令行角色运行入口。 |
+| `include/cyber/shared/runtime_paths.hpp` | 声明运行时路径解析和日志根目录推导接口。 |
+| `include/cyber/shared/types.hpp` | 定义 `EntityId`、`MsgType`、`AppCode`、`ErrorCode` 等全局枚举和名称转换。 |
 
 ### include/cyber/protocol
 

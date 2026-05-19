@@ -1,9 +1,9 @@
 #include "cyber/roles/v/tank_game_server.hpp"
 
-#include "cyber/common/crypto.hpp"
-#include "cyber/common/net_packet.hpp"
+#include "cyber/shared/crypto.hpp"
+#include "cyber/shared/net_packet.hpp"
 #include "cyber/protocol/protocol_event.hpp"
-#include "cyber/common/runtime_paths.hpp"
+#include "cyber/shared/runtime_paths.hpp"
 #include "cyber/game/app_payload_codec.hpp"
 #include "cyber/game/game_non_repudiation.hpp"
 

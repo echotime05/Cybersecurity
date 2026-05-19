@@ -1,6 +1,6 @@
 #include "cyber/ui/ui_bridge.hpp"
 
-#include "cyber/common/net_socket.hpp"
+#include "cyber/shared/net_socket.hpp"
 #include "cyber/ui/websocket.hpp"
 
 #include <algorithm>

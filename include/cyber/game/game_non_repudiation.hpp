@@ -1,6 +1,6 @@
 #pragma once
 
-#include "cyber/common/crypto.hpp"
+#include "cyber/shared/crypto.hpp"
 #include "cyber/protocol/app_envelope.hpp"
 #include "cyber/game/game_protocol.hpp"
 

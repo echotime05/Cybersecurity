@@ -1,6 +1,6 @@
-#include "cyber/common/crypto.hpp"
+#include "cyber/shared/crypto.hpp"
 #include "cyber/protocol/packet.hpp"
-#include "cyber/common/types.hpp"
+#include "cyber/shared/types.hpp"
 
 #include <iostream>
 #include <stdexcept>

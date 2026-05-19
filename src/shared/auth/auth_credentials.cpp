@@ -1,6 +1,6 @@
-#include "cyber/common/auth_credentials.hpp"
+#include "cyber/shared/auth_credentials.hpp"
 
-#include "cyber/common/crypto.hpp"
+#include "cyber/shared/crypto.hpp"
 
 #include <stdexcept>
 

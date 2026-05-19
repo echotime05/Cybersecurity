@@ -1,8 +1,8 @@
 #include "cyber/protocol/protocol_event.hpp"
 
-#include "cyber/common/crypto.hpp"
-#include "cyber/common/logger.hpp"
-#include "cyber/common/runtime_paths.hpp"
+#include "cyber/shared/crypto.hpp"
+#include "cyber/shared/logger.hpp"
+#include "cyber/shared/runtime_paths.hpp"
 
 #include <chrono>
 #include <ctime>

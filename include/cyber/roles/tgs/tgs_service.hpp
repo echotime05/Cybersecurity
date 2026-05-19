@@ -1,7 +1,7 @@
 #pragma once
 
-#include "cyber/common/config.hpp"
-#include "cyber/common/net_packet.hpp"
+#include "cyber/shared/config.hpp"
+#include "cyber/shared/net_packet.hpp"
 
 namespace cyber::roles::tgs
 {

@@ -1,6 +1,6 @@
 #pragma once
 
-#include "cyber/common/net_socket.hpp"
+#include "cyber/shared/net_socket.hpp"
 
 #include <cstdint>
 #include <filesystem>
