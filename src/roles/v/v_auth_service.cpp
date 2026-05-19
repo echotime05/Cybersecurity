@@ -84,6 +84,8 @@ AuthRuntime v_auth_make_runtime(const Config& config)
 
 Packet v_auth_process_request(const Packet& request, const Config& config, AuthRuntime& runtime)
 {
+    // V_AUTH is the third Kerberos hop: V opens ticket_v with KV, validates the
+    // authenticator with Kc_v, and stores the resulting game session key.
     packet_require_msg_type(request, MsgType::v_auth_req);
     const VAuthReq v_req = v_auth_parse_req(request.payload);
     const TicketVBody ticket = v_ticket_decrypt(v_req.ticket_v, config.get_u64("KV"));
@@ -99,6 +101,8 @@ Packet v_auth_process_request(const Packet& request, const Config& config, AuthR
 
 Packet cert_process_c2v_request(const Packet& request, AuthRuntime& runtime)
 {
+    // Certificate exchange binds the authenticated Client ID to its RSA public
+    // key, so later MSG_APP signatures can be verified by V.
     packet_require_msg_type(request, MsgType::cert_c2v);
     if (!is_client(request.src))
     {

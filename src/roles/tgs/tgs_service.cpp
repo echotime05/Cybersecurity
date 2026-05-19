@@ -61,6 +61,8 @@ void tgs_process_connection(SocketHandle socket, const Config& config)
 {
     try
     {
+        // TGS is the second Kerberos hop: decrypt ticket_tgs with KTGS, verify the
+        // client authenticator with Kc_tgs, then issue Kc_v and ticket_v.
         const Packet request = recv_packet_logged(socket);
         packet_require_msg_type(request, MsgType::tgs_req);
 

@@ -75,6 +75,8 @@ void as_process_connection(SocketHandle socket, const Config& config)
 {
     try
     {
+        // AS is the first Kerberos hop: verify the client identity, create Kc_tgs,
+        // and return a client-readable AS_REP plus a TGS-readable ticket_tgs.
         const Packet request = recv_packet_logged(socket);
         packet_require_msg_type(request, MsgType::as_req);
 

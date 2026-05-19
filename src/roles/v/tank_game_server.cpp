@@ -349,6 +349,8 @@ bool TankGameServer::authenticate_socket(SocketHandle socket, const std::string&
                                           EntityId& client_id, std::uint64_t& kc_v,
                                           RsaPublicKey& client_public_key)
 {
+    // Final V connections must authenticate before gameplay: first V_AUTH
+    // establishes Kc_v, then CERT_C2V/CERT_V2C establishes signing keys.
     const Packet auth_packet = recv_packet_logged(socket);
     if (auth_packet.msg_type != MsgType::v_auth_req || !is_client(auth_packet.src))
     {
@@ -387,6 +389,8 @@ bool TankGameServer::authenticate_socket(SocketHandle socket, const std::string&
 
 void TankGameServer::game_loop()
 {
+    // The server tick is the only place that advances authoritative world state.
+    // Clients send intent; this loop turns validated intent into snapshots.
     using clock = std::chrono::steady_clock;
     auto next_tick = clock::now();
     while (!stopping_)

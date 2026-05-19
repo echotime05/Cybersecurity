@@ -83,6 +83,8 @@ Packet auth_exchange_packet(const TcpEndpoint& endpoint, const Packet& request,
 VAuthenticatedSocket client_auth_connect_to_v_socket(const Config& config, EntityId client_id,
                                                      std::uint64_t kc)
 {
+    // Client drives the full Kerberos sequence on one login action: AS_REQ,
+    // TGS_REQ, V_AUTH, then certificate exchange on the final V socket.
     AuthClientState state;
     state.client_id = client_id;
     state.adc = kDefaultAdc;
@@ -93,6 +95,7 @@ VAuthenticatedSocket client_auth_connect_to_v_socket(const Config& config, Entit
                              config.get_string("SK_CA_D"));
 
     const std::uint64_t ts1 = auth_time_now_ms();
+    // Step 1: AS returns Kc_tgs to the client and ticket_tgs for TGS.
     const Packet as_req =
         make_packet(MsgType::as_req, state.client_id, EntityId::as,
                     as_build_req({state.client_id, EntityId::tgs, ts1}));
@@ -108,6 +111,7 @@ VAuthenticatedSocket client_auth_connect_to_v_socket(const Config& config, Entit
     state.kc_tgs = as_body.kc_tgs;
     state.ticket_tgs = as_body.ticket_tgs;
 
+    // Step 2: TGS validates ticket_tgs/authenticator_tgs and returns Kc_v.
     const AuthenticatorBody auth_tgs{state.client_id, state.adc, auth_time_now_ms()};
     const Bytes authenticator_tgs = authenticator_encrypt(auth_tgs, state.kc_tgs);
     const TgsReq tgs_req_body{EntityId::v, state.ticket_tgs, authenticator_tgs};
@@ -134,6 +138,8 @@ VAuthenticatedSocket client_auth_connect_to_v_socket(const Config& config, Entit
     SocketHandle socket = connect_tcp(v);
     try
     {
+        // Step 3: V_AUTH proves the client owns Kc_v, then cert exchange gives
+        // both sides RSA public keys for non-repudiable game messages.
         const std::uint64_t ts5 = auth_time_now_ms();
         const AuthenticatorBody auth_v{state.client_id, state.adc, ts5};
         const Bytes authenticator_v = authenticator_encrypt(auth_v, state.kc_v);
