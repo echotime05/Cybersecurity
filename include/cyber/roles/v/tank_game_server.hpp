@@ -1,9 +1,9 @@
 #pragma once
 
-#include "cyber/shared/config.hpp"
-#include "cyber/shared/net_socket.hpp"
 #include "cyber/game/battle_room.hpp"
 #include "cyber/roles/v/v_auth_service.hpp"
+#include "cyber/shared/config.hpp"
+#include "cyber/shared/net_socket.hpp"
 
 #include <atomic>
 #include <cstdint>
@@ -14,15 +14,13 @@
 
 namespace cyber::game
 {
-// V 服务器主类：先完成认证，再接收加密游戏报文，推进房间并广播世界快照。
+// V 服务器主类：先完成 V_AUTH 和证书交换，再接收签名加密游戏报文并广播权威世界快照。
 class TankGameServer
 {
 public:
-    // 构造只指定监听端点的测试服务器。
-    explicit TankGameServer(TcpEndpoint endpoint);
-    // 构造正式服务器，可指定配置和是否强制认证。
-    TankGameServer(TcpEndpoint endpoint, Config config, bool require_auth);
-    // 停止服务器并回收线程。
+    // 构造正式 V 服务；当前最终链路固定要求 Client 先认证再进入游戏。
+    TankGameServer(TcpEndpoint endpoint, Config config);
+    // 停止服务器并回收客户端线程。
     ~TankGameServer();
 
     // 阻塞运行 V 服务，直到 stop 被调用或进程退出。
@@ -52,7 +50,7 @@ private:
     void game_loop();
     // 将世界快照签名加密后广播给所有在线 Client。
     void broadcast(const BattleStateSnapshot& snapshot);
-    // 处理一个已认证 Client 发来的游戏报文，并按需回复 ACK。
+    // 处理一个已认证 Client 发来的游戏报文，并回复 ACK。
     void handle_packet(SocketHandle socket, const Packet& packet, std::uint64_t kc_v,
                        const RsaPublicKey& client_public_key);
     // 在同一个 socket 上完成 V_AUTH 和证书交换，产出游戏链路所需材料。
@@ -63,7 +61,6 @@ private:
 
     TcpEndpoint endpoint_;
     Config config_;
-    bool require_auth_ = false;
     cyber::roles::v::AuthRuntime auth_runtime_;
     SocketHandle listener_ = 0;
     std::atomic<bool> stopping_{false};

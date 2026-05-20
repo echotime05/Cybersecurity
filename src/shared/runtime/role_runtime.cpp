@@ -1,119 +1,158 @@
 #include "cyber/shared/role_runtime.hpp"
 
+#include "cyber/protocol/protocol_event.hpp"
+#include "cyber/roles/as/as_service.hpp"
+#include "cyber/roles/client/tank_game_client.hpp"
+#include "cyber/roles/tgs/tgs_service.hpp"
+#include "cyber/roles/v/tank_game_server.hpp"
 #include "cyber/shared/config.hpp"
 #include "cyber/shared/net_packet.hpp"
 #include "cyber/shared/net_socket.hpp"
-#include "cyber/protocol/protocol_event.hpp"
 #include "cyber/shared/runtime_paths.hpp"
-#include "cyber/roles/client/tank_game_client.hpp"
-#include "cyber/roles/v/tank_game_server.hpp"
-#include "cyber/roles/as/as_service.hpp"
-#include "cyber/roles/tgs/tgs_service.hpp"
 
+#include <cstdint>
 #include <filesystem>
 #include <iostream>
 #include <stdexcept>
 #include <string>
 #include <thread>
-#include <utility>
-#include <vector>
 
 namespace cyber
 {
 namespace
 {
-// 一个可执行角色的命令行、配置 key 和说明信息。
+// 描述一个最终运行角色需要读取的配置项。
 struct RoleSpec
 {
     const char* name;
-    const char* binary;
-    EntityId id;
     const char* id_key;
     const char* port_key;
-    const char* connect_ip_key;
     const char* bind_ip_key;
-    const char* stage_goal;
 };
 
-// 根据角色枚举构造运行时规格。
+// 保存 README 启动命令中实际会使用的参数。
+struct RoleOptions
+{
+    bool serve = false;
+    bool game_auth_encrypted = false;
+    std::uint16_t ui_port = 0;
+    int max_connections = 0;
+    std::filesystem::path config_path;
+};
+
+// 根据角色枚举返回配置键名。
 RoleSpec runtime_build_role_spec(RoleKind role)
 {
     switch (role)
     {
     case RoleKind::as_server:
-        return {"AS", "as_server", EntityId::as, "AS_ID", "AS_PORT", "AS_IP", "AS_BIND_IP",
-                "handle AS_REQ and return AS_REP"};
+        return {"AS", "AS_ID", "AS_PORT", "AS_BIND_IP"};
     case RoleKind::tgs_server:
-        return {"TGS", "tgs_server", EntityId::tgs, "TGS_ID", "TGS_PORT", "TGS_IP",
-                "TGS_BIND_IP",
-                "handle TGS_REQ and return TGS_REP"};
+        return {"TGS", "TGS_ID", "TGS_PORT", "TGS_BIND_IP"};
     case RoleKind::v_server:
-        return {"V", "v_server", EntityId::v, "V_ID", "V_PORT", "V_IP", "V_BIND_IP",
-                "handle V_AUTH, certificate exchange, and MSG_APP"};
+        return {"V", "V_ID", "V_PORT", "V_BIND_IP"};
     case RoleKind::client:
-        return {"Client", "client", EntityId::unknown, "LOCAL_CLIENT_ID", nullptr, nullptr,
-                nullptr,
-                "run AS, TGS, V_AUTH, certificate exchange, then game events"};
+        return {"Client", "LOCAL_CLIENT_ID", nullptr, nullptr};
     default:
         throw std::runtime_error("unknown role");
     }
 }
 
-// 打印统一角色入口支持的命令行参数。
-void runtime_print_usage(const RoleSpec& spec)
+// 判断角色是否是短连接认证服务器。
+bool runtime_is_auth_server(RoleKind role)
 {
-    std::cout << "Usage: " << spec.binary
-              << " [--config PATH] [--print-config] [--serve]"
-                 " [--max-connections N]"
-                 " [--game-auth-encrypted] [--ui-port PORT]\n";
+    return role == RoleKind::as_server || role == RoleKind::tgs_server;
 }
 
-// 查找默认配置文件路径，兼容从仓库根目录或构建目录运行。
-std::filesystem::path config_find_default_path()
+// 生成命令行参数缺少取值时的错误信息。
+std::string runtime_missing_value_message(const std::string& arg)
 {
-    const std::vector<std::filesystem::path> candidates = {
-        "config/course_config.txt",
-        "../config/course_config.txt",
-        "../../config/course_config.txt"};
+    return arg + " requires a value";
+}
 
-    for (const auto& candidate : candidates)
+// 解析最终链路保留的参数：--config、--serve、--game-auth-encrypted、--ui-port。
+RoleOptions runtime_parse_options(int argc, char** argv)
+{
+    RoleOptions options;
+    for (int i = 1; i < argc; ++i)
     {
-        if (std::filesystem::exists(candidate))
+        const std::string arg = argv[i];
+        if (arg == "--config")
         {
-            return candidate;
+            if (i + 1 >= argc)
+            {
+                throw std::runtime_error(runtime_missing_value_message(arg));
+            }
+            options.config_path = argv[++i];
+        }
+        else if (arg == "--serve")
+        {
+            options.serve = true;
+        }
+        else if (arg == "--game-auth-encrypted")
+        {
+            options.game_auth_encrypted = true;
+        }
+        else if (arg == "--ui-port")
+        {
+            if (i + 1 >= argc)
+            {
+                throw std::runtime_error(runtime_missing_value_message(arg));
+            }
+            options.ui_port = static_cast<std::uint16_t>(std::stoi(argv[++i]));
+        }
+        else if (arg == "--max-connections")
+        {
+            if (i + 1 >= argc)
+            {
+                throw std::runtime_error(runtime_missing_value_message(arg));
+            }
+            options.max_connections = std::stoi(argv[++i]);
+            if (options.max_connections <= 0)
+            {
+                throw std::runtime_error("--max-connections must be positive");
+            }
+        }
+        else
+        {
+            throw std::runtime_error("unsupported final-runtime argument: " + arg);
         }
     }
-    return candidates.front();
-}
 
-// 打印某个服务的连接地址和监听地址。
-void config_print_endpoint(const Config& config, const char* name, const char* ip_key,
-                           const char* bind_ip_key, const char* port_key)
-{
-    std::cout << name << " connect: " << config.get_string(ip_key) << ':'
-              << config.get_u16(port_key) << '\n';
-    std::cout << name << " listen:  " << config.get_string(bind_ip_key) << ':'
-              << config.get_u16(port_key) << '\n';
-}
-
-// 打印当前角色和 AS/TGS/V 的部署配置。
-void config_print_deployment(const Config& config, const RoleSpec& spec)
-{
-    const EntityId local_client = config.get_entity_id("LOCAL_CLIENT_ID");
-    std::cout << "role: " << spec.name << '\n';
-    std::cout << "local client id: " << to_string(local_client) << " (0x" << std::hex
-              << static_cast<int>(local_client) << std::dec << ")\n";
-    config_print_endpoint(config, "AS", "AS_IP", "AS_BIND_IP", "AS_PORT");
-    config_print_endpoint(config, "TGS", "TGS_IP", "TGS_BIND_IP", "TGS_PORT");
-    config_print_endpoint(config, "V", "V_IP", "V_BIND_IP", "V_PORT");
-    if (spec.port_key != nullptr)
+    if (options.config_path.empty())
     {
-        std::cout << "this server listen: " << config.get_string(spec.bind_ip_key) << ':'
-                  << config.get_u16(spec.port_key) << '\n';
+        throw std::runtime_error("missing --config PATH");
+    }
+    return options;
+}
+
+// 校验角色是否按 README 的最终方式启动。
+void runtime_validate_role_mode(RoleKind role, const RoleOptions& options)
+{
+    if (runtime_is_auth_server(role))
+    {
+        if (!options.serve || options.game_auth_encrypted || options.ui_port != 0)
+        {
+            throw std::runtime_error("AS/TGS must start with: --config PATH --serve");
+        }
+        return;
+    }
+
+    if (!options.game_auth_encrypted || options.serve || options.max_connections != 0)
+    {
+        throw std::runtime_error("V/Client must start with --game-auth-encrypted");
+    }
+    if (role == RoleKind::client && options.ui_port == 0)
+    {
+        throw std::runtime_error("client requires --ui-port PORT");
+    }
+    if (role == RoleKind::v_server && options.ui_port != 0)
+    {
+        throw std::runtime_error("v_server does not use --ui-port");
     }
 }
 
-// 将 TCP 端点格式化成 ip:port。
+// 将 TCP 端点格式化为 ip:port。
 std::string net_format_endpoint(const TcpEndpoint& endpoint)
 {
     return endpoint.ip + ":" + std::to_string(endpoint.port);
@@ -157,17 +196,13 @@ void runtime_handle_server_connection(SocketHandle socket, RoleKind role, RoleSp
     }
 }
 
-// 运行 AS 或 TGS 的认证服务循环。
+// 运行 AS 或 TGS 的短连接认证服务循环。
 void runtime_run_auth_server(RoleKind role, const Config& config, const RoleSpec& spec,
                              int max_connections)
 {
-    if (role == RoleKind::client)
+    if (!runtime_is_auth_server(role))
     {
-        throw std::runtime_error("client cannot run --serve");
-    }
-    if (role == RoleKind::v_server)
-    {
-        throw std::runtime_error("v_server uses --game-auth-encrypted in the final runtime");
+        throw std::runtime_error("only AS/TGS can run --serve");
     }
 
     SocketRuntime runtime;
@@ -210,89 +245,43 @@ void runtime_run_auth_server(RoleKind role, const Config& config, const RoleSpec
     }
 }
 
+// 启动 V 或 Client 的加密游戏链路。
+void runtime_run_encrypted_game_role(RoleKind role, const Config& config, const RoleSpec& spec,
+                                     std::uint16_t ui_port)
+{
+    if (role == RoleKind::v_server)
+    {
+        SocketRuntime runtime;
+        cyber::game::TankGameServer server(runtime_bind_endpoint(config, spec), config);
+        server.run();
+        return;
+    }
+
+    if (role == RoleKind::client)
+    {
+        cyber::game::TankGameClient client(config, ui_port);
+        client.run();
+        return;
+    }
+
+    throw std::runtime_error("only V/Client can run --game-auth-encrypted");
+}
+
 } // namespace
 
-// 统一角色 main 入口：解析命令行、加载配置，并启动 AS/TGS/V/Client 对应模式。
+// 统一角色 main 入口：只保留 README 最终启动方式。
 int run_role_main(RoleKind role, int argc, char** argv)
 {
     const RoleSpec spec = runtime_build_role_spec(role);
-    bool print_config = false;
-    bool serve = false;
-    bool game_auth_encrypted = false;
-    std::uint16_t ui_port = 0;
-    int max_connections = 0;
-    std::filesystem::path config_path;
-
-    for (int i = 1; i < argc; ++i)
-    {
-        const std::string arg = argv[i];
-        if (arg == "--print-config")
-        {
-            print_config = true;
-        }
-        else if (arg == "--serve")
-        {
-            serve = true;
-        }
-        else if (arg == "--max-connections")
-        {
-            if (i + 1 >= argc)
-            {
-                std::cerr << "--max-connections requires a number\n";
-                return 2;
-            }
-            max_connections = std::stoi(argv[++i]);
-            if (max_connections <= 0)
-            {
-                std::cerr << "--max-connections must be positive\n";
-                return 2;
-            }
-        }
-        else if (arg == "--game-auth-encrypted")
-        {
-            game_auth_encrypted = true;
-        }
-        else if (arg == "--ui-port")
-        {
-            if (i + 1 >= argc)
-            {
-                std::cerr << "--ui-port requires a port\n";
-                return 2;
-            }
-            ui_port = static_cast<std::uint16_t>(std::stoi(argv[++i]));
-        }
-        else if (arg == "--config")
-        {
-            if (i + 1 >= argc)
-            {
-                std::cerr << "--config requires a path\n";
-                return 2;
-            }
-            config_path = argv[++i];
-        }
-        else if (arg == "--help" || arg == "-h")
-        {
-            runtime_print_usage(spec);
-            return 0;
-        }
-        else
-        {
-            std::cerr << "unknown argument: " << arg << '\n';
-            runtime_print_usage(spec);
-            return 2;
-        }
-    }
-
-    if (config_path.empty())
-    {
-        config_path = config_find_default_path();
-    }
 
     try
     {
-        const Config config = Config::load(config_path);
+        const RoleOptions options = runtime_parse_options(argc, argv);
+        runtime_validate_role_mode(role, options);
+
+        const Config config = Config::load(options.config_path);
         set_protocol_event_log_root(log_root_from_config(config));
-        std::cout << spec.name << " role loaded config: " << config_path.string() << '\n';
+        std::cout << spec.name << " role loaded config: " << options.config_path.string() << '\n';
         std::cout << "entity id: 0x" << std::hex
                   << static_cast<int>(config.get_entity_id(spec.id_key)) << std::dec << '\n';
 
@@ -306,46 +295,13 @@ int run_role_main(RoleKind role, int argc, char** argv)
                       << '\n';
         }
 
-        std::cout << "stage goal: " << spec.stage_goal << '\n';
-
-        if (print_config)
+        if (runtime_is_auth_server(role))
         {
-            config_print_deployment(config, spec);
-            return 0;
-        }
-
-        if (game_auth_encrypted)
-        {
-            if (role == RoleKind::v_server)
-            {
-                SocketRuntime runtime;
-                cyber::game::TankGameServer server(runtime_bind_endpoint(config, spec), config,
-                                                    true);
-                server.run();
-                return 0;
-            }
-            if (role == RoleKind::client)
-            {
-                if (ui_port == 0)
-                {
-                    throw std::runtime_error("client --game-auth-encrypted requires --ui-port");
-                }
-                cyber::game::TankGameClient client(config, ui_port);
-                client.run();
-                return 0;
-            }
-            throw std::runtime_error(
-                "--game-auth-encrypted is only supported by v_server and client");
-        }
-
-        if (serve)
-        {
-            runtime_run_auth_server(role, config, spec, max_connections);
+            runtime_run_auth_server(role, config, spec, options.max_connections);
         }
         else
         {
-            runtime_print_usage(spec);
-            throw std::runtime_error("no runtime mode selected");
+            runtime_run_encrypted_game_role(role, config, spec, options.ui_port);
         }
     }
     catch (const std::exception& ex)

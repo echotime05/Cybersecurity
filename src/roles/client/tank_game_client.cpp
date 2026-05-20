@@ -132,9 +132,8 @@ void TankGameClient::handle_login(const cyber::ui::UiCommand& command)
         bridge_->broadcast_text(cyber::ui::login_state_json("authenticated", self_,
                                                             v_server_text(), ""));
     }
-    catch (const std::exception& ex)
+    catch (const std::exception&)
     {
-        std::cerr << "Client auth failed: " << ex.what() << '\n';
         close_v_socket();
         {
             std::lock_guard<std::mutex> lock(state_mutex_);
@@ -240,11 +239,10 @@ void TankGameClient::receive_loop()
             }
         }
     }
-    catch (const std::exception& ex)
+    catch (const std::exception&)
     {
         if (!stopping_)
         {
-            std::cerr << "Client receive failed: " << ex.what() << '\n';
             bridge_->broadcast_text(cyber::ui::login_state_json(
                 "failed", EntityId::unknown, "", "V connection closed"));
         }
