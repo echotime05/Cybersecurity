@@ -54,7 +54,6 @@ Monitor: src/roles/monitor/README.md
 | `include/cyber/shared/auth_credentials.hpp` | 声明 Client 密码、长期密钥派生、Client secret 查询等认证凭据接口。 |
 | `include/cyber/shared/config.hpp` | 声明配置文件读取器 `Config` 和字符串、整数配置访问接口。 |
 | `include/cyber/shared/crypto.hpp` | 声明 DES-style 加解密、hash、RSA 签名验签、公钥、证书序列化和验证接口。 |
-| `include/cyber/shared/log_parser.hpp` | 声明旧文本日志解析工具，主要服务日志相关自测。 |
 | `include/cyber/shared/logger.hpp` | 声明异步行日志写入器，被协议事件日志底层使用。 |
 | `include/cyber/shared/net_packet.hpp` | 声明带协议事件记录的 TCP packet 收发函数。 |
 | `include/cyber/shared/net_socket.hpp` | 声明 TCP socket、监听、连接、读写和运行时初始化接口。 |
@@ -179,7 +178,6 @@ Monitor: src/roles/monitor/README.md
 
 | 文件 | 职责 |
 | --- | --- |
-| `src/shared/logging/log_parser.cpp` | 旧 bracket-style 文本日志解析实现，主要用于日志自测。 |
 | `src/shared/logging/logger.cpp` | 异步线程安全日志写入器，供协议事件日志底层复用。 |
 
 ### src/shared/net

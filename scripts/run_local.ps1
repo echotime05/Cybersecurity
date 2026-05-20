@@ -149,12 +149,6 @@ if (-not $NoStop) {
 }
 
 if (-not $NoStop -and -not $KeepLogs) {
-    Clear-LogFiles $logRoot @(
-        '*.log',
-        'all_services_config.txt',
-        'report_revision_text.txt'
-    )
-    Clear-LogDirectories $logRoot @('run_plain_game')
     Clear-LogFiles $runtimeDir @('*.out', '*.err')
     Clear-LogFiles $protocolEventsDir @('*.txt')
 }

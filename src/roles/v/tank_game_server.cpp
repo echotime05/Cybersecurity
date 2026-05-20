@@ -172,9 +172,8 @@ void TankGameServer::accept_loop()
     {
         try
         {
-            std::string peer;
-            SocketHandle accepted = accept_tcp(listener_, &peer);
-            client_threads_.emplace_back(&TankGameServer::client_loop, this, accepted, peer);
+            SocketHandle accepted = accept_tcp(listener_);
+            client_threads_.emplace_back(&TankGameServer::client_loop, this, accepted);
         }
         catch (const std::exception&)
         {
@@ -188,14 +187,14 @@ void TankGameServer::accept_loop()
 }
 
 // 处理单个 Client 连接：先认证，再循环接收签名加密游戏报文。
-void TankGameServer::client_loop(SocketHandle socket, std::string peer)
+void TankGameServer::client_loop(SocketHandle socket)
 {
     try
     {
         EntityId authenticated_client = EntityId::unknown;
         std::uint64_t kc_v = 0;
         RsaPublicKey client_public_key;
-        if (!authenticate_socket(socket, peer, authenticated_client, kc_v, client_public_key))
+        if (!authenticate_socket(socket, authenticated_client, kc_v, client_public_key))
         {
             close_socket(socket);
             return;
@@ -312,8 +311,7 @@ void TankGameServer::handle_packet(SocketHandle socket, const Packet& packet, st
 }
 
 // 在同一条 V socket 上完成 V_AUTH 和证书交换。
-bool TankGameServer::authenticate_socket(SocketHandle socket, const std::string&,
-                                         EntityId& client_id, std::uint64_t& kc_v,
+bool TankGameServer::authenticate_socket(SocketHandle socket, EntityId& client_id, std::uint64_t& kc_v,
                                          RsaPublicKey& client_public_key)
 {
     const Packet auth_packet = recv_packet_logged(socket);

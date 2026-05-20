@@ -45,7 +45,7 @@ private:
     // 接受新 TCP 连接并为每个连接创建客户端线程。
     void accept_loop();
     // 处理一个 Client 连接上的认证、收包和断开清理。
-    void client_loop(SocketHandle socket, std::string peer);
+    void client_loop(SocketHandle socket);
     // V 的固定 tick 游戏循环，周期性推进房间并广播快照。
     void game_loop();
     // 将世界快照签名加密后广播给所有在线 Client。
@@ -54,8 +54,8 @@ private:
     void handle_packet(SocketHandle socket, const Packet& packet, std::uint64_t kc_v,
                        const RsaPublicKey& client_public_key);
     // 在同一个 socket 上完成 V_AUTH 和证书交换，产出游戏链路所需材料。
-    bool authenticate_socket(SocketHandle socket, const std::string& peer, EntityId& client_id,
-                             std::uint64_t& kc_v, RsaPublicKey& client_public_key);
+    bool authenticate_socket(SocketHandle socket, EntityId& client_id, std::uint64_t& kc_v,
+                             RsaPublicKey& client_public_key);
     // 等待所有客户端线程结束。
     void join_client_threads();
 
