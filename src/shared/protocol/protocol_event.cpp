@@ -23,21 +23,25 @@ namespace cyber
 {
 namespace
 {
+// 将 EntityId 转换成协议日志里使用的角色名。
 std::string entity_label(EntityId id)
 {
     return std::string(to_string(id));
 }
 
+// 将协议方向转换成 SEND/RECV 文本。
 std::string direction_label(ProtocolDirection direction)
 {
     return direction == ProtocolDirection::send ? "SEND" : "RECV";
 }
 
+// 将协议方向转换成 Logger 事件名。
 std::string event_label(ProtocolDirection direction)
 {
     return direction == ProtocolDirection::send ? "PACKET_SEND" : "PACKET_RECV";
 }
 
+// 将 1 字节数值格式化为 UI 展示用十六进制。
 std::string hex_u8(std::uint8_t value)
 {
     std::ostringstream oss;
@@ -46,6 +50,7 @@ std::string hex_u8(std::uint8_t value)
     return oss.str();
 }
 
+// 将 4 字节数值格式化为 UI 展示用十六进制。
 std::string hex_u32(std::uint32_t value)
 {
     std::ostringstream oss;
@@ -54,6 +59,7 @@ std::string hex_u32(std::uint32_t value)
     return oss.str();
 }
 
+// 根据报文类型给 UI 分类：app、error 或 kerberos。
 std::string category_for_packet(const Packet& packet)
 {
     if (packet.msg_type == MsgType::app)
@@ -67,6 +73,7 @@ std::string category_for_packet(const Packet& packet)
     return "kerberos";
 }
 
+// 在调用方没有提供说明时，为报文生成默认消息名。
 std::string default_message_for_packet(const Packet& packet)
 {
     if (packet.msg_type == MsgType::app)
@@ -97,11 +104,13 @@ std::string default_message_for_packet(const Packet& packet)
     return std::string(to_string(packet.msg_type));
 }
 
+// 根据 SEND/RECV 判断本进程角色，决定写入哪个 protocol_events 文件。
 EntityId role_for_direction(ProtocolDirection direction, const Packet& packet)
 {
     return direction == ProtocolDirection::send ? packet.src : packet.dst;
 }
 
+// 将角色转换成 protocol_events 文件名前缀。
 std::string role_file_stem(EntityId role)
 {
     switch (role)
@@ -125,8 +134,10 @@ std::string role_file_stem(EntityId role)
     }
 }
 
+// 前置声明全局日志根目录访问函数，event_log_path 会调用它。
 std::filesystem::path& protocol_event_log_root();
 
+// 转义 JSON 字符串内容。
 std::string json_escape(const std::string& value)
 {
     std::string out;
@@ -157,6 +168,7 @@ std::string json_escape(const std::string& value)
     return out;
 }
 
+// 解析协议日志中 key=value 形式的字段。
 std::map<std::string, std::string> parse_key_values(const std::string& text)
 {
     std::map<std::string, std::string> values;
@@ -174,6 +186,7 @@ std::map<std::string, std::string> parse_key_values(const std::string& text)
     return values;
 }
 
+// 读取必填 key，不存在时抛异常。
 std::string required_value(const std::map<std::string, std::string>& values,
                            const char* key)
 {
@@ -185,6 +198,7 @@ std::string required_value(const std::map<std::string, std::string>& values,
     return it->second;
 }
 
+// 读取可选 key，不存在时返回空字符串。
 std::string optional_value(const std::map<std::string, std::string>& values,
                            const std::string& key)
 {
@@ -192,6 +206,7 @@ std::string optional_value(const std::map<std::string, std::string>& values,
     return it == values.end() ? std::string() : it->second;
 }
 
+// 生成当前进程、当前角色的协议事件日志文件路径。
 std::filesystem::path event_log_path(EntityId role)
 {
     const DWORD pid = GetCurrentProcessId();
@@ -199,18 +214,21 @@ std::filesystem::path event_log_path(EntityId role)
            (role_file_stem(role) + "_" + std::to_string(pid) + ".txt");
 }
 
+// 返回保护协议日志器表的全局 mutex。
 std::mutex& logger_mutex()
 {
     static std::mutex mutex;
     return mutex;
 }
 
+// 返回按角色缓存的协议日志器表。
 std::map<EntityId, std::unique_ptr<Logger>>& protocol_loggers()
 {
     static std::map<EntityId, std::unique_ptr<Logger>> loggers;
     return loggers;
 }
 
+// 返回协议事件日志根目录的全局引用。
 std::filesystem::path& protocol_event_log_root()
 {
     static std::filesystem::path root = default_log_root();
@@ -218,6 +236,7 @@ std::filesystem::path& protocol_event_log_root()
 }
 } // namespace
 
+// 生成 HH:MM:SS.mmm 格式的协议事件时间戳。
 std::string protocol_timestamp_now()
 {
     const auto now = std::chrono::system_clock::now();
@@ -235,11 +254,13 @@ std::string protocol_timestamp_now()
     return oss.str();
 }
 
+// 将 AppCode 格式化为 MSG_APP.xxx。
 std::string protocol_app_message(AppCode code)
 {
     return std::string("MSG_APP.") + std::string(to_string(code));
 }
 
+// 设置协议事件日志根目录，并清空旧日志器缓存。
 void set_protocol_event_log_root(std::filesystem::path root)
 {
     std::lock_guard<std::mutex> lock(logger_mutex());
@@ -247,6 +268,7 @@ void set_protocol_event_log_root(std::filesystem::path root)
     protocol_loggers().clear();
 }
 
+// 生成协议事件日志行，payload 使用默认视图。
 std::string format_protocol_event_message(ProtocolDirection direction, const Packet& packet,
                                           std::string_view message_override,
                                           std::string_view timestamp_override)
@@ -255,6 +277,7 @@ std::string format_protocol_event_message(ProtocolDirection direction, const Pac
                                          {});
 }
 
+// 生成协议事件日志行，包含固定头、原始 packet、payload 明文/密文和字段视图。
 std::string format_protocol_event_message(ProtocolDirection direction, const Packet& packet,
                                           std::string_view message_override,
                                           std::string_view timestamp_override,
@@ -310,6 +333,7 @@ std::string format_protocol_event_message(ProtocolDirection direction, const Pac
     return oss.str();
 }
 
+// 从 Logger 写出的一行 protocol_events 文本恢复结构化 ProtocolEvent。
 ProtocolEvent parse_protocol_event_line(const std::string& line)
 {
     const std::size_t role_start = line.find('[');
@@ -376,6 +400,7 @@ ProtocolEvent parse_protocol_event_line(const std::string& line)
     return event;
 }
 
+// 将 ProtocolEvent 转换成 Monitor 推给 Web UI 的 JSON。
 std::string protocol_event_json(const ProtocolEvent& event, std::uint64_t id)
 {
     auto field_json = [](const ProtocolFieldView& field) {
@@ -416,12 +441,14 @@ std::string protocol_event_json(const ProtocolEvent& event, std::uint64_t id)
     return oss.str();
 }
 
+// 写入协议事件日志，payload 使用默认原始视图。
 void write_protocol_event(ProtocolDirection direction, const Packet& packet,
                           std::string_view message_override)
 {
     write_protocol_event(direction, packet, message_override, {});
 }
 
+// 写入协议事件日志，附带调用方提供的 payload 明文/密文/字段视图。
 void write_protocol_event(ProtocolDirection direction, const Packet& packet,
                           std::string_view message_override,
                           const ProtocolPayloadView& payload_view)

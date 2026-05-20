@@ -4,6 +4,7 @@
 
 namespace cyber
 {
+// 解析一行 [entity][thread][event] message 格式的普通日志。
 bool parse_log_line(std::string_view line, LogEntry& out)
 {
     LogEntry parsed;
@@ -58,6 +59,7 @@ bool parse_log_line(std::string_view line, LogEntry& out)
     return true;
 }
 
+// 解析普通日志，格式错误时直接抛异常。
 LogEntry parse_log_line_or_throw(std::string_view line)
 {
     LogEntry entry;

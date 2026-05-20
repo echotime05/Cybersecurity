@@ -11,6 +11,7 @@ using protocol::detail::binary_require_end;
 using protocol::detail::binary_write_bytes_u16;
 } // namespace
 
+// 序列化 Client 发给 V 的证书 payload。
 Bytes cert_build_c2v_body(const CertC2VBody& value)
 {
     Bytes out;
@@ -19,6 +20,7 @@ Bytes cert_build_c2v_body(const CertC2VBody& value)
     return out;
 }
 
+// 解析 Client 发给 V 的证书 payload。
 CertC2VBody cert_parse_c2v_body(const Bytes& payload)
 {
     std::size_t offset = 0;
@@ -29,6 +31,7 @@ CertC2VBody cert_parse_c2v_body(const Bytes& payload)
     return value;
 }
 
+// 序列化 V 发给 Client 的证书 payload。
 Bytes cert_build_v2c_body(const CertV2CBody& value)
 {
     Bytes out;
@@ -37,6 +40,7 @@ Bytes cert_build_v2c_body(const CertV2CBody& value)
     return out;
 }
 
+// 解析 V 发给 Client 的证书 payload。
 CertV2CBody cert_parse_v2c_body(const Bytes& payload)
 {
     std::size_t offset = 0;

@@ -5,9 +5,12 @@
 
 namespace cyber
 {
+// 固定报文头里 reserved 字段的默认值。
 constexpr std::uint32_t kDefaultReserved = 0;
+// 项目自定义 TCP 报文头长度：msg_type/src/dst/payload_len/reserved。
 constexpr std::uint8_t kPacketHeaderSize = 11;
 
+// 系统内所有角色的网络身份编号，报文头 src/dst 使用这个枚举。
 enum class EntityId : std::uint8_t
 {
     client1 = 0x01,
@@ -20,6 +23,7 @@ enum class EntityId : std::uint8_t
     unknown = 0xFF
 };
 
+// 固定报文头中的消息类型，认证、证书交换、错误和应用层消息都从这里区分。
 enum class MsgType : std::uint8_t
 {
     as_req = 1,
@@ -34,6 +38,7 @@ enum class MsgType : std::uint8_t
     app = 102
 };
 
+// MSG_ERROR payload 中携带的错误码，用于说明认证或协议处理失败原因。
 enum class ErrorCode : std::uint8_t
 {
     password_wrong = 1,
@@ -45,6 +50,7 @@ enum class ErrorCode : std::uint8_t
     unsupported_msg_type = 7
 };
 
+// MSG_APP payload 的第一层应用码，用于区分游戏动作、状态同步和 ACK 证据。
 enum class AppCode : std::uint8_t
 {
     game_join_req = 0x05,
@@ -55,6 +61,7 @@ enum class AppCode : std::uint8_t
     game_shoot = 0x0B
 };
 
+// 判断 EntityId 是否属于当前系统定义过的角色。
 inline bool is_known(EntityId id)
 {
     switch (id)
@@ -72,6 +79,7 @@ inline bool is_known(EntityId id)
     }
 }
 
+// 判断 EntityId 是否属于四个 Client 之一。
 inline bool is_client(EntityId id)
 {
     switch (id)
@@ -86,6 +94,7 @@ inline bool is_client(EntityId id)
     }
 }
 
+// 判断 EntityId 是否属于 AS/TGS/V 服务角色。
 inline bool is_server(EntityId id)
 {
     switch (id)
@@ -99,6 +108,7 @@ inline bool is_server(EntityId id)
     }
 }
 
+// 判断 MsgType 是否属于当前协议支持的固定消息类型。
 inline bool is_known(MsgType type)
 {
     switch (type)
@@ -119,6 +129,7 @@ inline bool is_known(MsgType type)
     }
 }
 
+// 判断 ErrorCode 是否属于当前协议支持的错误码。
 inline bool is_known(ErrorCode code)
 {
     switch (code)
@@ -136,6 +147,7 @@ inline bool is_known(ErrorCode code)
     }
 }
 
+// 判断 AppCode 是否属于当前游戏应用层支持的消息码。
 inline bool is_known(AppCode code)
 {
     switch (code)
@@ -152,6 +164,7 @@ inline bool is_known(AppCode code)
     }
 }
 
+// 把 EntityId 转成日志和 UI 展示使用的角色名。
 inline std::string_view to_string(EntityId id)
 {
     switch (id)
@@ -175,6 +188,7 @@ inline std::string_view to_string(EntityId id)
     }
 }
 
+// 把 MsgType 转成日志和 UI 展示使用的消息名。
 inline std::string_view to_string(MsgType type)
 {
     switch (type)
@@ -204,6 +218,7 @@ inline std::string_view to_string(MsgType type)
     }
 }
 
+// 把 ErrorCode 转成日志和 UI 展示使用的错误名。
 inline std::string_view to_string(ErrorCode code)
 {
     switch (code)
@@ -227,6 +242,7 @@ inline std::string_view to_string(ErrorCode code)
     }
 }
 
+// 把 AppCode 转成日志和 UI 展示使用的应用层消息名。
 inline std::string_view to_string(AppCode code)
 {
     switch (code)

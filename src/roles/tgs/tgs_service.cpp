@@ -15,6 +15,7 @@ namespace
 {
 constexpr std::uint64_t kDefaultLifetimeMs = 5ULL * 60ULL * 1000ULL;
 
+// 返回当前认证时间戳，单位为毫秒。
 std::uint64_t auth_time_now_ms()
 {
     return static_cast<std::uint64_t>(
@@ -23,12 +24,14 @@ std::uint64_t auth_time_now_ms()
             .count());
 }
 
+// 构造 TGS 发出的加密报文，payload 使用指定会话密钥 DES 加密。
 Packet tgs_build_encrypted_packet(MsgType type, EntityId src, EntityId dst,
                                   const Bytes& plain, std::uint64_t key)
 {
     return make_packet(type, src, dst, des_encrypt_payload(plain, key));
 }
 
+// 构造协议可视化用的 payload 明文/密文对照。
 ProtocolPayloadView protocol_build_encrypted_payload_view(const Bytes& plain,
                                                           const Bytes& encrypted)
 {
@@ -38,6 +41,7 @@ ProtocolPayloadView protocol_build_encrypted_payload_view(const Bytes& plain,
     return view;
 }
 
+// 向协议可视化 payload 中追加一个字段级密文/明文对照。
 void protocol_add_encrypted_field(ProtocolPayloadView& view, std::string name,
                                   const Bytes& encrypted, const Bytes& plain = {})
 {
@@ -48,6 +52,7 @@ void protocol_add_encrypted_field(ProtocolPayloadView& view, std::string name,
     view.fields.push_back(std::move(field));
 }
 
+// 要求收到的报文类型符合预期，不符合则终止当前连接处理。
 void packet_require_msg_type(const Packet& packet, MsgType expected)
 {
     if (packet.msg_type != expected)
@@ -57,12 +62,13 @@ void packet_require_msg_type(const Packet& packet, MsgType expected)
 }
 } // namespace
 
+// 处理 TGS 连接，完成 TGS_REQ 到 TGS_REP 的认证第二阶段。
 void tgs_process_connection(SocketHandle socket, const Config& config)
 {
     try
     {
-        // TGS is the second Kerberos hop: decrypt ticket_tgs with KTGS, verify the
-        // client authenticator with Kc_tgs, then issue Kc_v and ticket_v.
+        // TGS 是 Kerberos 第二跳：用 KTGS 解开 ticket_tgs，用 Kc_tgs
+        // 验证认证器，然后签发 Kc_v 和 ticket_v。
         const Packet request = recv_packet_logged(socket);
         packet_require_msg_type(request, MsgType::tgs_req);
 

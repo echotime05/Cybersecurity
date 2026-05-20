@@ -10,6 +10,7 @@ namespace cyber
 {
 namespace
 {
+// 去掉字符串首尾空白字符。
 std::string trim(std::string value)
 {
     const auto is_space = [](unsigned char ch) { return std::isspace(ch) != 0; };
@@ -23,6 +24,7 @@ std::string trim(std::string value)
     return value;
 }
 
+// 解析十进制或 0x 前缀十六进制的 64 位整数。
 std::uint64_t parse_u64(const std::string& value)
 {
     std::string text = trim(value);
@@ -52,6 +54,7 @@ std::uint64_t parse_u64(const std::string& value)
 }
 } // namespace
 
+// 从 key=value 或 key:value 配置文件加载运行配置。
 Config Config::load(const std::filesystem::path& path)
 {
     std::ifstream in(path);
@@ -98,11 +101,13 @@ Config Config::load(const std::filesystem::path& path)
     return config;
 }
 
+// 判断配置中是否存在指定 key。
 bool Config::has(const std::string& key) const
 {
     return values_.find(key) != values_.end();
 }
 
+// 读取字符串配置项，不存在时抛异常。
 std::string Config::get_string(const std::string& key) const
 {
     const auto it = values_.find(key);
@@ -113,11 +118,13 @@ std::string Config::get_string(const std::string& key) const
     return it->second;
 }
 
+// 读取 64 位整数配置项。
 std::uint64_t Config::get_u64(const std::string& key) const
 {
     return parse_u64(get_string(key));
 }
 
+// 读取 16 位整数配置项，端口字段主要使用它。
 std::uint16_t Config::get_u16(const std::string& key) const
 {
     const std::uint64_t value = get_u64(key);
@@ -128,6 +135,7 @@ std::uint16_t Config::get_u16(const std::string& key) const
     return static_cast<std::uint16_t>(value);
 }
 
+// 读取 EntityId 配置项。
 EntityId Config::get_entity_id(const std::string& key) const
 {
     const std::uint64_t value = get_u64(key);
@@ -138,6 +146,7 @@ EntityId Config::get_entity_id(const std::string& key) const
     return static_cast<EntityId>(value);
 }
 
+// 读取四个 Client 的账号、密码和 Kc 配置。
 std::vector<ClientSecret> Config::clients() const
 {
     std::vector<ClientSecret> out;

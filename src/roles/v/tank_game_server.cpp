@@ -21,6 +21,7 @@ namespace cyber::game
 {
 namespace
 {
+// 返回游戏服务器当前时间戳，单位为毫秒。
 std::uint64_t game_time_now_ms()
 {
     return static_cast<std::uint64_t>(
@@ -29,6 +30,7 @@ std::uint64_t game_time_now_ms()
             .count());
 }
 
+// 为已加密 MSG_APP 构造协议可视化 payload 明文/密文对照。
 ProtocolPayloadView app_build_payload_view(const Packet& packet, std::uint64_t kc_v)
 {
     ProtocolPayloadView view;
@@ -37,6 +39,7 @@ ProtocolPayloadView app_build_payload_view(const Packet& packet, std::uint64_t k
     return view;
 }
 
+// 构造通用 DES 加密 payload 的明文/密文可视化视图。
 ProtocolPayloadView protocol_build_encrypted_payload_view(const Bytes& plain,
                                                           const Bytes& encrypted)
 {
@@ -46,12 +49,14 @@ ProtocolPayloadView protocol_build_encrypted_payload_view(const Bytes& plain,
     return view;
 }
 
+// 解密报文 payload，并构造协议可视化明文/密文对照。
 ProtocolPayloadView protocol_build_decrypted_payload_view(const Packet& packet, std::uint64_t key)
 {
     return protocol_build_encrypted_payload_view(des_decrypt_payload(packet.payload, key),
                                                  packet.payload);
 }
 
+// 向协议可视化 payload 中追加一个字段级密文/明文对照。
 void protocol_add_encrypted_field(ProtocolPayloadView& view, std::string name,
                                   const Bytes& encrypted, const Bytes& plain = {})
 {
@@ -62,6 +67,7 @@ void protocol_add_encrypted_field(ProtocolPayloadView& view, std::string name,
     view.fields.push_back(std::move(field));
 }
 
+// 解析 V_AUTH_REQ 中的加密 ticket_v 和 authenticator_v，供 UI 展示。
 ProtocolPayloadView v_auth_build_req_payload_view(const Packet& packet, const Config& config)
 {
     const VAuthReq request = v_auth_parse_req(packet.payload);
@@ -75,12 +81,14 @@ ProtocolPayloadView v_auth_build_req_payload_view(const Packet& packet, const Co
 }
 } // namespace
 
+// 构造测试或直连模式 V 服务，并使用默认日志目录。
 TankGameServer::TankGameServer(TcpEndpoint endpoint)
     : endpoint_(std::move(endpoint))
 {
     set_protocol_event_log_root(default_log_root());
 }
 
+// 构造正式 V 服务，读取配置并初始化认证运行时。
 TankGameServer::TankGameServer(TcpEndpoint endpoint, Config config, bool require_auth)
     : endpoint_(std::move(endpoint)),
       config_(std::move(config)),
@@ -90,12 +98,14 @@ TankGameServer::TankGameServer(TcpEndpoint endpoint, Config config, bool require
     set_protocol_event_log_root(log_root_from_config(config_));
 }
 
+// 停止 V 服务并等待客户端线程结束。
 TankGameServer::~TankGameServer()
 {
     stop();
     join_client_threads();
 }
 
+// 启动监听 socket 并进入 V 服务主循环。
 void TankGameServer::run()
 {
     listener_ = listen_tcp(endpoint_);
@@ -105,6 +115,7 @@ void TankGameServer::run()
     run_until_stopped();
 }
 
+// 测试用启动入口：监听端口可为 0，启动后返回实际端口。
 std::uint16_t TankGameServer::start_for_test()
 {
     listener_ = listen_tcp(endpoint_);
@@ -118,6 +129,7 @@ std::uint16_t TankGameServer::start_for_test()
     return endpoint_.port;
 }
 
+// 当前线程运行 V：并行启动游戏 tick 线程，再进入 accept 循环。
 void TankGameServer::run_until_stopped()
 {
     std::thread game_thread([&]() { game_loop(); });
@@ -142,6 +154,7 @@ void TankGameServer::run_until_stopped()
     join_client_threads();
 }
 
+// 请求停止 V，并关闭监听 socket 和所有 Client socket。
 void TankGameServer::stop()
 {
     stopping_ = true;
@@ -162,6 +175,7 @@ void TankGameServer::stop()
     }
 }
 
+// 循环接受 Client TCP 连接，每个连接交给独立线程处理。
 void TankGameServer::accept_loop()
 {
     while (!stopping_)
@@ -184,6 +198,7 @@ void TankGameServer::accept_loop()
     }
 }
 
+// 处理单个 Client 连接：认证、循环收包、断开后清理房间状态。
 void TankGameServer::client_loop(SocketHandle socket, std::string peer)
 {
     try
@@ -235,8 +250,7 @@ void TankGameServer::client_loop(SocketHandle socket, std::string peer)
     close_socket(socket);
 }
 
-// V is authoritative for gameplay: it verifies signed client payloads, writes
-// ACK evidence, applies valid inputs to BattleRoom, and broadcasts state.
+// V 是游戏权威端：验签 Client payload，写 ACK 证据，把合法输入应用到 BattleRoom。
 void TankGameServer::handle_packet(SocketHandle socket, const Packet& packet,
                                    std::uint64_t kc_v,
                                    const RsaPublicKey& client_public_key)
@@ -328,12 +342,13 @@ void TankGameServer::handle_packet(SocketHandle socket, const Packet& packet,
     }
 }
 
+// 在同一条 V socket 上完成 V_AUTH 和证书交换，产出 Client ID、Kc_v 和公钥。
 bool TankGameServer::authenticate_socket(SocketHandle socket, const std::string& peer,
                                           EntityId& client_id, std::uint64_t& kc_v,
                                           RsaPublicKey& client_public_key)
 {
-    // Final V connections must authenticate before gameplay: first V_AUTH
-    // establishes Kc_v, then CERT_C2V/CERT_V2C establishes signing keys.
+    // 最终链路必须先认证再进入游戏：V_AUTH 建立 Kc_v，
+    // CERT_C2V/CERT_V2C 建立双方签名公钥。
     const Packet auth_packet = recv_packet_logged(socket);
     if (auth_packet.msg_type != MsgType::v_auth_req || !is_client(auth_packet.src))
     {
@@ -370,10 +385,11 @@ bool TankGameServer::authenticate_socket(SocketHandle socket, const std::string&
     return true;
 }
 
+// 固定 tick 推进权威游戏世界，并广播最新快照。
 void TankGameServer::game_loop()
 {
-    // The server tick is the only place that advances authoritative world state.
-    // Clients send intent; this loop turns validated intent into snapshots.
+    // 服务端 tick 是唯一推进权威世界状态的位置：
+    // Client 只发送意图，这里把已验证意图转换成快照。
     using clock = std::chrono::steady_clock;
     auto next_tick = clock::now();
     while (!stopping_)
@@ -386,6 +402,7 @@ void TankGameServer::game_loop()
     }
 }
 
+// 将世界快照签名加密后发送给所有已加入 Client。
 void TankGameServer::broadcast(const BattleStateSnapshot& snapshot)
 {
     std::vector<ClientConnection> targets;
@@ -450,6 +467,7 @@ void TankGameServer::broadcast(const BattleStateSnapshot& snapshot)
     }
 }
 
+// 等待所有 Client 处理线程结束，并清空线程列表。
 void TankGameServer::join_client_threads()
 {
     for (std::thread& thread : client_threads_)

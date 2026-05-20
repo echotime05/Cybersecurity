@@ -12,6 +12,7 @@ namespace
 {
 constexpr std::uint64_t kKey56Mask = 0x00FFFFFFFFFFFFFFULL;
 
+// 从字节数组按大端序读取 64 位整数。
 std::uint64_t read_u64_be(const Bytes& bytes, std::size_t offset)
 {
     if (offset + 8U > bytes.size())
@@ -26,6 +27,7 @@ std::uint64_t read_u64_be(const Bytes& bytes, std::size_t offset)
     return value;
 }
 
+// 将 64 位整数按大端序写入字节数组。
 void write_u64_be(Bytes& out, std::uint64_t value)
 {
     for (int i = 7; i >= 0; --i)
@@ -34,17 +36,20 @@ void write_u64_be(Bytes& out, std::uint64_t value)
     }
 }
 
+// 32 位循环左移。
 std::uint32_t rotl32(std::uint32_t value, int shift)
 {
     return (value << shift) | (value >> (32 - shift));
 }
 
+// 56 位密钥空间内循环左移。
 std::uint64_t rotl56(std::uint64_t value, int shift)
 {
     value &= kKey56Mask;
     return ((value << shift) | (value >> (56 - shift))) & kKey56Mask;
 }
 
+// 从 56 位 DES 密钥派生 16 轮轮密钥。
 std::array<std::uint32_t, 16> round_keys(std::uint64_t key56)
 {
     std::array<std::uint32_t, 16> keys{};
@@ -60,6 +65,7 @@ std::array<std::uint32_t, 16> round_keys(std::uint64_t key56)
     return keys;
 }
 
+// 简化 Feistel 轮函数，供演示 DES 块加解密使用。
 std::uint32_t feistel(std::uint32_t half, std::uint32_t key)
 {
     std::uint32_t x = half ^ key;
@@ -68,6 +74,7 @@ std::uint32_t feistel(std::uint32_t half, std::uint32_t key)
     return x ^ rotl32(key, 7);
 }
 
+// 加密一个 64 位数据块。
 std::uint64_t des_encrypt_block(std::uint64_t block, std::uint64_t key56)
 {
     std::uint32_t left = static_cast<std::uint32_t>(block >> 32U);
@@ -83,6 +90,7 @@ std::uint64_t des_encrypt_block(std::uint64_t block, std::uint64_t key56)
     return (static_cast<std::uint64_t>(right) << 32U) | left;
 }
 
+// 解密一个 64 位数据块。
 std::uint64_t des_decrypt_block(std::uint64_t block, std::uint64_t key56)
 {
     std::uint32_t left = static_cast<std::uint32_t>(block >> 32U);
@@ -98,6 +106,7 @@ std::uint64_t des_decrypt_block(std::uint64_t block, std::uint64_t key56)
     return (static_cast<std::uint64_t>(right) << 32U) | left;
 }
 
+// 对 DES 明文应用 PKCS#7 风格 8 字节分组填充。
 Bytes apply_des_padding(const Bytes& plain)
 {
     Bytes out = plain;
@@ -110,6 +119,7 @@ Bytes apply_des_padding(const Bytes& plain)
     return out;
 }
 
+// 移除并校验 DES 分组填充。
 Bytes remove_des_padding(const Bytes& padded)
 {
     if (padded.empty() || padded.size() % 8U != 0U)
@@ -131,6 +141,7 @@ Bytes remove_des_padding(const Bytes& padded)
     return Bytes(padded.begin(), padded.end() - pad);
 }
 
+// 模幂运算，RSA 签名和验签使用。
 std::uint64_t mod_pow(std::uint64_t base, std::uint64_t exp, std::uint64_t mod)
 {
     if (mod == 0)
@@ -154,12 +165,14 @@ std::uint64_t mod_pow(std::uint64_t base, std::uint64_t exp, std::uint64_t mod)
     return result;
 }
 
+// 按大端序写入 16 位整数。
 void write_u16(Bytes& out, std::uint16_t value)
 {
     out.push_back(static_cast<std::uint8_t>((value >> 8U) & 0xFFU));
     out.push_back(static_cast<std::uint8_t>(value & 0xFFU));
 }
 
+// 按大端序读取 16 位整数并推进 offset。
 std::uint16_t read_u16(const Bytes& in, std::size_t& offset)
 {
     if (offset + 2U > in.size())
@@ -172,6 +185,7 @@ std::uint16_t read_u16(const Bytes& in, std::size_t& offset)
     return value;
 }
 
+// 构造证书签名材料：主体 ID 加主体公钥。
 Bytes certificate_material(EntityId subject_id, const RsaPublicKey& subject_pk)
 {
     Bytes material;
@@ -182,6 +196,7 @@ Bytes certificate_material(EntityId subject_id, const RsaPublicKey& subject_pk)
 }
 } // namespace
 
+// 使用演示 DES 算法加密任意长度 payload。
 Bytes des_encrypt_payload(const Bytes& plain, std::uint64_t key56)
 {
     const Bytes padded = apply_des_padding(plain);
@@ -194,6 +209,7 @@ Bytes des_encrypt_payload(const Bytes& plain, std::uint64_t key56)
     return out;
 }
 
+// 使用演示 DES 算法解密任意长度 payload。
 Bytes des_decrypt_payload(const Bytes& cipher, std::uint64_t key56)
 {
     if (cipher.empty() || cipher.size() % 8U != 0U)
@@ -209,6 +225,7 @@ Bytes des_decrypt_payload(const Bytes& cipher, std::uint64_t key56)
     return remove_des_padding(padded);
 }
 
+// 计算 64 位 FNV-1a 摘要，签名和 ACK 引用都使用它。
 std::uint64_t hash64(const Bytes& data)
 {
     std::uint64_t hash = 1469598103934665603ULL;
@@ -220,6 +237,7 @@ std::uint64_t hash64(const Bytes& data)
     return hash;
 }
 
+// 生成随机 56 位 DES 会话密钥。
 std::uint64_t generate_des_key56()
 {
     static std::mt19937_64 rng(static_cast<std::uint64_t>(
@@ -227,6 +245,7 @@ std::uint64_t generate_des_key56()
     return rng() & kKey56Mask;
 }
 
+// 从十六进制字符串读取整数，超出 64 位时自然截断。
 std::uint64_t integer_from_hex_truncated(const std::string& hex)
 {
     std::string clean = hex;
@@ -259,6 +278,7 @@ std::uint64_t integer_from_hex_truncated(const std::string& hex)
     return value;
 }
 
+// 将整数转换为大端字节串，并补到指定最小长度。
 Bytes integer_to_bytes(std::uint64_t value, std::size_t min_size)
 {
     Bytes out;
@@ -278,6 +298,7 @@ Bytes integer_to_bytes(std::uint64_t value, std::size_t min_size)
     return out;
 }
 
+// 从大端字节串读取 64 位整数，超过 64 位时保留低 64 位效果。
 std::uint64_t integer_from_bytes_truncated(const Bytes& bytes)
 {
     std::uint64_t value = 0;
@@ -288,6 +309,7 @@ std::uint64_t integer_from_bytes_truncated(const Bytes& bytes)
     return value;
 }
 
+// 构造 CA 密钥对；当前课程演示使用固定小 RSA 参数。
 RsaKeyPair ca_key_pair_from_hex(const std::string& n_hex, const std::string& e_hex,
                                 const std::string& d_hex)
 {
@@ -302,6 +324,7 @@ RsaKeyPair ca_key_pair_from_hex(const std::string& n_hex, const std::string& e_h
     return pair;
 }
 
+// 为指定角色返回固定演示 RSA 密钥对。
 RsaKeyPair demo_rsa_key_pair_for(EntityId id)
 {
     struct SmallKey
@@ -334,18 +357,21 @@ RsaKeyPair demo_rsa_key_pair_for(EntityId id)
     throw PacketError("no demo RSA key for entity");
 }
 
+// 对 hash 做 RSA 私钥签名。
 Bytes rsa_sign_hash(std::uint64_t hash, const RsaPrivateKey& private_key)
 {
     const std::uint64_t digest = hash % private_key.n;
     return integer_to_bytes(mod_pow(digest, private_key.d, private_key.n));
 }
 
+// 验证 RSA 签名是否能还原到指定 hash。
 bool rsa_verify_hash(std::uint64_t hash, const Bytes& signature, const RsaPublicKey& public_key)
 {
     const std::uint64_t expected = hash % public_key.n;
     return mod_pow(integer_from_bytes_truncated(signature), public_key.e, public_key.n) == expected;
 }
 
+// 序列化 RSA 公钥：32 字节 n 加 4 字节 e。
 Bytes serialize_public_key(const RsaPublicKey& key)
 {
     Bytes out = integer_to_bytes(key.n, 32);
@@ -361,6 +387,7 @@ Bytes serialize_public_key(const RsaPublicKey& key)
     return out;
 }
 
+// 解析 RSA 公钥字节。
 RsaPublicKey parse_public_key(const Bytes& bytes)
 {
     if (bytes.size() != 36U)
@@ -376,6 +403,7 @@ RsaPublicKey parse_public_key(const Bytes& bytes)
     return key;
 }
 
+// 序列化证书：subject_id、公钥和 CA 签名。
 Bytes serialize_certificate(const Certificate& cert)
 {
     Bytes out;
@@ -388,6 +416,7 @@ Bytes serialize_certificate(const Certificate& cert)
     return out;
 }
 
+// 解析证书字节并校验字段长度。
 Certificate parse_certificate(const Bytes& bytes)
 {
     if (bytes.empty())
@@ -413,6 +442,7 @@ Certificate parse_certificate(const Bytes& bytes)
     return cert;
 }
 
+// 为指定主体公钥生成 CA 签名证书。
 Certificate make_certificate(EntityId subject_id, const RsaPublicKey& subject_pk,
                              const RsaPrivateKey& ca_private_key)
 {
@@ -424,6 +454,7 @@ Certificate make_certificate(EntityId subject_id, const RsaPublicKey& subject_pk
     return cert;
 }
 
+// 验证证书中的 CA 签名是否匹配主体 ID 和公钥。
 bool verify_certificate(const Certificate& cert, const RsaPublicKey& ca_public_key)
 {
     return rsa_verify_hash(hash64(certificate_material(cert.subject_id, cert.subject_pk)),

@@ -22,6 +22,7 @@ namespace cyber
 {
 namespace
 {
+// 一个可执行角色的命令行、配置 key 和说明信息。
 struct RoleSpec
 {
     const char* name;
@@ -34,6 +35,7 @@ struct RoleSpec
     const char* stage_goal;
 };
 
+// 根据角色枚举构造运行时规格。
 RoleSpec runtime_build_role_spec(RoleKind role)
 {
     switch (role)
@@ -57,6 +59,7 @@ RoleSpec runtime_build_role_spec(RoleKind role)
     }
 }
 
+// 打印统一角色入口支持的命令行参数。
 void runtime_print_usage(const RoleSpec& spec)
 {
     std::cout << "Usage: " << spec.binary
@@ -65,6 +68,7 @@ void runtime_print_usage(const RoleSpec& spec)
                  " [--game-auth-encrypted] [--ui-port PORT]\n";
 }
 
+// 查找默认配置文件路径，兼容从仓库根目录或构建目录运行。
 std::filesystem::path config_find_default_path()
 {
     const std::vector<std::filesystem::path> candidates = {
@@ -82,6 +86,7 @@ std::filesystem::path config_find_default_path()
     return candidates.front();
 }
 
+// 打印某个服务的连接地址和监听地址。
 void config_print_endpoint(const Config& config, const char* name, const char* ip_key,
                            const char* bind_ip_key, const char* port_key)
 {
@@ -91,6 +96,7 @@ void config_print_endpoint(const Config& config, const char* name, const char* i
               << config.get_u16(port_key) << '\n';
 }
 
+// 打印当前角色和 AS/TGS/V 的部署配置。
 void config_print_deployment(const Config& config, const RoleSpec& spec)
 {
     const EntityId local_client = config.get_entity_id("LOCAL_CLIENT_ID");
@@ -107,11 +113,13 @@ void config_print_deployment(const Config& config, const RoleSpec& spec)
     }
 }
 
+// 将 TCP 端点格式化成 ip:port。
 std::string net_format_endpoint(const TcpEndpoint& endpoint)
 {
     return endpoint.ip + ":" + std::to_string(endpoint.port);
 }
 
+// 根据角色配置生成服务端监听端点。
 TcpEndpoint runtime_bind_endpoint(const Config& config, const RoleSpec& spec)
 {
     if (spec.bind_ip_key == nullptr || spec.port_key == nullptr)
@@ -121,6 +129,7 @@ TcpEndpoint runtime_bind_endpoint(const Config& config, const RoleSpec& spec)
     return {config.get_string(spec.bind_ip_key), config.get_u16(spec.port_key)};
 }
 
+// 处理 AS/TGS 的单个短连接请求。
 void runtime_handle_server_connection(SocketHandle socket, RoleKind role, RoleSpec spec,
                                       Config config)
 {
@@ -148,6 +157,7 @@ void runtime_handle_server_connection(SocketHandle socket, RoleKind role, RoleSp
     }
 }
 
+// 运行 AS 或 TGS 的认证服务循环。
 void runtime_run_auth_server(RoleKind role, const Config& config, const RoleSpec& spec,
                              int max_connections)
 {
@@ -202,6 +212,7 @@ void runtime_run_auth_server(RoleKind role, const Config& config, const RoleSpec
 
 } // namespace
 
+// 统一角色 main 入口：解析命令行、加载配置，并启动 AS/TGS/V/Client 对应模式。
 int run_role_main(RoleKind role, int argc, char** argv)
 {
     const RoleSpec spec = runtime_build_role_spec(role);

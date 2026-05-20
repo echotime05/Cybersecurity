@@ -9,12 +9,14 @@
 
 namespace
 {
+// 打印 Monitor 可执行文件支持的命令行参数。
 void print_usage()
 {
     std::cout << "usage: monitor.exe [--ui-port PORT] [--events-dir DIR]\n";
 }
 } // namespace
 
+// Monitor 可执行文件入口，启动协议事件 WebSocket 推送服务。
 int main(int argc, char** argv)
 {
     try
