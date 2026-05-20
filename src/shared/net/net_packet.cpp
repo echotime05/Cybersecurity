@@ -17,17 +17,20 @@ namespace cyber
 {
 namespace
 {
+// 将项目内 SocketHandle 转成 Windows SOCKET。
 SOCKET native_socket(SocketHandle socket)
 {
     return static_cast<SOCKET>(socket);
 }
 
+// 生成包含 WSAGetLastError 的网络错误文本。
 std::string socket_error_message(const char* operation)
 {
     return std::string(operation) + " failed, WSAGetLastError=" +
            std::to_string(WSAGetLastError());
 }
 
+// 循环发送直到全部字节写入 socket。
 void send_all(SocketHandle socket, const Bytes& bytes)
 {
     std::size_t sent = 0;
@@ -46,6 +49,7 @@ void send_all(SocketHandle socket, const Bytes& bytes)
     }
 }
 
+// 循环接收指定长度的字节，连接关闭或出错时抛异常。
 void recv_exact(SocketHandle socket, std::uint8_t* out, std::size_t size)
 {
     std::size_t received = 0;
@@ -70,6 +74,7 @@ void recv_exact(SocketHandle socket, std::uint8_t* out, std::size_t size)
 
 } // namespace
 
+// 初始化 Windows socket 运行时。
 SocketRuntime::SocketRuntime()
 {
     WSADATA data;
@@ -80,11 +85,13 @@ SocketRuntime::SocketRuntime()
     }
 }
 
+// 清理 Windows socket 运行时。
 SocketRuntime::~SocketRuntime()
 {
     WSACleanup();
 }
 
+// 关闭 socket 句柄。
 void close_socket(SocketHandle socket)
 {
     if (native_socket(socket) != INVALID_SOCKET)
@@ -93,11 +100,13 @@ void close_socket(SocketHandle socket)
     }
 }
 
+// 发送报文并记录协议事件，payload 使用默认视图。
 bool send_packet_logged(SocketHandle socket, const Packet& packet)
 {
     return send_packet_logged(socket, packet, {});
 }
 
+// 发送报文并记录协议事件，调用方可传入 payload 明文/密文视图。
 bool send_packet_logged(SocketHandle socket, const Packet& packet,
                         const ProtocolPayloadView& payload_view)
 {
@@ -115,6 +124,7 @@ bool send_packet_logged(SocketHandle socket, const Packet& packet,
     return true;
 }
 
+// 接收完整报文并记录协议事件。
 Packet recv_packet_logged(SocketHandle socket)
 {
     Bytes raw(kPacketHeaderSize);

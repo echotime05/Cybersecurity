@@ -7,12 +7,14 @@ namespace cyber::roles::v
 {
 namespace
 {
+// 构造 V 认证阶段发出的加密报文。
 Packet v_auth_build_encrypted_packet(MsgType type, EntityId src, EntityId dst,
                                      const Bytes& plain, std::uint64_t key)
 {
     return make_packet(type, src, dst, des_encrypt_payload(plain, key));
 }
 
+// 要求收到的报文类型符合预期，不符合则终止当前认证流程。
 void packet_require_msg_type(const Packet& packet, MsgType expected)
 {
     if (packet.msg_type != expected)
@@ -22,12 +24,14 @@ void packet_require_msg_type(const Packet& packet, MsgType expected)
 }
 } // namespace
 
+// 移动构造会话表，保证内部 mutex 不被复制。
 AuthSessionTable::AuthSessionTable(AuthSessionTable&& other) noexcept
 {
     std::lock_guard<std::mutex> lock(other.mutex_);
     sessions_ = std::move(other.sessions_);
 }
 
+// 移动赋值会话表，带锁转移全部认证会话。
 AuthSessionTable& AuthSessionTable::operator=(AuthSessionTable&& other) noexcept
 {
     if (this != &other)
@@ -38,6 +42,7 @@ AuthSessionTable& AuthSessionTable::operator=(AuthSessionTable&& other) noexcept
     return *this;
 }
 
+// 保存 V_AUTH 阶段得到的 Client 会话密钥和地址码。
 void AuthSessionTable::put_v_auth(EntityId client_id, std::uint32_t adc, std::uint64_t kc_v)
 {
     std::lock_guard<std::mutex> lock(mutex_);
@@ -48,6 +53,7 @@ void AuthSessionTable::put_v_auth(EntityId client_id, std::uint32_t adc, std::ui
     session.v_auth_done = true;
 }
 
+// 按 Client ID 读取认证会话，不存在时抛出异常。
 AuthSession AuthSessionTable::get(EntityId client_id) const
 {
     std::lock_guard<std::mutex> lock(mutex_);
@@ -59,6 +65,7 @@ AuthSession AuthSessionTable::get(EntityId client_id) const
     return it->second;
 }
 
+// 保存证书交换阶段得到的 Client 公钥。
 void AuthSessionTable::put_client_public_key(EntityId client_id,
                                              const RsaPublicKey& public_key)
 {
@@ -72,6 +79,7 @@ void AuthSessionTable::put_client_public_key(EntityId client_id,
     session.cert_done = true;
 }
 
+// 根据配置初始化 V 认证运行时，包括 CA 密钥和 V 自身密钥。
 AuthRuntime v_auth_make_runtime(const Config& config)
 {
     AuthRuntime runtime;
@@ -82,10 +90,11 @@ AuthRuntime v_auth_make_runtime(const Config& config)
     return runtime;
 }
 
+// 处理 V_AUTH_REQ：解 ticket_v/认证器，校验身份后保存 Kc_v。
 Packet v_auth_process_request(const Packet& request, const Config& config, AuthRuntime& runtime)
 {
-    // V_AUTH is the third Kerberos hop: V opens ticket_v with KV, validates the
-    // authenticator with Kc_v, and stores the resulting game session key.
+    // V_AUTH 是 Kerberos 第三跳：V 用 KV 打开 ticket_v，用 Kc_v
+    // 验证认证器，并保存后续游戏会话密钥。
     packet_require_msg_type(request, MsgType::v_auth_req);
     const VAuthReq v_req = v_auth_parse_req(request.payload);
     const TicketVBody ticket = v_ticket_decrypt(v_req.ticket_v, config.get_u64("KV"));
@@ -99,10 +108,10 @@ Packet v_auth_process_request(const Packet& request, const Config& config, AuthR
                                          v_auth_build_rep_body({auth.ts + 1U}), ticket.kc_v);
 }
 
+// 处理 CERT_C2V：校验 Client 证书并返回 V 证书，完成游戏签名公钥交换。
 Packet cert_process_c2v_request(const Packet& request, AuthRuntime& runtime)
 {
-    // Certificate exchange binds the authenticated Client ID to its RSA public
-    // key, so later MSG_APP signatures can be verified by V.
+    // 证书交换把已认证 Client ID 与 RSA 公钥绑定，后续 V 依靠它验证 MSG_APP 签名。
     packet_require_msg_type(request, MsgType::cert_c2v);
     if (!is_client(request.src))
     {

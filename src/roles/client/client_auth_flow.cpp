@@ -14,6 +14,7 @@ namespace
 {
 constexpr std::uint32_t kDefaultAdc = 0x7F000001U;
 
+// 返回当前认证时间戳，单位为毫秒。
 std::uint64_t auth_time_now_ms()
 {
     return static_cast<std::uint64_t>(
@@ -22,18 +23,21 @@ std::uint64_t auth_time_now_ms()
             .count());
 }
 
+// 从配置中的 ip/port key 组装 TCP 端点。
 TcpEndpoint config_build_endpoint(const Config& config, const char* ip_key,
                                   const char* port_key)
 {
     return {config.get_string(ip_key), config.get_u16(port_key)};
 }
 
+// 构造 Client 认证阶段发出的 DES 加密报文。
 Packet packet_build_encrypted(MsgType type, EntityId src, EntityId dst, const Bytes& plain,
                               std::uint64_t key)
 {
     return make_packet(type, src, dst, des_encrypt_payload(plain, key));
 }
 
+// 构造协议可视化用的 payload 明文/密文对照。
 ProtocolPayloadView protocol_build_encrypted_payload_view(const Bytes& plain,
                                                           const Bytes& encrypted)
 {
@@ -43,6 +47,7 @@ ProtocolPayloadView protocol_build_encrypted_payload_view(const Bytes& plain,
     return view;
 }
 
+// 向协议可视化 payload 中追加一个字段级密文/明文对照。
 void protocol_add_encrypted_field(ProtocolPayloadView& view, std::string name,
                                   const Bytes& encrypted, const Bytes& plain = {})
 {
@@ -53,6 +58,7 @@ void protocol_add_encrypted_field(ProtocolPayloadView& view, std::string name,
     view.fields.push_back(std::move(field));
 }
 
+// 要求收到的报文类型符合预期，不符合则终止认证流程。
 void packet_require_msg_type(const Packet& packet, MsgType expected)
 {
     if (packet.msg_type != expected)
@@ -61,6 +67,7 @@ void packet_require_msg_type(const Packet& packet, MsgType expected)
     }
 }
 
+// 建立一次短连接，发送认证请求并接收应答，AS/TGS 阶段使用。
 Packet auth_exchange_packet(const TcpEndpoint& endpoint, const Packet& request,
                             const ProtocolPayloadView& request_payload_view = {})
 {
@@ -80,11 +87,12 @@ Packet auth_exchange_packet(const TcpEndpoint& endpoint, const Packet& request,
 }
 } // namespace
 
+// 执行完整 Client 登录认证：AS_REQ、TGS_REQ、V_AUTH 和证书交换。
 VAuthenticatedSocket client_auth_connect_to_v_socket(const Config& config, EntityId client_id,
                                                      std::uint64_t kc)
 {
-    // Client drives the full Kerberos sequence on one login action: AS_REQ,
-    // TGS_REQ, V_AUTH, then certificate exchange on the final V socket.
+    // Client 在一次登录动作中串行驱动完整 Kerberos 流程：
+    // AS_REQ、TGS_REQ、V_AUTH，然后在最终 V socket 上做证书交换。
     AuthClientState state;
     state.client_id = client_id;
     state.adc = kDefaultAdc;
@@ -95,7 +103,7 @@ VAuthenticatedSocket client_auth_connect_to_v_socket(const Config& config, Entit
                              config.get_string("SK_CA_D"));
 
     const std::uint64_t ts1 = auth_time_now_ms();
-    // Step 1: AS returns Kc_tgs to the client and ticket_tgs for TGS.
+    // 第 1 步：AS 返回 Client 可解的 Kc_tgs，以及给 TGS 使用的 ticket_tgs。
     const Packet as_req =
         make_packet(MsgType::as_req, state.client_id, EntityId::as,
                     as_build_req({state.client_id, EntityId::tgs, ts1}));
@@ -111,7 +119,7 @@ VAuthenticatedSocket client_auth_connect_to_v_socket(const Config& config, Entit
     state.kc_tgs = as_body.kc_tgs;
     state.ticket_tgs = as_body.ticket_tgs;
 
-    // Step 2: TGS validates ticket_tgs/authenticator_tgs and returns Kc_v.
+    // 第 2 步：TGS 校验 ticket_tgs/authenticator_tgs，并返回 Kc_v。
     const AuthenticatorBody auth_tgs{state.client_id, state.adc, auth_time_now_ms()};
     const Bytes authenticator_tgs = authenticator_encrypt(auth_tgs, state.kc_tgs);
     const TgsReq tgs_req_body{EntityId::v, state.ticket_tgs, authenticator_tgs};
@@ -138,8 +146,7 @@ VAuthenticatedSocket client_auth_connect_to_v_socket(const Config& config, Entit
     SocketHandle socket = connect_tcp(v);
     try
     {
-        // Step 3: V_AUTH proves the client owns Kc_v, then cert exchange gives
-        // both sides RSA public keys for non-repudiable game messages.
+        // 第 3 步：V_AUTH 证明 Client 持有 Kc_v，随后证书交换提供双方 RSA 公钥。
         const std::uint64_t ts5 = auth_time_now_ms();
         const AuthenticatorBody auth_v{state.client_id, state.adc, ts5};
         const Bytes authenticator_v = authenticator_encrypt(auth_v, state.kc_v);

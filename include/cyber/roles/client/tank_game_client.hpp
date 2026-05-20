@@ -14,15 +14,20 @@
 
 namespace cyber::game
 {
+// Client 进程主类：连接 Web UI，执行登录认证，和 V 进行加密游戏报文交互。
 class TankGameClient
 {
 public:
+    // 使用配置和本地 UI 端口构造 Client。
     TankGameClient(Config config, std::uint16_t ui_port);
+    // 停止 UI/V 连接并回收接收线程。
     ~TankGameClient();
 
+    // 阻塞运行 Client，启动本地 WebSocket UI 并等待用户操作。
     void run();
 
 private:
+    // Client 页面和网络链路的阶段状态。
     enum class State
     {
         waiting_for_login,
@@ -31,13 +36,21 @@ private:
         joined
     };
 
+    // 处理 Web UI 发来的任意命令。
     void handle_ui_command(const cyber::ui::UiCommand& command);
+    // 处理登录命令，完成 AS/TGS/V 认证。
     void handle_login(const cyber::ui::UiCommand& command);
+    // 登录成功后发送 GAME_JOIN_REQ 加入战斗房间。
     void handle_join();
+    // 处理移动、瞄准、开火等游戏命令。
     void handle_game_command(const cyber::ui::UiCommand& command);
+    // 后台接收 V 发来的游戏状态和 ACK。
     void receive_loop();
+    // 构造签名加密 MSG_APP 并发送到 V。
     void send_game_message(GameMsgType type, const Bytes& payload);
+    // 关闭当前 V socket 并重置句柄。
     void close_v_socket();
+    // 生成页面展示使用的 V 地址文本。
     std::string v_server_text() const;
 
     Config config_;

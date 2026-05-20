@@ -7,6 +7,7 @@
 
 namespace cyber::game
 {
+// 将游戏内部消息类型转换成外层 AppCode。
 AppCode app_map_game_message_code(GameMsgType type)
 {
     switch (type)
@@ -26,6 +27,7 @@ AppCode app_map_game_message_code(GameMsgType type)
     }
 }
 
+// 构造签名并加密的游戏 MSG_APP 报文。
 Packet app_build_signed_game_packet(EntityId src, EntityId dst, GameMsgType type,
                                     const Bytes& payload, std::uint64_t kc_v,
                                     const RsaPrivateKey& private_key)
@@ -36,6 +38,7 @@ Packet app_build_signed_game_packet(EntityId src, EntityId dst, GameMsgType type
     return make_packet(MsgType::app, src, dst, app_encode_payload(signed_payload, kc_v));
 }
 
+// 解密 MSG_APP payload，并解析里面的签名应用层封装。
 SignedAppPayload app_decode_signed_packet(const Packet& packet, std::uint64_t kc_v)
 {
     if (packet.msg_type != MsgType::app)
@@ -45,6 +48,7 @@ SignedAppPayload app_decode_signed_packet(const Packet& packet, std::uint64_t kc
     return app_parse_signed_payload(app_decode_payload(packet.payload, kc_v));
 }
 
+// 验证签名封装并解析成游戏层消息。
 GameMessage app_parse_verified_game_message(const SignedAppPayload& signed_payload,
                                          const RsaPublicKey& public_key)
 {
@@ -65,6 +69,7 @@ GameMessage app_parse_verified_game_message(const SignedAppPayload& signed_paylo
     return message;
 }
 
+// 构造签名并加密的 APP_ACK，ACK 引用原报文 payload 的长度和 hash。
 Packet ack_build_signed_packet(const Packet& received_packet,
                                const SignedAppPayload& received_signed_payload,
                                EntityId ack_src, EntityId ack_dst, std::uint64_t kc_v,
@@ -86,6 +91,7 @@ Packet ack_build_signed_packet(const Packet& received_packet,
     return make_packet(MsgType::app, ack_src, ack_dst, app_encode_payload(signed_ack, kc_v));
 }
 
+// 验证 APP_ACK 签名并解析证据字段。
 AppAckPayload ack_parse_verified_payload(const SignedAppPayload& signed_payload,
                                          const RsaPublicKey& public_key)
 {

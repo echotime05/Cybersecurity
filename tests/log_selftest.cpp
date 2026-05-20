@@ -1,4 +1,3 @@
-#include "cyber/shared/log_parser.hpp"
 #include "cyber/shared/logger.hpp"
 
 #include <chrono>
@@ -89,29 +88,7 @@ int main()
             require(line.find("][") != std::string::npos, "log line is missing bracket groups");
             require(line.find("] ") != std::string::npos, "log line is missing message separator");
 
-            cyber::LogEntry entry;
-            require(cyber::parse_log_line(line, entry), "valid log line did not parse");
-            require(!entry.entity.empty(), "parsed entity is empty");
-            require(!entry.thread_name.empty(), "parsed thread name is empty");
-            require(!entry.event.empty(), "parsed event is empty");
         }
-
-        const cyber::LogEntry first = cyber::parse_log_line_or_throw(lines.front());
-        require(first.entity == "Client", "parsed first entity mismatch");
-        require(first.thread_name == "UI/GameThread", "parsed first thread mismatch");
-        require(first.event == "THREAD_START", "parsed first event mismatch");
-        require(first.message == "logger test start", "parsed first message mismatch");
-
-        cyber::LogEntry ignored;
-        require(!cyber::parse_log_line("", ignored), "empty line unexpectedly parsed");
-        require(!cyber::parse_log_line("not a structured line", ignored),
-                "plain line unexpectedly parsed");
-        require(!cyber::parse_log_line("[Client][Thread][EVENT]", ignored),
-                "line without message separator unexpectedly parsed");
-        require(!cyber::parse_log_line("[Client][][EVENT] message", ignored),
-                "line with empty thread unexpectedly parsed");
-        require(!cyber::parse_log_line("[][Thread][EVENT] message", ignored),
-                "line with empty entity unexpectedly parsed");
 
         std::filesystem::remove_all(dir);
         std::cout << "log_selftest: ok\n";

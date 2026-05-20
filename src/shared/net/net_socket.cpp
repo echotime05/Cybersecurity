@@ -17,22 +17,26 @@ namespace
 using NativeSocket = SOCKET;
 constexpr NativeSocket kInvalidSocket = INVALID_SOCKET;
 
+// 将 Windows SOCKET 转成项目内 SocketHandle。
 SocketHandle to_handle(NativeSocket socket)
 {
     return static_cast<SocketHandle>(socket);
 }
 
+// 将项目内 SocketHandle 转回 Windows SOCKET。
 NativeSocket native_socket(SocketHandle socket)
 {
     return static_cast<SOCKET>(socket);
 }
 
+// 生成包含 WSAGetLastError 的 socket 错误文本。
 std::string last_socket_error(const char* operation)
 {
     return std::string(operation) + " failed, WSAGetLastError=" +
            std::to_string(WSAGetLastError());
 }
 
+// 根据 TcpEndpoint 构造 IPv4 sockaddr_in。
 sockaddr_in make_sockaddr(const TcpEndpoint& endpoint)
 {
     sockaddr_in addr{};
@@ -45,6 +49,7 @@ sockaddr_in make_sockaddr(const TcpEndpoint& endpoint)
     return addr;
 }
 
+// 如果 socket 有效则关闭它，用于异常清理。
 void close_if_valid(NativeSocket socket)
 {
     if (socket != kInvalidSocket)
@@ -54,6 +59,7 @@ void close_if_valid(NativeSocket socket)
 }
 } // namespace
 
+// 创建 TCP 监听 socket，并绑定指定 IP 和端口。
 SocketHandle listen_tcp(const TcpEndpoint& endpoint, int backlog)
 {
     NativeSocket socket = ::socket(AF_INET, SOCK_STREAM, 0);
@@ -90,6 +96,7 @@ SocketHandle listen_tcp(const TcpEndpoint& endpoint, int backlog)
     return to_handle(socket);
 }
 
+// 接受一个 TCP 连接，并设置 TCP_NODELAY。
 SocketHandle accept_tcp(SocketHandle listen_socket, std::string* peer)
 {
     sockaddr_in addr{};
@@ -128,6 +135,7 @@ SocketHandle accept_tcp(SocketHandle listen_socket, std::string* peer)
     return to_handle(accepted);
 }
 
+// 主动连接指定 TCP 服务端，并设置 TCP_NODELAY。
 SocketHandle connect_tcp(const TcpEndpoint& endpoint)
 {
     NativeSocket socket = ::socket(AF_INET, SOCK_STREAM, 0);
@@ -154,6 +162,7 @@ SocketHandle connect_tcp(const TcpEndpoint& endpoint)
     return to_handle(socket);
 }
 
+// 给 socket 开启 TCP_NODELAY，降低小报文延迟。
 void set_tcp_nodelay(SocketHandle socket)
 {
     int flag = 1;

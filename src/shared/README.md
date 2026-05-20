@@ -9,7 +9,6 @@ crypto/crypto.cpp               DES-style payload encryption, hash, RSA-style si
 game/app_payload_codec.cpp      MSG_APP payload codec switch and encrypted/plain views
 game/game_protocol.cpp          GameMessage and snapshot payload serialization
 game/game_non_repudiation.cpp   Signed game payload and APP_ACK helpers
-logging/log_parser.cpp          Low-level bracket log parser used by logger self-tests
 logging/logger.cpp              Async line writer used by protocol_events
 net/net_packet.cpp              Packet send/recv plus protocol event hooks
 net/net_socket.cpp              TCP socket helpers with TCP_NODELAY

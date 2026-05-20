@@ -6,6 +6,7 @@
 
 namespace cyber::game
 {
+// 构造矩形墙块，并设置空间索引用的中心点和包围半径。
 Block::Block(float center_x, float center_y, float width, float height)
 {
     x = center_x;
@@ -15,6 +16,7 @@ Block::Block(float center_x, float center_y, float width, float height)
     height_ = height;
 }
 
+// 检测圆形对象与矩形墙块的碰撞，并返回应推出的位移。
 std::optional<Vec2> Block::collide_circle(float cx, float cy, float circle_radius) const
 {
     const float left = x - width_ * 0.5F;
@@ -57,16 +59,19 @@ std::optional<Vec2> Block::collide_circle(float cx, float cy, float circle_radiu
     return Vec2{0.0F, circle_radius + push_bottom};
 }
 
+// 返回墙块宽度。
 float Block::width() const
 {
     return width_;
 }
 
+// 返回墙块高度。
 float Block::height() const
 {
     return height_;
 }
 
+// 初始化世界空间索引，按 cluster_size 创建二维网格。
 World::World(float width, float height, float cluster_size)
     : width_(width), height_(height), cluster_size_(cluster_size)
 {
@@ -82,6 +87,7 @@ World::World(float width, float height, float cluster_size)
     }
 }
 
+// 根据坐标计算所在网格编号，坐标越界时夹到边界格。
 int World::pick(float px, float py) const
 {
     const int ix = std::max(0, std::min(cluster_width_ - 1, static_cast<int>(px / cluster_size_)));
@@ -89,11 +95,13 @@ int World::pick(float px, float py) const
     return iy * cluster_width_ + ix;
 }
 
+// 返回指定对象层的空间索引数据。
 World::LayerData& World::layer(SpatialLayer layer_name)
 {
     return layers_[static_cast<std::size_t>(layer_name)];
 }
 
+// 将对象加入指定层的当前坐标网格。
 void World::add(SpatialLayer layer_name, SpatialItem* item)
 {
     if (item == nullptr)
@@ -105,6 +113,7 @@ void World::add(SpatialLayer layer_name, SpatialItem* item)
     layer(layer_name).nodes[static_cast<std::size_t>(index)].items.push_back(item);
 }
 
+// 将对象从指定层的旧网格中移除。
 void World::remove(SpatialLayer layer_name, SpatialItem& item)
 {
     if (item.node_index < 0)
@@ -117,6 +126,7 @@ void World::remove(SpatialLayer layer_name, SpatialItem& item)
     item.node_index = -1;
 }
 
+// 在对象移动后更新它所在的网格位置。
 void World::update(SpatialLayer layer_name, SpatialItem& item)
 {
     const float r = item.radius;
@@ -132,6 +142,7 @@ void World::update(SpatialLayer layer_name, SpatialItem& item)
     layer(layer_name).nodes[static_cast<std::size_t>(new_index)].items.push_back(&item);
 }
 
+// 遍历指定对象周围九宫格里的同层对象。
 void World::for_each_around(SpatialLayer layer_name, const SpatialItem& item,
                             const std::function<void(SpatialItem&)>& fn,
                             const SpatialItem* exclude)
@@ -156,16 +167,19 @@ void World::for_each_around(SpatialLayer layer_name, const SpatialItem& item,
     }
 }
 
+// 返回世界宽度。
 float World::width() const
 {
     return width_;
 }
 
+// 返回世界高度。
 float World::height() const
 {
     return height_;
 }
 
+// 返回固定地图的墙块列表。
 const std::vector<Block>& level_blocks()
 {
     static const std::vector<Block> blocks = {
@@ -192,6 +206,7 @@ const std::vector<Block>& level_blocks()
     return blocks;
 }
 
+// 返回固定地图的补给刷新点列表。
 const std::vector<PickableSpawn>& pickable_spawns()
 {
     static const std::vector<PickableSpawn> spawns = {

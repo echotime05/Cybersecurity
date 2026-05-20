@@ -16,6 +16,7 @@ namespace cyber::game
 {
 namespace
 {
+// 为已加密 MSG_APP 构造协议可视化 payload 明文/密文对照。
 ProtocolPayloadView app_build_payload_view(const Packet& packet, std::uint64_t kc_v)
 {
     ProtocolPayloadView view;
@@ -25,6 +26,7 @@ ProtocolPayloadView app_build_payload_view(const Packet& packet, std::uint64_t k
 }
 } // namespace
 
+// 构造 Client 主对象，保存配置和本地 UI 端口。
 TankGameClient::TankGameClient(Config config, std::uint16_t ui_port)
     : config_(std::move(config)),
       ui_port_(ui_port)
@@ -32,6 +34,7 @@ TankGameClient::TankGameClient(Config config, std::uint16_t ui_port)
     set_protocol_event_log_root(log_root_from_config(config_));
 }
 
+// 停止 Client：关闭 V socket、停止 UI 桥并等待接收线程结束。
 TankGameClient::~TankGameClient()
 {
     stopping_ = true;
@@ -46,6 +49,7 @@ TankGameClient::~TankGameClient()
     }
 }
 
+// 运行 Client，本地启动 WebSocket UI 桥并等待浏览器操作。
 void TankGameClient::run()
 {
     SocketRuntime runtime;
@@ -65,6 +69,7 @@ void TankGameClient::run()
     }
 }
 
+// 分发 Web UI 命令到登录、加入或游戏输入处理函数。
 void TankGameClient::handle_ui_command(const cyber::ui::UiCommand& command)
 {
     if (command.kind == cyber::ui::UiCommandKind::login)
@@ -81,6 +86,7 @@ void TankGameClient::handle_ui_command(const cyber::ui::UiCommand& command)
     }
 }
 
+// 处理登录命令：派生 Kc，执行认证流程，并启动 V 接收线程。
 void TankGameClient::handle_login(const cyber::ui::UiCommand& command)
 {
     if (!is_client(command.client_id) || command.password.empty())
@@ -126,9 +132,8 @@ void TankGameClient::handle_login(const cyber::ui::UiCommand& command)
         bridge_->broadcast_text(cyber::ui::login_state_json("authenticated", self_,
                                                             v_server_text(), ""));
     }
-    catch (const std::exception& ex)
+    catch (const std::exception&)
     {
-        std::cerr << "Client auth failed: " << ex.what() << '\n';
         close_v_socket();
         {
             std::lock_guard<std::mutex> lock(state_mutex_);
@@ -142,6 +147,7 @@ void TankGameClient::handle_login(const cyber::ui::UiCommand& command)
     }
 }
 
+// 处理加入游戏命令：发送 GAME_JOIN_REQ 并切换到 joined 状态。
 void TankGameClient::handle_join()
 {
     EntityId client = EntityId::unknown;
@@ -158,6 +164,7 @@ void TankGameClient::handle_join()
     bridge_->broadcast_text(cyber::ui::join_state_json("joined"));
 }
 
+// 处理 Web UI 的移动、瞄准和开火命令，未加入游戏时忽略。
 void TankGameClient::handle_game_command(const cyber::ui::UiCommand& command)
 {
     {
@@ -170,8 +177,7 @@ void TankGameClient::handle_game_command(const cyber::ui::UiCommand& command)
     send_game_message(command.type, command.payload);
 }
 
-// Browser input becomes a signed game MSG_APP here. The browser still renders
-// only the authoritative GAME_STATE that V sends back.
+// 浏览器输入在这里变成签名加密的游戏 MSG_APP；浏览器仍只渲染 V 返回的权威 GAME_STATE。
 void TankGameClient::send_game_message(GameMsgType type, const Bytes& payload)
 {
     std::lock_guard<std::mutex> lock(send_mutex_);
@@ -188,8 +194,7 @@ void TankGameClient::send_game_message(GameMsgType type, const Bytes& payload)
                          app_build_payload_view(packet, kc_v_));
 }
 
-// The receive loop handles ACK evidence and authoritative state messages.
-// Non-ACK game packets from V are acknowledged with signed APP_ACK.
+// 接收循环处理 ACK 证据和权威状态；V 发来的非 ACK 游戏包会回复签名 APP_ACK。
 void TankGameClient::receive_loop()
 {
     try
@@ -234,17 +239,17 @@ void TankGameClient::receive_loop()
             }
         }
     }
-    catch (const std::exception& ex)
+    catch (const std::exception&)
     {
         if (!stopping_)
         {
-            std::cerr << "Client receive failed: " << ex.what() << '\n';
             bridge_->broadcast_text(cyber::ui::login_state_json(
                 "failed", EntityId::unknown, "", "V connection closed"));
         }
     }
 }
 
+// 关闭当前连接 V 的 socket，并把句柄清零。
 void TankGameClient::close_v_socket()
 {
     std::lock_guard<std::mutex> lock(send_mutex_);
@@ -255,6 +260,7 @@ void TankGameClient::close_v_socket()
     }
 }
 
+// 返回登录成功后 UI 展示的 V 服务地址。
 std::string TankGameClient::v_server_text() const
 {
     return config_.get_string("V_IP") + ":" + std::to_string(config_.get_u16("V_PORT"));

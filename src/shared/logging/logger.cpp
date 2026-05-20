@@ -10,10 +10,13 @@ namespace cyber
 {
 namespace
 {
+// 日志后台线程最长等待时间，超时也会尝试刷盘。
 constexpr std::chrono::milliseconds kLogFlushInterval(20);
+// 队列达到该条数时主动唤醒后台线程批量写入。
 constexpr std::size_t kLogBatchThreshold = 64;
 } // namespace
 
+// 打开日志文件并启动后台写线程。
 Logger::Logger(std::filesystem::path path) : path_(std::move(path))
 {
     if (path_.empty())
@@ -36,6 +39,7 @@ Logger::Logger(std::filesystem::path path) : path_(std::move(path))
     writer_thread_ = std::thread(&Logger::writer_loop, this);
 }
 
+// 停止后台写线程并写完剩余日志。
 Logger::~Logger()
 {
     {
@@ -51,11 +55,13 @@ Logger::~Logger()
     }
 }
 
+// 返回当前日志文件路径。
 const std::filesystem::path& Logger::path() const
 {
     return path_;
 }
 
+// 将一条结构化日志放入异步队列。
 void Logger::write(std::string_view entity, std::string_view thread_name, std::string_view event,
                    std::string_view message)
 {
@@ -76,6 +82,7 @@ void Logger::write(std::string_view entity, std::string_view thread_name, std::s
     }
 }
 
+// 等待当前队列中日志全部落盘。
 void Logger::flush()
 {
     std::unique_lock<std::mutex> lock(mutex_);
@@ -89,6 +96,7 @@ void Logger::flush()
     throw_if_failed_locked();
 }
 
+// 后台写线程主循环，批量取队列并写入文件。
 void Logger::writer_loop()
 {
     for (;;)
@@ -157,6 +165,7 @@ void Logger::writer_loop()
     }
 }
 
+// 检查后台线程是否记录了写文件错误。
 void Logger::throw_if_failed_locked() const
 {
     if (!writer_error_.empty())

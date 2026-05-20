@@ -12,21 +12,25 @@ constexpr float kWorldSize = 48.0F;
 constexpr float kClusterSize = 4.0F;
 constexpr float kPi = 3.14159265358979323846F;
 
+// 计算二维向量长度。
 float length(float x, float y)
 {
     return std::sqrt(x * x + y * y);
 }
 
+// 计算两个坐标点之间的欧氏距离。
 float distance(float ax, float ay, float bx, float by)
 {
     return length(ax - bx, ay - by);
 }
 
+// 将 Client ID 转成 0 起始索引，用于出生点计算。
 int client_index(EntityId id)
 {
     return static_cast<int>(id) - static_cast<int>(EntityId::client1);
 }
 
+// 将空间对象限制在世界边界内。
 void clamp_to_world(SpatialItem& item)
 {
     item.x = std::max(item.radius, std::min(kWorldSize - item.radius, item.x));
@@ -34,6 +38,7 @@ void clamp_to_world(SpatialItem& item)
 }
 } // namespace
 
+// 初始化战斗房间，加载固定墙块和补给刷新点。
 BattleRoom::BattleRoom() : world_(kWorldSize, kWorldSize, kClusterSize)
 {
     blocks_ = level_blocks();
@@ -41,6 +46,7 @@ BattleRoom::BattleRoom() : world_(kWorldSize, kWorldSize, kClusterSize)
     rebuild_world();
 }
 
+// 选择当前人数最少、同人数时分数最低的队伍。
 std::uint8_t BattleRoom::pick_weakest_team() const
 {
     std::uint8_t best = 0;
@@ -55,6 +61,7 @@ std::uint8_t BattleRoom::pick_weakest_team() const
     return best;
 }
 
+// 根据 Client ID 和队伍为坦克设置出生位置。
 void BattleRoom::spawn_position(TankState& tank) const
 {
     const int index = std::max(0, client_index(tank.client_id));
@@ -64,6 +71,7 @@ void BattleRoom::spawn_position(TankState& tank) const
              static_cast<float>((index * 5) % 9);
 }
 
+// 将 Client 加入房间，创建坦克并触发一次世界索引重建。
 bool BattleRoom::join(EntityId client_id, std::uint64_t now_ms)
 {
     std::lock_guard<std::mutex> lock(mutex_);
@@ -88,6 +96,7 @@ bool BattleRoom::join(EntityId client_id, std::uint64_t now_ms)
     return true;
 }
 
+// 将 Client 从房间移除，并更新队伍人数。
 void BattleRoom::leave(EntityId client_id)
 {
     std::lock_guard<std::mutex> lock(mutex_);
@@ -104,6 +113,7 @@ void BattleRoom::leave(EntityId client_id)
     rebuild_world();
 }
 
+// 更新某个 Client 的移动输入，方向值会被夹在 -1 到 1。
 void BattleRoom::handle_move(EntityId client_id, std::int8_t x, std::int8_t y)
 {
     std::lock_guard<std::mutex> lock(mutex_);
@@ -118,6 +128,7 @@ void BattleRoom::handle_move(EntityId client_id, std::int8_t x, std::int8_t y)
         static_cast<std::int8_t>(std::max(-1, std::min(1, static_cast<int>(y))));
 }
 
+// 更新某个 Client 的炮塔角度，并规范到 0 到 360。
 void BattleRoom::handle_target(EntityId client_id, float angle)
 {
     std::lock_guard<std::mutex> lock(mutex_);
@@ -129,6 +140,7 @@ void BattleRoom::handle_target(EntityId client_id, float angle)
     }
 }
 
+// 记录某个 Client 请求开火，真正创建子弹在 tick 中统一处理。
 void BattleRoom::handle_shoot(EntityId client_id)
 {
     std::lock_guard<std::mutex> lock(mutex_);
@@ -139,6 +151,7 @@ void BattleRoom::handle_shoot(EntityId client_id)
     }
 }
 
+// 根据坦克位置、角度和弹药状态创建子弹。
 void BattleRoom::create_bullet(TankItem& tank, std::uint64_t now_ms)
 {
     tank.state.reloading = true;
@@ -169,6 +182,7 @@ void BattleRoom::create_bullet(TankItem& tank, std::uint64_t now_ms)
     bullets_.emplace(bullet.state.id, bullet);
 }
 
+// 推进一帧战斗世界：补给刷新、坦克移动、碰撞、开火、子弹命中和胜利判定。
 void BattleRoom::tick(std::uint64_t now_ms)
 {
     std::lock_guard<std::mutex> lock(mutex_);
@@ -448,6 +462,7 @@ void BattleRoom::tick(std::uint64_t now_ms)
     rebuild_world();
 }
 
+// 生成可广播给 Client 的完整世界快照。
 BattleStateSnapshot BattleRoom::snapshot(std::uint64_t now_ms) const
 {
     std::lock_guard<std::mutex> lock(mutex_);
@@ -488,6 +503,7 @@ BattleStateSnapshot BattleRoom::snapshot(std::uint64_t now_ms) const
     return snapshot;
 }
 
+// 根据当前对象集合重建空间索引，保证碰撞查询使用最新位置。
 void BattleRoom::rebuild_world()
 {
     world_ = World(kWorldSize, kWorldSize, kClusterSize);

@@ -17,6 +17,7 @@ namespace
 constexpr std::uint32_t kDefaultAdc = 0x7F000001U;
 constexpr std::uint64_t kDefaultLifetimeMs = 5ULL * 60ULL * 1000ULL;
 
+// 返回当前认证时间戳，单位为毫秒。
 std::uint64_t auth_time_now_ms()
 {
     return static_cast<std::uint64_t>(
@@ -25,6 +26,7 @@ std::uint64_t auth_time_now_ms()
             .count());
 }
 
+// 根据 Client ID 在配置中查找对应口令派生密钥。
 ClientSecret as_find_client_secret(const Config& config, EntityId id)
 {
     for (const ClientSecret& secret : config.clients())
@@ -37,12 +39,14 @@ ClientSecret as_find_client_secret(const Config& config, EntityId id)
     throw std::runtime_error("missing client secret for id");
 }
 
+// 构造 AS 发出的加密报文，payload 使用指定密钥 DES 加密。
 Packet as_build_encrypted_packet(MsgType type, EntityId src, EntityId dst,
                                  const Bytes& plain, std::uint64_t key)
 {
     return make_packet(type, src, dst, des_encrypt_payload(plain, key));
 }
 
+// 构造协议可视化用的 payload 明文/密文对照。
 ProtocolPayloadView protocol_build_encrypted_payload_view(const Bytes& plain,
                                                           const Bytes& encrypted)
 {
@@ -52,6 +56,7 @@ ProtocolPayloadView protocol_build_encrypted_payload_view(const Bytes& plain,
     return view;
 }
 
+// 向协议可视化 payload 中追加一个字段级密文/明文对照。
 void protocol_add_encrypted_field(ProtocolPayloadView& view, std::string name,
                                   const Bytes& encrypted, const Bytes& plain = {})
 {
@@ -62,6 +67,7 @@ void protocol_add_encrypted_field(ProtocolPayloadView& view, std::string name,
     view.fields.push_back(std::move(field));
 }
 
+// 要求收到的报文类型符合预期，不符合则终止当前连接处理。
 void packet_require_msg_type(const Packet& packet, MsgType expected)
 {
     if (packet.msg_type != expected)
@@ -71,12 +77,13 @@ void packet_require_msg_type(const Packet& packet, MsgType expected)
 }
 } // namespace
 
+// 处理 AS 连接，完成 AS_REQ 到 AS_REP 的认证第一阶段。
 void as_process_connection(SocketHandle socket, const Config& config)
 {
     try
     {
-        // AS is the first Kerberos hop: verify the client identity, create Kc_tgs,
-        // and return a client-readable AS_REP plus a TGS-readable ticket_tgs.
+        // AS 是 Kerberos 第一跳：确认 Client 身份，生成 Kc_tgs，并返回
+        // Client 可解的 AS_REP 和 TGS 可解的 ticket_tgs。
         const Packet request = recv_packet_logged(socket);
         packet_require_msg_type(request, MsgType::as_req);
 

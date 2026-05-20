@@ -10,6 +10,7 @@
 
 namespace cyber::protocol::detail
 {
+// 检查二进制解析时剩余字节是否足够，不够则抛 PacketError。
 inline void binary_require_remaining(const Bytes& in, std::size_t offset,
                                      std::size_t count, std::string_view context)
 {
@@ -19,12 +20,14 @@ inline void binary_require_remaining(const Bytes& in, std::size_t offset,
     }
 }
 
+// 按大端序写入 16 位无符号整数。
 inline void binary_write_u16(Bytes& out, std::uint16_t value)
 {
     out.push_back(static_cast<std::uint8_t>((value >> 8U) & 0xFFU));
     out.push_back(static_cast<std::uint8_t>(value & 0xFFU));
 }
 
+// 按大端序写入 32 位无符号整数。
 inline void binary_write_u32(Bytes& out, std::uint32_t value)
 {
     out.push_back(static_cast<std::uint8_t>((value >> 24U) & 0xFFU));
@@ -33,6 +36,7 @@ inline void binary_write_u32(Bytes& out, std::uint32_t value)
     out.push_back(static_cast<std::uint8_t>(value & 0xFFU));
 }
 
+// 按大端序写入 64 位无符号整数。
 inline void binary_write_u64(Bytes& out, std::uint64_t value)
 {
     for (int i = 7; i >= 0; --i)
@@ -41,6 +45,7 @@ inline void binary_write_u64(Bytes& out, std::uint64_t value)
     }
 }
 
+// 将 float32 按原始 IEEE754 位写入网络字节。
 inline void binary_write_f32(Bytes& out, float value)
 {
     std::uint32_t bits = 0;
@@ -49,6 +54,7 @@ inline void binary_write_f32(Bytes& out, float value)
     binary_write_u32(out, bits);
 }
 
+// 按大端序读取 16 位无符号整数，并推进 offset。
 inline std::uint16_t binary_read_u16(const Bytes& in, std::size_t& offset,
                                      std::string_view context)
 {
@@ -60,6 +66,7 @@ inline std::uint16_t binary_read_u16(const Bytes& in, std::size_t& offset,
     return value;
 }
 
+// 按大端序读取 32 位无符号整数，并推进 offset。
 inline std::uint32_t binary_read_u32(const Bytes& in, std::size_t& offset,
                                      std::string_view context)
 {
@@ -72,6 +79,7 @@ inline std::uint32_t binary_read_u32(const Bytes& in, std::size_t& offset,
     return value;
 }
 
+// 按大端序读取 64 位无符号整数，并推进 offset。
 inline std::uint64_t binary_read_u64(const Bytes& in, std::size_t& offset,
                                      std::string_view context)
 {
@@ -85,6 +93,7 @@ inline std::uint64_t binary_read_u64(const Bytes& in, std::size_t& offset,
     return value;
 }
 
+// 读取 float32 的原始位并还原为 float。
 inline float binary_read_f32(const Bytes& in, std::size_t& offset,
                              std::string_view context)
 {
@@ -95,6 +104,7 @@ inline float binary_read_f32(const Bytes& in, std::size_t& offset,
     return value;
 }
 
+// 写入 uint16 长度前缀和对应字节串。
 inline void binary_write_bytes_u16(Bytes& out, const Bytes& bytes)
 {
     if (bytes.size() > std::numeric_limits<std::uint16_t>::max())
@@ -105,6 +115,7 @@ inline void binary_write_bytes_u16(Bytes& out, const Bytes& bytes)
     out.insert(out.end(), bytes.begin(), bytes.end());
 }
 
+// 读取 uint16 长度前缀的字节串。
 inline Bytes binary_read_bytes_u16(const Bytes& in, std::size_t& offset,
                                    std::string_view context)
 {
@@ -120,6 +131,7 @@ inline Bytes binary_read_bytes_u16(const Bytes& in, std::size_t& offset,
     return out;
 }
 
+// 要求 payload 已被完整消费，防止格式错位仍被接受。
 inline void binary_require_end(const Bytes& in, std::size_t offset,
                                std::string_view context)
 {

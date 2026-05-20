@@ -6,6 +6,7 @@
 
 namespace cyber
 {
+// 用 Client ID 和真实输入密码派生客户端长期密钥 Kc。
 std::uint64_t auth_derive_client_key(EntityId client_id, const std::string& password)
 {
     if (!is_client(client_id))

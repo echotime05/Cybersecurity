@@ -19,6 +19,7 @@ namespace cyber::monitor
 {
 namespace
 {
+// Tailer 暂存的协议事件，保留来源文件和读取顺序用于排序。
 struct PendingProtocolEvent
 {
     ProtocolEvent event;
@@ -26,6 +27,7 @@ struct PendingProtocolEvent
     std::uint64_t sequence = 0;
 };
 
+// 构造协议事件去重键，避免同一报文原始日志和增强日志在 UI 重复出现。
 std::string dedupe_key(const ProtocolEvent& event)
 {
     std::ostringstream oss;
@@ -36,6 +38,7 @@ std::string dedupe_key(const ProtocolEvent& event)
     return oss.str();
 }
 
+// 计算事件细节丰富度，明文/密文/字段越多分数越高。
 std::size_t detail_score(const ProtocolEvent& event)
 {
     std::size_t score = 0;
@@ -52,11 +55,13 @@ std::size_t detail_score(const ProtocolEvent& event)
 }
 } // namespace
 
+// 构造协议事件增量读取器。
 ProtocolEventTailer::ProtocolEventTailer(std::filesystem::path events_dir)
     : events_dir_(std::move(events_dir))
 {
 }
 
+// 读取 protocol_events 目录新增行，解析、去重、排序后转为 JSON。
 std::vector<std::string> ProtocolEventTailer::poll_json_events()
 {
     std::vector<std::filesystem::path> files;
@@ -155,16 +160,19 @@ std::vector<std::string> ProtocolEventTailer::poll_json_events()
     return events;
 }
 
+// 构造 Monitor 服务，保存监听端点和事件目录。
 ProtocolMonitorServer::ProtocolMonitorServer(TcpEndpoint endpoint, std::filesystem::path events_dir)
     : endpoint_(std::move(endpoint)), events_dir_(std::move(events_dir))
 {
 }
 
+// 停止 Monitor 服务。
 ProtocolMonitorServer::~ProtocolMonitorServer()
 {
     stop();
 }
 
+// 启动 Monitor WebSocket 服务并进入主循环。
 void ProtocolMonitorServer::run()
 {
     listener_ = listen_tcp(endpoint_);
@@ -173,6 +181,7 @@ void ProtocolMonitorServer::run()
     run_until_stopped();
 }
 
+// 测试用启动入口，返回实际监听端口。
 std::uint16_t ProtocolMonitorServer::start_for_test()
 {
     listener_ = listen_tcp(endpoint_);
@@ -186,11 +195,13 @@ std::uint16_t ProtocolMonitorServer::start_for_test()
     return endpoint_.port;
 }
 
+// 在当前线程运行 Monitor 接入循环。
 void ProtocolMonitorServer::run_until_stopped()
 {
     accept_loop();
 }
 
+// 请求停止 Monitor，并关闭监听 socket。
 void ProtocolMonitorServer::stop()
 {
     stopping_ = true;
@@ -201,6 +212,7 @@ void ProtocolMonitorServer::stop()
     }
 }
 
+// 接受浏览器 WebSocket 连接，每个连接由独立线程推送事件。
 void ProtocolMonitorServer::accept_loop()
 {
     while (!stopping_)
@@ -221,6 +233,7 @@ void ProtocolMonitorServer::accept_loop()
     }
 }
 
+// 处理一个浏览器连接，持续推送新增协议事件。
 void ProtocolMonitorServer::handle_client(SocketHandle socket)
 {
     ProtocolEventTailer tailer(events_dir_);

@@ -16,6 +16,7 @@ using protocol::detail::binary_write_u32;
 using protocol::detail::binary_write_u64;
 } // namespace
 
+// 序列化 AS_REQ。
 Bytes as_build_req(const AsReq& value)
 {
     Bytes out;
@@ -25,6 +26,7 @@ Bytes as_build_req(const AsReq& value)
     return out;
 }
 
+// 解析 AS_REQ。
 AsReq as_parse_req(const Bytes& payload)
 {
     if (payload.size() != 10U)
@@ -40,6 +42,7 @@ AsReq as_parse_req(const Bytes& payload)
     return value;
 }
 
+// 序列化 ticket_tgs 的明文主体。
 Bytes tgs_ticket_build_body(const TicketTgsBody& value)
 {
     Bytes out;
@@ -52,6 +55,7 @@ Bytes tgs_ticket_build_body(const TicketTgsBody& value)
     return out;
 }
 
+// 解析 ticket_tgs 的明文主体。
 TicketTgsBody tgs_ticket_parse_body(const Bytes& payload)
 {
     std::size_t offset = 0;
@@ -66,16 +70,19 @@ TicketTgsBody tgs_ticket_parse_body(const Bytes& payload)
     return value;
 }
 
+// 用 KTGS 加密 ticket_tgs。
 Bytes tgs_ticket_encrypt(const TicketTgsBody& value, std::uint64_t ktgs)
 {
     return des_encrypt_payload(tgs_ticket_build_body(value), ktgs);
 }
 
+// 用 KTGS 解密 ticket_tgs 并解析主体。
 TicketTgsBody tgs_ticket_decrypt(const Bytes& cipher, std::uint64_t ktgs)
 {
     return tgs_ticket_parse_body(des_decrypt_payload(cipher, ktgs));
 }
 
+// 序列化 AS_REP 中 Client 可解的明文主体。
 Bytes as_build_rep_body(const AsRepBody& value)
 {
     Bytes out;
@@ -87,6 +94,7 @@ Bytes as_build_rep_body(const AsRepBody& value)
     return out;
 }
 
+// 解析 AS_REP 中 Client 解密后的主体。
 AsRepBody as_parse_rep_body(const Bytes& payload)
 {
     std::size_t offset = 0;
@@ -100,6 +108,7 @@ AsRepBody as_parse_rep_body(const Bytes& payload)
     return value;
 }
 
+// 序列化认证器明文主体。
 Bytes authenticator_build_body(const AuthenticatorBody& value)
 {
     Bytes out;
@@ -109,6 +118,7 @@ Bytes authenticator_build_body(const AuthenticatorBody& value)
     return out;
 }
 
+// 解析认证器明文主体。
 AuthenticatorBody authenticator_parse_body(const Bytes& payload)
 {
     std::size_t offset = 0;
@@ -120,16 +130,19 @@ AuthenticatorBody authenticator_parse_body(const Bytes& payload)
     return value;
 }
 
+// 用会话密钥加密认证器。
 Bytes authenticator_encrypt(const AuthenticatorBody& value, std::uint64_t key56)
 {
     return des_encrypt_payload(authenticator_build_body(value), key56);
 }
 
+// 用会话密钥解密认证器并解析主体。
 AuthenticatorBody authenticator_decrypt(const Bytes& cipher, std::uint64_t key56)
 {
     return authenticator_parse_body(des_decrypt_payload(cipher, key56));
 }
 
+// 序列化 TGS_REQ。
 Bytes tgs_build_req(const TgsReq& value)
 {
     Bytes out;
@@ -139,6 +152,7 @@ Bytes tgs_build_req(const TgsReq& value)
     return out;
 }
 
+// 解析 TGS_REQ。
 TgsReq tgs_parse_req(const Bytes& payload)
 {
     std::size_t offset = 0;
@@ -150,6 +164,7 @@ TgsReq tgs_parse_req(const Bytes& payload)
     return value;
 }
 
+// 序列化 ticket_v 的明文主体。
 Bytes v_ticket_build_body(const TicketVBody& value)
 {
     Bytes out;
@@ -162,6 +177,7 @@ Bytes v_ticket_build_body(const TicketVBody& value)
     return out;
 }
 
+// 解析 ticket_v 的明文主体。
 TicketVBody v_ticket_parse_body(const Bytes& payload)
 {
     std::size_t offset = 0;
@@ -176,16 +192,19 @@ TicketVBody v_ticket_parse_body(const Bytes& payload)
     return value;
 }
 
+// 用 KV 加密 ticket_v。
 Bytes v_ticket_encrypt(const TicketVBody& value, std::uint64_t kv)
 {
     return des_encrypt_payload(v_ticket_build_body(value), kv);
 }
 
+// 用 KV 解密 ticket_v 并解析主体。
 TicketVBody v_ticket_decrypt(const Bytes& cipher, std::uint64_t kv)
 {
     return v_ticket_parse_body(des_decrypt_payload(cipher, kv));
 }
 
+// 序列化 TGS_REP 中 Client 可解的明文主体。
 Bytes tgs_build_rep_body(const TgsRepBody& value)
 {
     Bytes out;
@@ -196,6 +215,7 @@ Bytes tgs_build_rep_body(const TgsRepBody& value)
     return out;
 }
 
+// 解析 TGS_REP 中 Client 解密后的主体。
 TgsRepBody tgs_parse_rep_body(const Bytes& payload)
 {
     std::size_t offset = 0;
@@ -208,6 +228,7 @@ TgsRepBody tgs_parse_rep_body(const Bytes& payload)
     return value;
 }
 
+// 序列化 V_AUTH_REQ。
 Bytes v_auth_build_req(const VAuthReq& value)
 {
     Bytes out;
@@ -216,6 +237,7 @@ Bytes v_auth_build_req(const VAuthReq& value)
     return out;
 }
 
+// 解析 V_AUTH_REQ。
 VAuthReq v_auth_parse_req(const Bytes& payload)
 {
     std::size_t offset = 0;
@@ -226,6 +248,7 @@ VAuthReq v_auth_parse_req(const Bytes& payload)
     return value;
 }
 
+// 序列化 V_AUTH_REP 中 Client 可解的明文主体。
 Bytes v_auth_build_rep_body(const VAuthRepBody& value)
 {
     Bytes out;
@@ -233,6 +256,7 @@ Bytes v_auth_build_rep_body(const VAuthRepBody& value)
     return out;
 }
 
+// 解析 V_AUTH_REP 中 Client 解密后的主体。
 VAuthRepBody v_auth_parse_rep_body(const Bytes& payload)
 {
     std::size_t offset = 0;

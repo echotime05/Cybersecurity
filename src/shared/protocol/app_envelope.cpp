@@ -15,6 +15,7 @@ using protocol::detail::binary_write_u32;
 using protocol::detail::binary_write_u64;
 } // namespace
 
+// 序列化 APP_ACK 证据 payload。
 Bytes ack_build_payload(const AppAckPayload& value)
 {
     Bytes out;
@@ -27,6 +28,7 @@ Bytes ack_build_payload(const AppAckPayload& value)
     return out;
 }
 
+// 解析 APP_ACK 证据 payload。
 AppAckPayload ack_parse_payload(const Bytes& payload)
 {
     std::size_t offset = 0;
@@ -41,8 +43,7 @@ AppAckPayload ack_parse_payload(const Bytes& payload)
     return value;
 }
 
-// Signature input is the logical application bytes only: AppCode followed by
-// app_payload. Packet header fields are not part of the RSA signature.
+// 签名输入只包含逻辑应用层字节：AppCode 后接 app_payload；固定报文头不参与签名。
 Bytes app_build_signed_logical_bytes(AppCode code, const Bytes& app_payload)
 {
     Bytes logical;
@@ -51,6 +52,7 @@ Bytes app_build_signed_logical_bytes(AppCode code, const Bytes& app_payload)
     return logical;
 }
 
+// 构造签名封装 payload：AppCode、app_payload 和 RSA 签名。
 Bytes app_build_signed_payload(AppCode code, const Bytes& app_payload,
                                const RsaPrivateKey& private_key)
 {
@@ -63,6 +65,7 @@ Bytes app_build_signed_payload(AppCode code, const Bytes& app_payload,
     return out;
 }
 
+// 解析解密后的签名封装 payload。
 SignedAppPayload app_parse_signed_payload(const Bytes& decrypted_payload)
 {
     std::size_t offset = 0;
@@ -74,6 +77,7 @@ SignedAppPayload app_parse_signed_payload(const Bytes& decrypted_payload)
     return value;
 }
 
+// 验证签名封装中 app_code + app_payload 的 RSA 签名。
 bool app_verify_signed_payload(const SignedAppPayload& signed_payload,
                                const RsaPublicKey& public_key)
 {

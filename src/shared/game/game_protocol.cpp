@@ -17,6 +17,7 @@ using cyber::protocol::detail::binary_write_f32;
 using cyber::protocol::detail::binary_write_u16;
 using cyber::protocol::detail::binary_write_u64;
 
+// 将一辆坦克快照写入 GAME_STATE payload。
 void write_tank(Bytes& out, const TankSnapshot& tank)
 {
     out.push_back(static_cast<std::uint8_t>(tank.client_id));
@@ -30,6 +31,7 @@ void write_tank(Bytes& out, const TankSnapshot& tank)
     binary_write_u16(out, tank.score);
 }
 
+// 从 GAME_STATE payload 读取一辆坦克快照。
 TankSnapshot read_tank(const Bytes& in, std::size_t& offset)
 {
     if (offset >= in.size())
@@ -54,6 +56,7 @@ TankSnapshot read_tank(const Bytes& in, std::size_t& offset)
 }
 } // namespace
 
+// 序列化游戏层通用消息：GameMsgType + 具体 payload。
 Bytes game_build_message(const GameMessage& message)
 {
     Bytes out;
@@ -63,6 +66,7 @@ Bytes game_build_message(const GameMessage& message)
     return out;
 }
 
+// 解析游戏层通用消息。
 GameMessage game_parse_message(const Bytes& bytes)
 {
     if (bytes.empty())
@@ -75,11 +79,13 @@ GameMessage game_parse_message(const Bytes& bytes)
     return message;
 }
 
+// 序列化加入游戏请求。
 Bytes game_build_join(const JoinMessage& message)
 {
     return Bytes{static_cast<std::uint8_t>(message.client_id)};
 }
 
+// 解析加入游戏请求。
 JoinMessage game_parse_join(const Bytes& bytes)
 {
     if (bytes.size() != 1U)
@@ -93,11 +99,13 @@ JoinMessage game_parse_join(const Bytes& bytes)
     return message;
 }
 
+// 序列化移动输入消息。
 Bytes game_build_move(const MoveMessage& message)
 {
     return Bytes{static_cast<std::uint8_t>(message.x), static_cast<std::uint8_t>(message.y)};
 }
 
+// 解析移动输入消息。
 MoveMessage game_parse_move(const Bytes& bytes)
 {
     if (bytes.size() != 2U)
@@ -107,6 +115,7 @@ MoveMessage game_parse_move(const Bytes& bytes)
     return {static_cast<std::int8_t>(bytes[0]), static_cast<std::int8_t>(bytes[1])};
 }
 
+// 序列化炮塔朝向消息。
 Bytes game_build_target(const TargetMessage& message)
 {
     Bytes out;
@@ -114,6 +123,7 @@ Bytes game_build_target(const TargetMessage& message)
     return out;
 }
 
+// 解析炮塔朝向消息。
 TargetMessage game_parse_target(const Bytes& bytes)
 {
     std::size_t offset = 0;
@@ -122,12 +132,14 @@ TargetMessage game_parse_target(const Bytes& bytes)
     return message;
 }
 
+// 序列化单次开火消息，当前没有额外 payload 字段。
 Bytes game_build_shoot(const ShootMessage& message)
 {
     (void)message;
     return {};
 }
 
+// 解析单次开火消息，要求 payload 为空。
 ShootMessage game_parse_shoot(const Bytes& bytes)
 {
     if (!bytes.empty())
@@ -137,6 +149,7 @@ ShootMessage game_parse_shoot(const Bytes& bytes)
     return {};
 }
 
+// 序列化完整世界快照，V 周期性广播该 payload。
 Bytes game_build_state(const BattleStateSnapshot& snapshot)
 {
     Bytes out;
@@ -183,6 +196,7 @@ Bytes game_build_state(const BattleStateSnapshot& snapshot)
     return out;
 }
 
+// 解析完整世界快照，Client 收到 GAME_STATE 后使用。
 BattleStateSnapshot game_parse_state(const Bytes& bytes)
 {
     std::size_t offset = 0;
@@ -257,6 +271,7 @@ BattleStateSnapshot game_parse_state(const Bytes& bytes)
     return snapshot;
 }
 
+// 将世界快照格式化为 Web UI 渲染用 JSON。
 std::string game_format_state_json(const BattleStateSnapshot& snapshot, EntityId self)
 {
     std::ostringstream out;

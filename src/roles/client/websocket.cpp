@@ -17,6 +17,7 @@ namespace
 {
 using NativeSocket = SOCKET;
 
+// 调用 Windows CryptoAPI 计算 SHA1，WebSocket 握手 accept key 需要它。
 std::array<std::uint8_t, 20> sha1(const std::string& input)
 {
     HCRYPTPROV provider = 0;
@@ -52,6 +53,7 @@ std::array<std::uint8_t, 20> sha1(const std::string& input)
     return digest;
 }
 
+// 将字节串编码为 Base64，WebSocket 握手响应使用。
 std::string base64(const std::uint8_t* data, std::size_t size)
 {
     static constexpr char alphabet[] =
@@ -72,6 +74,7 @@ std::string base64(const std::uint8_t* data, std::size_t size)
     return out;
 }
 
+// 循环发送直到指定缓冲区全部写入 socket。
 void send_all(SocketHandle socket, const char* data, int len)
 {
     int sent = 0;
@@ -86,6 +89,7 @@ void send_all(SocketHandle socket, const char* data, int len)
     }
 }
 
+// 从 WebSocket TCP 连接读取一段原始字节。
 Bytes recv_some(SocketHandle socket)
 {
     std::array<char, 4096> buffer{};
@@ -99,6 +103,7 @@ Bytes recv_some(SocketHandle socket)
 }
 } // namespace
 
+// 根据浏览器握手 key 生成 Sec-WebSocket-Accept。
 std::string websocket_accept_key(const std::string& client_key)
 {
     const std::string magic = client_key + "258EAFA5-E914-47DA-95CA-C5AB0DC85B11";
@@ -106,6 +111,7 @@ std::string websocket_accept_key(const std::string& client_key)
     return base64(digest.data(), digest.size());
 }
 
+// 构造服务端发给浏览器的未掩码文本帧。
 Bytes build_ws_text_frame(const std::string& text)
 {
     Bytes out;
@@ -128,6 +134,7 @@ Bytes build_ws_text_frame(const std::string& text)
     return out;
 }
 
+// 解析浏览器发来的掩码文本帧并还原 payload。
 WebSocketFrame parse_ws_frame(const Bytes& frame)
 {
     if (frame.size() < 2U)
@@ -171,6 +178,7 @@ WebSocketFrame parse_ws_frame(const Bytes& frame)
     return parsed;
 }
 
+// 完成 HTTP Upgrade 到 WebSocket 的服务端握手。
 void perform_websocket_server_handshake(SocketHandle socket)
 {
     std::string request;
@@ -217,6 +225,7 @@ void perform_websocket_server_handshake(SocketHandle socket)
     send_all(socket, text.data(), static_cast<int>(text.size()));
 }
 
+// 接收一条 WebSocket 文本消息，遇到关闭帧或非文本帧会抛异常。
 std::string recv_ws_text(SocketHandle socket)
 {
     const WebSocketFrame frame = parse_ws_frame(recv_some(socket));
@@ -231,6 +240,7 @@ std::string recv_ws_text(SocketHandle socket)
     return frame.text;
 }
 
+// 发送一条 WebSocket 文本消息。
 void send_ws_text(SocketHandle socket, const std::string& text)
 {
     const Bytes frame = build_ws_text_frame(text);
