@@ -19,12 +19,19 @@ Block::Block(float center_x, float center_y, float width, float height)
 // 检测圆形对象与矩形墙块的碰撞，并返回应推出的位移。
 std::optional<Vec2> Block::collide_circle(float cx, float cy, float circle_radius) const
 {
+    // 步骤 1：根据墙块中心点和宽高，计算矩形四条边界。
     const float left = x - width_ * 0.5F;
     const float right = x + width_ * 0.5F;
     const float top = y - height_ * 0.5F;
     const float bottom = y + height_ * 0.5F;
+
+    // 步骤 2：把圆心投影/夹取到矩形范围内，得到矩形上离圆心最近的点。
+    // 如果圆心在矩形外，这个点位于矩形边或角；如果圆心在矩形内，这个点就是圆心本身。
     const float nearest_x = std::max(left, std::min(cx, right));
     const float nearest_y = std::max(top, std::min(cy, bottom));
+
+    // 步骤 3：计算圆心到最近点的距离平方。
+    // 距离大于等于圆半径，说明圆和矩形没有重叠。
     const float dx = cx - nearest_x;
     const float dy = cy - nearest_y;
     const float dist2 = dx * dx + dy * dy;
@@ -34,11 +41,15 @@ std::optional<Vec2> Block::collide_circle(float cx, float cy, float circle_radiu
     }
     if (dist2 > 0.0001F)
     {
+        // 步骤 4：普通情况。圆心在矩形外部，且圆已经压进矩形边缘。
+        // 沿“最近点 -> 圆心”的方向，把圆推出刚好不重叠的位置。
         const float dist = std::sqrt(dist2);
         const float push = circle_radius - dist;
         return Vec2{(dx / dist) * push, (dy / dist) * push};
     }
 
+    // 步骤 5：特殊情况。圆心已经落在矩形内部，最近点就是圆心，无法用 dx/dy 判断方向。
+    // 此时计算圆心到四条边的距离，选择最近的一条边作为推出方向。
     const float push_left = std::abs(cx - left);
     const float push_right = std::abs(right - cx);
     const float push_top = std::abs(cy - top);
@@ -46,16 +57,20 @@ std::optional<Vec2> Block::collide_circle(float cx, float cy, float circle_radiu
     const float best = std::min(std::min(push_left, push_right), std::min(push_top, push_bottom));
     if (best == push_left)
     {
+        // 步骤 5.1：离左边最近，向左推出。
         return Vec2{-(circle_radius + push_left), 0.0F};
     }
     if (best == push_right)
     {
+        // 步骤 5.2：离右边最近，向右推出。
         return Vec2{circle_radius + push_right, 0.0F};
     }
     if (best == push_top)
     {
+        // 步骤 5.3：离上边最近，向上推出。
         return Vec2{0.0F, -(circle_radius + push_top)};
     }
+    // 步骤 5.4：离下边最近，向下推出。
     return Vec2{0.0F, circle_radius + push_bottom};
 }
 

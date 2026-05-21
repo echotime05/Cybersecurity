@@ -185,23 +185,29 @@ void BattleRoom::create_bullet(TankItem& tank, std::uint64_t now_ms)
 // 推进一帧战斗世界：补给刷新、坦克移动、碰撞、开火、子弹命中和胜利判定。
 void BattleRoom::tick(std::uint64_t now_ms)
 {
+    // 步骤 1：锁住 BattleRoom 权威状态，保证网络线程写输入和游戏线程推进世界不会并发冲突。
     std::lock_guard<std::mutex> lock(mutex_);
 
+    // 步骤 2：如果刚产生过胜者，保留短暂展示时间；展示结束后清空 winner_team_。
     if (winner_team_ >= 0 && now_ms - winner_set_ms_ >= 3000U)
     {
         winner_team_ = -1;
     }
 
+    // 步骤 3：检查所有补给刷新点。如果该刷新点当前没有补给，且冷却时间已到，
+    // 就创建新的 PickableItem，并把它放入当前地图补给表 pickables_。
     for (PickableSpawn& spawn : pick_spawns_)
     {
         if (spawn.active_id == 0 && now_ms - spawn.picked_ms > spawn.delay_ms)
         {
+            // 步骤 3.1：为新补给分配非 0 ID，0 用作“当前没有活跃补给”的标记。
             PickableItem item;
             item.state.id = ++pick_counter_;
             if (item.state.id == 0)
             {
                 item.state.id = ++pick_counter_;
             }
+            // 步骤 3.2：把刷新点配置复制到补给业务状态和空间索引状态。
             item.state.type = spawn.type;
             item.state.x = spawn.x;
             item.state.y = spawn.y;
@@ -209,40 +215,50 @@ void BattleRoom::tick(std::uint64_t now_ms)
             item.x = spawn.x;
             item.y = spawn.y;
             item.radius = kPickableRadius;
+            // 步骤 3.3：刷新点记录当前活跃补给 ID，BattleRoom 记录补给实体。
             spawn.active_id = item.state.id;
             pickables_.emplace(item.state.id, item);
         }
     }
 
+    // 步骤 4：逐个处理坦克的基础状态。
+    // 死亡坦克到达复活时间后重生；存活坦克根据当前输入移动，并处理墙体碰撞。
     for (auto& [id, tank] : tanks_)
     {
         (void)id;
         if (tank.state.dead)
         {
+            // 步骤 4.1：死亡坦克先判断是否已经等待满复活时间。
             if (now_ms - tank.state.died_ms >= kRespawnTimeMs)
             {
+                // 步骤 4.2：达到复活时间后，重置生命、护盾、弹药和开火冷却。
                 tank.state.hp = 10;
                 tank.state.shield = 0;
                 tank.state.ammo = 0;
                 tank.state.dead = false;
                 tank.state.reloading = false;
                 tank.state.respawned_ms = now_ms;
+                // 步骤 4.3：重新分配出生点，并同步到用于碰撞计算的 TankItem 坐标。
                 spawn_position(tank.state);
                 tank.x = tank.state.x;
                 tank.y = tank.state.y;
             }
             else
             {
+                // 步骤 4.4：复活时间未到，本 tick 不再处理该死亡坦克。
                 continue;
             }
         }
 
+        // 步骤 4.5：把最近一次 GAME_TARGET 输入同步为坦克当前炮塔朝向。
         tank.state.angle = tank.state.input.angle;
+        // 步骤 4.6：如果开火冷却时间已到，解除 reloading，允许后续再次开火。
         if (tank.state.reloading && now_ms - tank.state.last_shot_ms >= kReloadTimeMs)
         {
             tank.state.reloading = false;
         }
 
+        // 步骤 4.7：读取最近一次 GAME_MOVE 输入，将方向归一化后推进坦克位置。
         const float dx = static_cast<float>(tank.state.input.dir_x);
         const float dy = static_cast<float>(tank.state.input.dir_y);
         const float len = length(dx, dy);
@@ -252,6 +268,7 @@ void BattleRoom::tick(std::uint64_t now_ms)
             tank.y += (dy / len) * kTankSpeed;
         }
 
+        // 步骤 4.8：用圆形坦克和矩形墙块做碰撞检测；发生碰撞时把坦克推出墙外。
         for (const Block& block : blocks_)
         {
             if (const auto push = block.collide_circle(tank.x, tank.y, kTankRadius))
@@ -260,9 +277,11 @@ void BattleRoom::tick(std::uint64_t now_ms)
                 tank.y += push->y;
             }
         }
+        // 步骤 4.9：最后把坦克限制在世界边界内。
         clamp_to_world(tank);
     }
 
+    // 步骤 5：处理坦克之间的圆形碰撞，防止多个坦克重叠。
     for (auto first = tanks_.begin(); first != tanks_.end(); ++first)
     {
         auto second = first;
@@ -271,16 +290,19 @@ void BattleRoom::tick(std::uint64_t now_ms)
         {
             TankItem& a = first->second;
             TankItem& b = second->second;
+            // 步骤 5.1：死亡坦克不参与坦克间挤压碰撞。
             if (a.state.dead || b.state.dead)
             {
                 continue;
             }
+            // 步骤 5.2：计算两个圆形坦克的距离，距离小于两个半径之和就说明重叠。
             const float dx = b.x - a.x;
             const float dy = b.y - a.y;
             const float dist = length(dx, dy);
             const float min_dist = kTankRadius * 2.0F;
             if (dist < min_dist)
             {
+                // 步骤 5.3：两个坦克沿连线方向各推出一半重叠距离。
                 const float nx = dist > 0.0001F ? dx / dist : 1.0F;
                 const float ny = dist > 0.0001F ? dy / dist : 0.0F;
                 const float push = (min_dist - dist) * 0.5F;
@@ -288,26 +310,32 @@ void BattleRoom::tick(std::uint64_t now_ms)
                 a.y -= ny * push;
                 b.x += nx * push;
                 b.y += ny * push;
+                // 步骤 5.4：推出后再次限制世界边界。
                 clamp_to_world(a);
                 clamp_to_world(b);
             }
         }
     }
 
+    // 步骤 6：处理坦克拾取补给。
+    // 坦克碰到补给后，根据补给类型回血、加特殊弹药或加护盾，同时重置刷新点计时。
     std::vector<std::uint16_t> picked_ids;
     for (auto& [tank_id, tank] : tanks_)
     {
         (void)tank_id;
         if (tank.state.dead)
         {
+            // 步骤 6.1：死亡坦克不能拾取补给。
             continue;
         }
         for (auto& [pick_id, pickable] : pickables_)
         {
+            // 步骤 6.2：用圆形距离判断坦克是否碰到补给。
             if (distance(tank.x, tank.y, pickable.x, pickable.y) >= kTankRadius + kPickableRadius)
             {
                 continue;
             }
+            // 步骤 6.3：根据补给类型修改坦克状态。
             if (pickable.state.type == PickableType::repair)
             {
                 tank.state.hp = static_cast<std::int8_t>(std::min<int>(10, tank.state.hp + 4));
@@ -321,53 +349,67 @@ void BattleRoom::tick(std::uint64_t now_ms)
                 tank.state.shield =
                     static_cast<std::int8_t>(std::min<int>(10, tank.state.shield + 5));
             }
+            // 步骤 6.4：通知原刷新点“当前补给已被拾取”，并记录拾取时间用于后续刷新。
             if (pickable.state.spawn_index < pick_spawns_.size())
             {
                 PickableSpawn& spawn = pick_spawns_[pickable.state.spawn_index];
                 spawn.active_id = 0;
                 spawn.picked_ms = now_ms;
             }
+            // 步骤 6.5：记录被拾取的补给 ID，循环结束后统一从 pickables_ 删除。
             picked_ids.push_back(pick_id);
         }
     }
+    // 步骤 6.6：删除本 tick 已被拾取的补给实体。
     for (std::uint16_t id : picked_ids)
     {
         pickables_.erase(id);
     }
 
+    // 步骤 7：消费一次性开火输入。
+    // GAME_SHOOT 只把 shoot_requested 置为 true，真正能不能生成子弹由这里统一判断。
     for (auto& [id, tank] : tanks_)
     {
         (void)id;
+        // 步骤 7.1：读取本 tick 是否收到过 GAME_SHOOT，并立即清空，保证一次请求只消费一次。
         const bool shoot_requested = tank.state.input.shoot_requested;
         tank.state.input.shoot_requested = false;
+        // 步骤 7.2：只有存活、收到开火请求、且不在 reload 冷却中的坦克才能创建子弹。
         if (!tank.state.dead && shoot_requested && !tank.state.reloading)
         {
             create_bullet(tank, now_ms);
         }
     }
 
+    // 步骤 8：推进所有子弹。
+    // 子弹按目标点飞行；到达终点、越界、撞墙或命中坦克后都会被加入删除列表。
     std::vector<std::uint16_t> remove_bullets;
     for (auto& [bullet_id, bullet] : bullets_)
     {
+        // 步骤 8.1：计算子弹当前位置到目标点的方向和剩余距离。
         const float dx = bullet.state.target_x - bullet.x;
         const float dy = bullet.state.target_y - bullet.y;
         const float len = length(dx, dy);
         if (len <= bullet.state.speed || len <= 0.0001F)
         {
+            // 步骤 8.2：子弹到达最大射程目标点，标记删除。
             remove_bullets.push_back(bullet_id);
             continue;
         }
+        // 步骤 8.3：沿目标方向推进子弹，并同步回 BulletState。
         bullet.x += (dx / len) * bullet.state.speed;
         bullet.y += (dy / len) * bullet.state.speed;
         bullet.state.x = bullet.x;
         bullet.state.y = bullet.y;
 
+        // 步骤 8.4：子弹越出世界边界，标记删除。
         if (bullet.x < 0.0F || bullet.x > kWorldSize || bullet.y < 0.0F || bullet.y > kWorldSize)
         {
             remove_bullets.push_back(bullet_id);
             continue;
         }
         bool consumed = false;
+        // 步骤 8.5：子弹撞到任意矩形墙块，标记删除。
         for (const Block& block : blocks_)
         {
             if (block.collide_circle(bullet.x, bullet.y, kBulletRadius))
@@ -384,20 +426,24 @@ void BattleRoom::tick(std::uint64_t now_ms)
 
         for (auto& [tank_id, target] : tanks_)
         {
+            // 步骤 8.6：跳过死亡目标、同队目标以及发射者自己。
             if (target.state.dead || target.state.team == bullet.state.owner_team ||
                 tank_id == bullet.state.owner)
             {
                 continue;
             }
+            // 步骤 8.7：刚复活的坦克处于短暂无敌期，不能被命中。
             if (now_ms - target.state.respawned_ms < kInvulnerableTimeMs)
             {
                 continue;
             }
+            // 步骤 8.8：用圆形距离判断子弹是否命中目标坦克。
             if (distance(bullet.x, bullet.y, target.x, target.y) >= kTankRadius + kBulletRadius)
             {
                 continue;
             }
 
+            // 步骤 8.9：子弹命中敌方坦克后，先扣护盾，再扣生命值。
             std::int8_t remaining = bullet.state.damage;
             if (target.state.shield > 0)
             {
@@ -412,6 +458,7 @@ void BattleRoom::tick(std::uint64_t now_ms)
             target.state.hit_ms = now_ms;
             if (target.state.hp <= 0)
             {
+                // 步骤 8.10：坦克生命值归零后进入死亡状态，并给子弹发射者记分。
                 target.state.hp = 0;
                 target.state.dead = true;
                 target.state.died_ms = now_ms;
@@ -426,6 +473,7 @@ void BattleRoom::tick(std::uint64_t now_ms)
                         ++teams_[owner->second.state.team].score;
                         if (teams_[owner->second.state.team].score >= kWinScore)
                         {
+                            // 步骤 8.11：队伍达到胜利分数后，记录胜者并重置各队和坦克分数。
                             winner_team_ = static_cast<std::int8_t>(owner->second.state.team);
                             winner_set_ms_ = now_ms;
                             for (TeamState& team : teams_)
@@ -444,21 +492,25 @@ void BattleRoom::tick(std::uint64_t now_ms)
                     ++total_score_;
                 }
             }
+            // 步骤 8.12：子弹命中任意有效目标后，本颗子弹消耗并退出目标遍历。
             remove_bullets.push_back(bullet_id);
             break;
         }
     }
+    // 步骤 8.13：统一删除本 tick 已消耗或失效的子弹。
     for (std::uint16_t id : remove_bullets)
     {
         bullets_.erase(id);
     }
 
+    // 步骤 9：把物理对象坐标同步回 TankState，保证后续 GAME_STATE 快照使用最新位置。
     for (auto& [id, tank] : tanks_)
     {
         (void)id;
         tank.state.x = tank.x;
         tank.state.y = tank.y;
     }
+    // 步骤 10：根据本 tick 后的最新坦克、子弹、补给和墙体，重建下一帧使用的空间索引。
     rebuild_world();
 }
 
