@@ -149,3 +149,17 @@ add_test(
             -File ${CMAKE_CURRENT_SOURCE_DIR}/tests/auth_encrypted_game_flow_selftest.ps1
             -BuildDir $<TARGET_FILE_DIR:client>
 )
+
+add_test(
+    NAME clear_logs_selftest
+    COMMAND powershell -NoProfile -ExecutionPolicy Bypass
+            -File ${CMAKE_CURRENT_SOURCE_DIR}/tests/clear_logs_selftest.ps1
+            -RepoRoot ${CMAKE_CURRENT_SOURCE_DIR}
+)
+
+add_test(
+    NAME local_runtime_config_selftest
+    COMMAND powershell -NoProfile -ExecutionPolicy Bypass
+            -File ${CMAKE_CURRENT_SOURCE_DIR}/tests/local_runtime_config_selftest.ps1
+            -RepoRoot ${CMAKE_CURRENT_SOURCE_DIR}
+)

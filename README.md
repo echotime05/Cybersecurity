@@ -257,6 +257,10 @@ cd ..
 .\scripts\run_local.ps1
 ```
 
+`run_local.ps1` 默认会基于 `config/course_config.txt` 生成
+`_generated/logs/runtime/local_all_config.txt`，并把 AS/TGS/V 地址改成
+`127.0.0.1` 供单机联调使用。如果要按给定配置原样启动，显式传入 `-Config`。
+
 启动 Web UI：
 
 ```powershell
@@ -273,6 +277,12 @@ http://127.0.0.1:5173/?client=ws://127.0.0.1:7001&monitor=ws://127.0.0.1:7010
 
 ```powershell
 .\scripts\stop_local.ps1
+```
+
+清空本机运行日志：
+
+```powershell
+.\scripts\clear_logs.ps1
 ```
 
 ## 5. 分角色手动启动
@@ -369,6 +379,8 @@ Host 4: V + Client4
 ```text
 scripts/run_local.ps1          单机启动 AS/TGS/V/Client/Monitor
 scripts/stop_local.ps1         停止本机 AS/TGS/V/Client/Monitor
+scripts/new_local_runtime_config.ps1  生成单机 localhost 运行配置
+scripts/clear_logs.ps1         清空 _generated/logs 下的运行日志
 scripts/run_web.ps1            启动 Web UI dev server
 scripts/run_perf_4clients.ps1  四 Client 加密链路压测
 ```
