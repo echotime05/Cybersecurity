@@ -304,10 +304,30 @@
     #protocol-payload {
       min-height: 110px; border: 1px solid #78a7d0; background: #102033;
       padding: 18px; margin-bottom: 24px; color: #b9dcff; font-size: 17px; line-height: 1.55;
+    }
+    .protocol-payload-layout.with-nested {
+      display: grid; grid-template-columns: minmax(320px, 0.82fr) minmax(360px, 1.18fr);
+      gap: 16px; align-items: start;
+    }
+    .protocol-payload-layout.single { display: block; }
+    .protocol-payload-rows {
       display: grid; grid-template-columns: 150px minmax(0, 1fr); gap: 9px 12px;
     }
     .protocol-payload-key { color: #8ea7bd; overflow-wrap: anywhere; }
     .protocol-payload-value { color: #eaf6ff; overflow-wrap: anywhere; }
+    .protocol-payload-nested {
+      display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 12px;
+    }
+    .protocol-payload-card {
+      min-width: 0; border: 1px solid #456d8f; background: #0b1d30;
+    }
+    .protocol-payload-card-title {
+      padding: 10px 12px; background: #0f2943; color: #ffe17a; font-weight: 800; font-size: 17px;
+    }
+    .protocol-payload-card-rows {
+      display: grid; grid-template-columns: 132px minmax(0, 1fr); gap: 7px 10px;
+      padding: 12px; font-size: 16px; line-height: 1.45;
+    }
     .protocol-tone-app { color: #74f0a2; }
     .protocol-tone-kerberos { color: #ffe17a; }
     .protocol-tone-error { color: #ff8f86; }
@@ -335,6 +355,9 @@
       .protocol-header-cell { min-height: 88px; padding: 10px 6px; }
       .field-label { font-size: 17px; }
       .field-raw { font-size: 13px; }
+      .protocol-payload-layout.with-nested { grid-template-columns: 1fr; }
+      .protocol-payload-rows { grid-template-columns: 130px minmax(0, 1fr); }
+      .protocol-payload-card-rows { grid-template-columns: 120px minmax(0, 1fr); }
     }
   </style>
 </head>

@@ -1,4 +1,9 @@
-import { buildProtocolPayloadView, formatHexString, type ProtocolPayloadRow } from "./protocolPayload";
+import {
+  buildProtocolPayloadView,
+  formatHexString,
+  type ProtocolPayloadFieldCard,
+  type ProtocolPayloadRow,
+} from "./protocolPayload";
 
 type ProtocolCategory = "app" | "kerberos" | "error";
 
@@ -286,9 +291,24 @@ export class ProtocolMonitorUi {
 
   private renderPayload(event: ProtocolEvent) {
     const view = buildProtocolPayloadView(event);
-    this.payloadEl.replaceChildren(
-      ...view.rows.map((row) => this.payloadRow(row))
-    );
+    const rows = document.createElement("div");
+    rows.className = "protocol-payload-rows";
+    rows.append(...view.rows.map((row) => this.payloadRow(row)));
+
+    const layout = document.createElement("div");
+    layout.className = view.fieldCards.length > 0
+      ? "protocol-payload-layout with-nested"
+      : "protocol-payload-layout single";
+    layout.append(rows);
+
+    if (view.fieldCards.length > 0) {
+      const nested = document.createElement("div");
+      nested.className = "protocol-payload-nested";
+      nested.append(...view.fieldCards.map((card) => this.payloadFieldCard(card)));
+      layout.append(nested);
+    }
+
+    this.payloadEl.replaceChildren(layout);
 
     this.payloadHexEl.className =
       view.hexBlocks.length === 1 ? "protocol-hex-grid single" : "protocol-hex-grid";
@@ -323,6 +343,22 @@ export class ProtocolMonitorUi {
     const fragment = document.createDocumentFragment();
     fragment.append(key, value);
     return fragment;
+  }
+
+  private payloadFieldCard(card: ProtocolPayloadFieldCard) {
+    const box = document.createElement("div");
+    box.className = "protocol-payload-card";
+
+    const title = document.createElement("div");
+    title.className = "protocol-payload-card-title";
+    title.textContent = card.title;
+
+    const rows = document.createElement("div");
+    rows.className = "protocol-payload-card-rows";
+    rows.append(...card.rows.map((row) => this.payloadRow(row)));
+
+    box.append(title, rows);
+    return box;
   }
 
   private togglePause() {
