@@ -113,6 +113,7 @@ $logRoot = Join-Path $generatedRoot 'logs'
 $runtimeDir = Join-Path $logRoot 'runtime'
 $protocolEventsDir = Join-Path $logRoot 'protocol_events'
 $configPath = Resolve-RepoPath $Config
+$usingGeneratedLocalConfig = -not $PSBoundParameters.ContainsKey('Config')
 
 Set-Location $repoRoot
 Add-ToolPathIfPresent 'E:\Qt\Tools\CMake_64\bin'
@@ -125,6 +126,18 @@ New-Item -ItemType Directory -Force $protocolEventsDir | Out-Null
 
 if (-not (Test-Path -LiteralPath $configPath)) {
     throw "Missing config file: $configPath"
+}
+
+if ($usingGeneratedLocalConfig) {
+    $localConfigPath = Join-Path $runtimeDir 'local_all_config.txt'
+    & powershell -NoProfile -ExecutionPolicy Bypass `
+        -File (Join-Path $scriptDir 'new_local_runtime_config.ps1') `
+        -SourceConfig $configPath `
+        -OutputPath $localConfigPath
+    if ($LASTEXITCODE -ne 0) {
+        exit $LASTEXITCODE
+    }
+    $configPath = $localConfigPath
 }
 
 if (-not $NoBuild) {
@@ -169,4 +182,5 @@ foreach ($process in $processes) {
 Write-Host ("Client bridge: ws://127.0.0.1:{0}" -f $UiPort)
 Write-Host ("Protocol monitor: ws://127.0.0.1:{0}" -f $MonitorPort)
 Write-Host ("Open UI after starting web-ui: http://127.0.0.1:5173/?client=ws://127.0.0.1:{0}&monitor=ws://127.0.0.1:{1}" -f $UiPort, $MonitorPort)
+Write-Host ("Runtime config: {0}" -f $configPath)
 Write-Host 'Logs: _generated\logs\runtime\*.out and _generated\logs\runtime\*.err'
