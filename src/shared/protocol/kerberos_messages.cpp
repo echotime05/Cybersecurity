@@ -165,7 +165,7 @@ Bytes tgs_build_req(const TgsReq& value)
     return out;
 }
 
-// 解析 TGS_REQ。
+// 解析 TGS_REQ。(将字符数组解析为 TgsReq 结构体，便于程序使用)
 TgsReq tgs_parse_req(const Bytes& payload)
 {
     std::size_t offset = 0;
