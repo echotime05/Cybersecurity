@@ -8,8 +8,8 @@
 
 namespace cyber::game
 {
-// V 服务器的世界更新周期，当前为 20ms 一帧。
-constexpr std::uint64_t kServerTickIntervalMs = 20;
+// V 服务器的世界更新周期，当前为 33ms 一帧。
+constexpr std::uint64_t kServerTickIntervalMs = 33;
 // 将原 33ms 参数按当前 tick 周期缩放，保持速度体感接近。
 constexpr float kTickScaleFrom33Ms = static_cast<float>(kServerTickIntervalMs) / 33.0F;
 // 坦克每 tick 移动距离。
