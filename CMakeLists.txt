@@ -162,3 +162,10 @@ add_test(
             -File ${CMAKE_CURRENT_SOURCE_DIR}/tests/local_runtime_config_selftest.ps1
             -RepoRoot ${CMAKE_CURRENT_SOURCE_DIR}
 )
+
+add_test(
+    NAME run_monitor_selftest
+    COMMAND powershell -NoProfile -ExecutionPolicy Bypass
+            -File ${CMAKE_CURRENT_SOURCE_DIR}/tests/run_monitor_selftest.ps1
+            -RepoRoot ${CMAKE_CURRENT_SOURCE_DIR}
+)

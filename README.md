@@ -334,6 +334,12 @@ Client 负责浏览器 WebSocket bridge、真实密码登录、AS/TGS/V 完整�
 .\scripts\run_web.ps1
 ```
 
+也可以直接用脚本启动 Monitor：
+
+```powershell
+.\scripts\run_monitor.ps1
+```
+
 Monitor 不参与认证和游戏计算。它只读取本机 `_generated/logs/protocol_events/*.txt`，把本机进程发包/收包事件推给浏览器 Protocol 面板。
 
 代码入口：`src/roles/monitor/README.md`
@@ -377,6 +383,7 @@ Host 4: V + Client4
 ```text
 scripts/run_local.ps1          单机启动 AS/TGS/V/Client/Monitor
 scripts/stop_local.ps1         停止本机 AS/TGS/V/Client/Monitor
+scripts/run_monitor.ps1        单独启动 Protocol Monitor
 scripts/new_local_runtime_config.ps1  生成单机 localhost 运行配置
 scripts/clear_logs.ps1         清空 _generated/logs 下的运行日志
 scripts/run_web.ps1            启动 Web UI dev server
