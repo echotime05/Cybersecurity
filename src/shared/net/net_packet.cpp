@@ -13,6 +13,11 @@
 #define WIN32_LEAN_AND_MEAN
 #include <winsock2.h>
 
+/**
+ * 核心职责：在TCP字节流之上实现基于固定头格式的报文收发，收发同时
+ * 自动写协议事件日志
+ */
+
 namespace cyber
 {
 namespace

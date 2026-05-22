@@ -47,6 +47,8 @@ export function preloadTankModel(): Promise<THREE.Group> {
   return modelLoadPromise;
 }
 
+// lys到此一游
+
 function makeTeamMaterial(team: number): THREE.MeshStandardMaterial {
   return new THREE.MeshStandardMaterial({
     map: teamTextures[team] || teamTextures[2],
