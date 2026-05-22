@@ -127,22 +127,32 @@ bool send_packet_logged(SocketHandle socket, const Packet& packet,
 // 接收完整报文并记录协议事件。
 Packet recv_packet_logged(SocketHandle socket)
 {
+    // 第一阶段：先接收固定长度的报文头，解析出 payload 长度，再接收剩余的 payload 字节，最后将完整报文解析成 Packet 结构体。
     Bytes raw(kPacketHeaderSize);
     recv_exact(socket, raw.data(), raw.size());
 
+    // 反序列化包头，从中获取payload的长度信息
     const PacketHeader header = parse_packet_header(raw);
+
+    // 安全防御额：防止恶意发包者发送一个非常大的 payload_len 来耗尽服务器资源，因此在这里设置一个合理的最大值限制，如果超过则抛出异常。
     if (header.payload_len > kMaxPacketPayloadSize)
     {
         throw PacketError("packet payload exceeds max allowed size");
     }
 
+    // 第二阶段：接收并解析payload
+    // 扩展缓冲区以接纳完整报文，先接收剩余的 payload 字节，再将整个报文解析成 Packet 结构体。
     raw.resize(kPacketHeaderSize + header.payload_len);
+
     if (header.payload_len > 0)
     {
         recv_exact(socket, raw.data() + kPacketHeaderSize, header.payload_len);
     }
 
+    // 将完整的字节流解析为packet结构体
     Packet packet = parse_packet(raw);
+
+    //第三阶段：协议事件记录
     if (packet.msg_type != MsgType::app)
     {
         try

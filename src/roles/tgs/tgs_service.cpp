@@ -82,6 +82,7 @@ void tgs_process_connection(SocketHandle socket, const Config& config)
         packet_require_msg_type(request, MsgType::tgs_req);
 
         // 解析TGS_REQ请求，提取票据和认证器，并进行身份验证
+        // 提取payload，包括idv,ticket_tgs和authenticator_tgs
         const TgsReq tgs_req = tgs_parse_req(request.payload);
 
         // 2. 使用TGS长期密钥（KTGS）解密TGT票据，获取其中的会话密钥（kc_tgs）和客户端身份信息（idc）。然后使用会话密钥解密认证器，获取客户端的身份信息（idc）和时间戳（ts）。最后验证票据中的客户端身份、TGS身份以及请求中的服务身份是否符合预期。如果验证失败，则抛出一个运行时错误异常，提示“TGS identity check failed”。
@@ -118,17 +119,22 @@ void tgs_process_connection(SocketHandle socket, const Config& config)
 
         // 5. 准备签发新的服务票据（Service Ticket）并构建TGS响应数据包
         // 生成客户端（C）与最终服务（V）之间的临时会话密钥Kc_v
+        
+        // 生成Kc_v
         const std::uint64_t kc_v = generate_des_key56();
-        const std::uint64_t ts4 = auth_time_now_ms();//生成时间戳
+        // 生成时间戳ts4
+        const std::uint64_t ts4 = auth_time_now_ms();
 
-        // 使用服务V的长期密钥（KV）加密票据，客户端无法解密，只能转法给V
+        // 使用服务V的长期密钥（KV）加密票据，客户端无法解密，只能转发给V
         const TicketVBody ticket_v_body{
             kc_v, ticket.idc, ticket.adc, EntityId::v, ts4, kDefaultLifetimeMs};
 
         // 6. 组装发给客户端的回复体（TGS_REP）
         // 包含：C-V 会话密钥 (Kc_v)、目标服务ID、时间戳以及加密好的服务票据 (ticket_v)
         const Bytes ticket_v = v_ticket_encrypt(ticket_v_body, config.get_u64("KV"));
+        // 构建payload明文
         const TgsRepBody rep_body{kc_v, EntityId::v, ts4, ticket_v};
+        // 序列化payload
         const Bytes rep_plain = tgs_build_rep_body(rep_body);
 
         // 使用第一步获得的 C-TGS 会话密钥 (Kc_tgs) 加密整个回复包，确保只有合法的客户端能解开

@@ -174,6 +174,7 @@ void runtime_handle_server_connection(SocketHandle socket, RoleKind role, RoleSp
 {
     try
     {
+        // 分派AS请求或TGS请求
         if (role == RoleKind::as_server)
         {
             cyber::roles::as::as_process_connection(socket, config);
@@ -196,33 +197,50 @@ void runtime_handle_server_connection(SocketHandle socket, RoleKind role, RoleSp
     }
 }
 
-// 运行 AS 或 TGS 的短连接认证服务循环。
+// 运行 AS 或 TGS 的短连接认证服务循环。（实现多线程）
 void runtime_run_auth_server(RoleKind role, const Config& config, const RoleSpec& spec,
                              int max_connections)
 {
+
+    // 角色校验，确保当前进程的角色是AS或TGS服务器
     if (!runtime_is_auth_server(role))
     {
         throw std::runtime_error("only AS/TGS can run --serve");
     }
 
+    /**
+     * 网络与套接字初始化
+     * 功能：准备接收网络连接
+     * 根据传入的配置（config和spec）解析出绑定IP和端口
+     */
     SocketRuntime runtime;
     const TcpEndpoint endpoint = runtime_bind_endpoint(config, spec);
 
+    // listen_tcp创建一个TCP监听套接字
     SocketHandle listener = listen_tcp(endpoint);
+
+    // 在控制台打印服务器开始监听的地址和日志输出路径。
     std::cout << spec.name << " listening on " << net_format_endpoint(endpoint) << std::endl;
     std::cout << "protocol events: " << log_root_from_config(config).string()
               << "\\protocol_events" << std::endl;
 
+    // 主时间循环与并发处理
+    /**
+     * 功能：不断接收客户端连接并派发任务，每收到一个连接，就创建一个新的线程来处理这个连接，调用runtime_handle_server_connection函数处理该线程，主线程继续监听新的连接请求。
+     */
     try
     {
         int accepted_count = 0;
         while (true)
         {
+
             std::string peer;
             SocketHandle accepted = accept_tcp(listener, &peer);
             ++accepted_count;
 
             std::thread worker(runtime_handle_server_connection, accepted, role, spec, config);
+
+            // 连接数限制和线程管理
             if (max_connections > 0)
             {
                 worker.join();
