@@ -56,7 +56,7 @@ namespace cyber::roles::as
             return view;
         }
 
-        // 向协议可视化 payload 中追加一个字段级密文/明文对照。
+        // 向协议可视化 payload 中追加一个字段级密文/明文对照。.
         void protocol_add_encrypted_field(ProtocolPayloadView &view, std::string name,
                                           const Bytes &encrypted, const Bytes &plain = {})
         {
