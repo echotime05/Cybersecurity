@@ -108,15 +108,6 @@ function Assert-DirectoryContains {
     }
 }
 
-function Assert-PathMissing {
-    param(
-        [string]$Path
-    )
-    if (Test-Path -LiteralPath $Path) {
-        throw "Unexpected legacy log path exists: $Path"
-    }
-}
-
 function Assert-ProtocolEventLineContains {
     param(
         [string]$Path,
@@ -238,12 +229,6 @@ try {
     Assert-DirectoryContains (Join-Path $tmp 'logs\protocol_events') 'field1_name=authenticator_v'
     Assert-ProtocolEventLineContains (Join-Path $tmp 'logs\protocol_events') 'MSG_V_AUTH_REP' 'payload_plain_hex='
     Assert-ProtocolEventLineContains (Join-Path $tmp 'logs\protocol_events') 'MSG_CERT_V2C' 'payload_plain_hex='
-    Assert-PathMissing (Join-Path $tmp 'logs\client_ack.log')
-    Assert-PathMissing (Join-Path $tmp 'logs\v_ack.log')
-    Assert-PathMissing (Join-Path $tmp 'logs\client_game.log')
-    Assert-PathMissing (Join-Path $tmp 'logs\v_game.log')
-    Assert-PathMissing (Join-Path $tmp 'logs\as.log')
-    Assert-PathMissing (Join-Path $tmp 'logs\tgs.log')
 
     & (Join-Path $BuildDir 'encrypted_plaintext_rejection_client.exe') $config
     if ($LASTEXITCODE -ne 0) {

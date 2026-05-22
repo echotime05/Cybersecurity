@@ -172,9 +172,8 @@ void TankGameServer::accept_loop()
     {
         try
         {
-            std::string peer;
-            SocketHandle accepted = accept_tcp(listener_, &peer);
-            client_threads_.emplace_back(&TankGameServer::client_loop, this, accepted, peer);
+            SocketHandle accepted = accept_tcp(listener_);
+            client_threads_.emplace_back(&TankGameServer::client_loop, this, accepted);
         }
         catch (const std::exception&)
         {
@@ -188,14 +187,14 @@ void TankGameServer::accept_loop()
 }
 
 // 处理单个 Client 连接：先认证，再循环接收签名加密游戏报文。
-void TankGameServer::client_loop(SocketHandle socket, std::string peer)
+void TankGameServer::client_loop(SocketHandle socket)
 {
     try
     {
         EntityId authenticated_client = EntityId::unknown;
         std::uint64_t kc_v = 0;
         RsaPublicKey client_public_key;
-        if (!authenticate_socket(socket, peer, authenticated_client, kc_v, client_public_key))
+        if (!authenticate_socket(socket, authenticated_client, kc_v, client_public_key))
         {
             close_socket(socket);
             return;
@@ -239,30 +238,36 @@ void TankGameServer::client_loop(SocketHandle socket, std::string peer)
 void TankGameServer::handle_packet(SocketHandle socket, const Packet& packet, std::uint64_t kc_v,
                                    const RsaPublicKey& client_public_key)
 {
+    // 步骤 1：handle_packet 只处理认证完成后的 MSG_APP 游戏应用层报文。
     if (packet.msg_type != MsgType::app)
     {
         return;
     }
 
+    // 步骤 2：用当前 Client 的 Kc_v 解密 payload，得到 SignedAppPayload。
     const SignedAppPayload signed_payload = app_decode_signed_packet(packet, kc_v);
     if (signed_payload.app_code == AppCode::app_ack)
     {
+        // 步骤 3：如果收到的是 ACK 本身，只验签和记录日志，不再回复 ACK，避免无限确认。
         (void)ack_parse_verified_payload(signed_payload, client_public_key);
         write_protocol_event(ProtocolDirection::recv, packet, protocol_app_message(AppCode::app_ack),
                              app_build_payload_view(packet, kc_v));
         return;
     }
 
+    // 步骤 4：验签普通游戏报文，并将接收报文写入 Protocol UI 日志。
     const GameMessage message = app_parse_verified_game_message(signed_payload, client_public_key);
     write_protocol_event(ProtocolDirection::recv, packet,
                          protocol_app_message(signed_payload.app_code),
                          app_build_payload_view(packet, kc_v));
+    // 步骤 5：本函数唯一的发包点。V 为刚收到的游戏报文构造并发送 MSG_APP.APP_ACK。
     const Packet ack = ack_build_signed_packet(packet, signed_payload, EntityId::v, packet.src,
                                                kc_v, auth_runtime_.v_key_pair.private_key);
     send_packet_logged(socket, ack);
     write_protocol_event(ProtocolDirection::send, ack, protocol_app_message(AppCode::app_ack),
                          app_build_payload_view(ack, kc_v));
 
+    // 步骤 6：ACK 发出后，再把业务输入写入 BattleRoom，由游戏线程在 tick 中统一消费。
     const std::uint64_t now_ms = game_time_now_ms();
     switch (message.type)
     {
@@ -312,40 +317,46 @@ void TankGameServer::handle_packet(SocketHandle socket, const Packet& packet, st
 }
 
 // 在同一条 V socket 上完成 V_AUTH 和证书交换。
-bool TankGameServer::authenticate_socket(SocketHandle socket, const std::string&,
-                                         EntityId& client_id, std::uint64_t& kc_v,
+bool TankGameServer::authenticate_socket(SocketHandle socket, EntityId& client_id, std::uint64_t& kc_v,
                                          RsaPublicKey& client_public_key)
 {
+    // 步骤 1：等待 Client 发来 Kerberos 第三阶段 V_AUTH_REQ。
     const Packet auth_packet = recv_packet_logged(socket);
     if (auth_packet.msg_type != MsgType::v_auth_req || !is_client(auth_packet.src))
     {
         return false;
     }
 
+    // 步骤 2：解 ticket_v 和 authenticator_v，校验成功后构造 V_AUTH_REP。
     const Packet response =
         cyber::roles::v::v_auth_process_request(auth_packet, config_, auth_runtime_);
     write_protocol_event(ProtocolDirection::recv, auth_packet, {},
                          v_auth_build_req_payload_view(auth_packet, config_));
     const cyber::roles::v::AuthSession auth_session =
         auth_runtime_.v_sessions.get(auth_packet.src);
+    // 发包点 1：V 向 Client 返回 MSG_V_AUTH_REP，证明 V 已经接受 Kc_v 会话。
     send_packet_logged(socket, response,
                        protocol_build_decrypted_payload_view(response, auth_session.kc_v));
 
+    // 步骤 3：继续在同一条 TCP 连接上等待 Client 发送 CERT_C2V 证书报文。
     const Packet cert_packet = recv_packet_logged(socket);
     if (cert_packet.msg_type != MsgType::cert_c2v || cert_packet.src != auth_packet.src)
     {
         return false;
     }
 
+    // 步骤 4：校验 Client 证书，绑定 Client 公钥，并构造 V 自己的证书回包。
     const cyber::roles::v::AuthSession cert_session =
         auth_runtime_.v_sessions.get(cert_packet.src);
     write_protocol_event(ProtocolDirection::recv, cert_packet, {},
                          protocol_build_decrypted_payload_view(cert_packet, cert_session.kc_v));
     const Packet cert_response =
         cyber::roles::v::cert_process_c2v_request(cert_packet, auth_runtime_);
+    // 发包点 2：V 向 Client 返回 MSG_CERT_V2C，完成后续游戏签名所需的公钥交换。
     send_packet_logged(socket, cert_response,
                        protocol_build_decrypted_payload_view(cert_response, cert_session.kc_v));
 
+    // 步骤 5：把认证后的 Client ID、Kc_v 和 Client 公钥交给通信线程继续处理游戏报文。
     const cyber::roles::v::AuthSession session = auth_runtime_.v_sessions.get(auth_packet.src);
     client_id = auth_packet.src;
     kc_v = session.kc_v;
@@ -371,6 +382,7 @@ void TankGameServer::game_loop()
 // 将世界快照签名加密后发送给所有已加入 Client。
 void TankGameServer::broadcast(const BattleStateSnapshot& snapshot)
 {
+    // 步骤 1：先复制当前在线连接，避免发送过程中长期持有 connections_mutex_。
     std::vector<ClientConnection> targets;
     {
         std::lock_guard<std::mutex> lock(connections_mutex_);
@@ -388,12 +400,15 @@ void TankGameServer::broadcast(const BattleStateSnapshot& snapshot)
         return;
     }
 
+    // 步骤 2：把 BattleRoom 生成的权威世界快照序列化为 GAME_STATE payload。
     const Bytes state_payload = game_build_state(snapshot);
     std::vector<EntityId> failed;
     for (const ClientConnection& target : targets)
     {
         try
         {
+            // 步骤 3：本函数唯一的发包点。针对每个 Client 使用各自的 Kc_v 签名加密后发送
+            // MSG_APP.GAME_STATE。
             const Packet packet = app_build_signed_game_packet(
                 EntityId::v, target.client_id, GameMsgType::state, state_payload, target.kc_v,
                 auth_runtime_.v_key_pair.private_key);
@@ -404,6 +419,7 @@ void TankGameServer::broadcast(const BattleStateSnapshot& snapshot)
         }
         catch (const std::exception&)
         {
+            // 步骤 4：如果某个 Client 发送失败，记录后在本轮广播结束时清理连接。
             failed.push_back(target.client_id);
             close_socket(target.socket);
         }

@@ -20,7 +20,6 @@ add_library(cyber_common
     src/shared/auth/auth_credentials.cpp
     src/shared/config/config.cpp
     src/shared/crypto/crypto.cpp
-    src/shared/logging/log_parser.cpp
     src/shared/logging/logger.cpp
     src/shared/net/net_packet.cpp
     src/shared/net/net_socket.cpp

@@ -196,7 +196,11 @@ Bytes certificate_material(EntityId subject_id, const RsaPublicKey& subject_pk)
 }
 } // namespace
 
-// 使用演示 DES 算法加密任意长度 payload。
+/**
+ * 公开对外接口实现，定义在 crypto.hpp 中。
+ */
+
+// 使用 DES 算法加密任意长度 payload；先应用填充，再分块加密。
 Bytes des_encrypt_payload(const Bytes& plain, std::uint64_t key56)
 {
     const Bytes padded = apply_des_padding(plain);
@@ -209,15 +213,18 @@ Bytes des_encrypt_payload(const Bytes& plain, std::uint64_t key56)
     return out;
 }
 
-// 使用演示 DES 算法解密任意长度 payload。
+// 使用 DES 算法解密任意长度 payload。
 Bytes des_decrypt_payload(const Bytes& cipher, std::uint64_t key56)
 {
+    // 合法密文长度必须大于0且为8字节的整数倍
     if (cipher.empty() || cipher.size() % 8U != 0U)
     {
         throw PacketError("DES cipher length must be a positive multiple of 8");
     }
     Bytes padded;
     padded.reserve(cipher.size());
+
+    // 循环解密每一个加密块，并将结果写入 padded 数组
     for (std::size_t offset = 0; offset < cipher.size(); offset += 8U)
     {
         write_u64_be(padded, des_decrypt_block(read_u64_be(cipher, offset), key56));
@@ -324,7 +331,7 @@ RsaKeyPair ca_key_pair_from_hex(const std::string& n_hex, const std::string& e_h
     return pair;
 }
 
-// 为指定角色返回固定演示 RSA 密钥对。
+// 为四个Client和V分配 RSA 密钥对。
 RsaKeyPair demo_rsa_key_pair_for(EntityId id)
 {
     struct SmallKey
@@ -357,21 +364,21 @@ RsaKeyPair demo_rsa_key_pair_for(EntityId id)
     throw PacketError("no demo RSA key for entity");
 }
 
-// 对 hash 做 RSA 私钥签名。
+// 对 hash 做 RSA 私钥签名。（生成RSA签名，供应用层使用，具有不可否认性）
 Bytes rsa_sign_hash(std::uint64_t hash, const RsaPrivateKey& private_key)
 {
     const std::uint64_t digest = hash % private_key.n;
     return integer_to_bytes(mod_pow(digest, private_key.d, private_key.n));
 }
 
-// 验证 RSA 签名是否能还原到指定 hash。
+// 验证 RSA 签名是否能还原到指定 hash。（校验RSA签名，供应用层使用，验证签名的真实性和完整性）
 bool rsa_verify_hash(std::uint64_t hash, const Bytes& signature, const RsaPublicKey& public_key)
 {
     const std::uint64_t expected = hash % public_key.n;
     return mod_pow(integer_from_bytes_truncated(signature), public_key.e, public_key.n) == expected;
 }
 
-// 序列化 RSA 公钥：32 字节 n 加 4 字节 e。
+// 序列化 RSA 公钥以便网络传输：32 字节 n 加 4 字节 e。
 Bytes serialize_public_key(const RsaPublicKey& key)
 {
     Bytes out = integer_to_bytes(key.n, 32);

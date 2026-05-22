@@ -10,6 +10,14 @@ function rowValue(rows: ReturnType<typeof buildProtocolPayloadView>["rows"], key
   return rows.find((row) => row.key === key)?.value;
 }
 
+function cardValue(
+  cards: ReturnType<typeof buildProtocolPayloadView>["fieldCards"],
+  title: string,
+  key: string
+) {
+  return cards.find((card) => card.title === title)?.rows.find((row) => row.key === key)?.value;
+}
+
 function testEncryptedOuterPayloadIsNotParsedAsPlain() {
   const fakeCipherThatLooksLikeAsRep =
     "000102030405060711000000000000000100000000000000020000";
@@ -101,6 +109,35 @@ function testVAuthRepAndCertV2CPlainPayloadsAreParsed() {
   assertCondition(rowValue(certView.rows, "cert") === "aa bb cc", "CERT_V2C cert not summarized");
 }
 
+function testDecryptedKerberosFieldsBuildNestedCards() {
+  const ticketTgsPlain =
+    "0102030405060708" + // kc_tgs
+    "03" + // idc
+    "0000002a" + // adc
+    "12" + // idtgs
+    "0000000000001234" + // ts2
+    "0000000000005678"; // lifetime2
+  const authenticatorPlain =
+    "03" + // idc
+    "0000002a" + // adc
+    "0000000000009abc"; // ts
+  const view = buildProtocolPayloadView({
+    direction: "RECV",
+    message: "MSG_TGS_REQ",
+    payloadHex: "130002aabb0002ccdd",
+    payloadFields: [
+      { name: "ticket_tgs", encryptedHex: "aabb", plainHex: ticketTgsPlain },
+      { name: "authenticator_tgs", encryptedHex: "ccdd", plainHex: authenticatorPlain },
+    ],
+  });
+
+  assertCondition(rowValue(view.rows, "ticket_tgs") === "encrypted field", "TGS_REQ outer row changed");
+  assertCondition(cardValue(view.fieldCards, "ticket_tgs", "kc_tgs") === "0x0102030405060708", "ticket_tgs kc_tgs not parsed");
+  assertCondition(cardValue(view.fieldCards, "ticket_tgs", "idc") === "Client3", "ticket_tgs idc not parsed");
+  assertCondition(cardValue(view.fieldCards, "ticket_tgs", "idtgs") === "TGS", "ticket_tgs idtgs not parsed");
+  assertCondition(cardValue(view.fieldCards, "authenticator_tgs", "ts") === "0x0000000000009abc", "authenticator_tgs ts not parsed");
+}
+
 testEncryptedOuterPayloadIsNotParsedAsPlain();
 testPlainAsRepShowsActualSessionKeyBytes();
 testEncryptedSignedAppWithoutPlainIsNotParsedAsSignedApp();
@@ -108,5 +145,6 @@ testPlainGameAppWithoutPayloadViewIsParsedAsRawGameMessage();
 testShootGameMessageIsOneShotEvent();
 testJoinGameMessageUsesOnlyClientId();
 testVAuthRepAndCertV2CPlainPayloadsAreParsed();
+testDecryptedKerberosFieldsBuildNestedCards();
 
 console.log("protocolPayloadSelftest: ok");

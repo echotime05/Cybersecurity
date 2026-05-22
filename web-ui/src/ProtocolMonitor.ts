@@ -1,4 +1,10 @@
-import { buildProtocolPayloadView, formatHexString, type ProtocolPayloadRow } from "./protocolPayload";
+import {
+  buildProtocolPayloadView,
+  formatHexString,
+  type ProtocolPayloadFieldCard,
+  type ProtocolPayloadRow,
+} from "./protocolPayload";
+import { ProtocolEventStore } from "./protocolEventStore";
 
 type ProtocolCategory = "app" | "kerberos" | "error";
 
@@ -58,18 +64,13 @@ class ProtocolMonitorNetwork {
 
 export class ProtocolMonitorUi {
   private readonly network: ProtocolMonitorNetwork;
-  private readonly eventsByRole = new Map<string, ProtocolEvent[]>();
-  private readonly noisyEventsByRole = new Map<string, ProtocolEvent[]>();
-  private readonly seenRoles = new Set<string>();
-  private readonly maxEventsPerRole = 500;
-  private readonly maxNoisyEventsPerRole = 120;
+  private readonly eventStore: ProtocolEventStore<ProtocolEvent>;
 
   private selectedId?: number;
   private activeRole = "All";
   private connected = false;
   private paused = false;
   private showNoisy = false;
-  private pendingRender = false;
 
   private readonly gameTab = document.getElementById("tab-game") as HTMLButtonElement;
   private readonly protocolTab = document.getElementById("tab-protocol") as HTMLButtonElement;
@@ -87,6 +88,11 @@ export class ProtocolMonitorUi {
 
   constructor(monitorUrl: string) {
     this.network = new ProtocolMonitorNetwork(monitorUrl);
+    this.eventStore = new ProtocolEventStore<ProtocolEvent>({
+      maxEventsPerRole: 500,
+      maxNoisyEventsPerRole: 120,
+      isNoisy: (event) => this.isNoisy(event),
+    });
     this.network.onEvent = (event) => this.addEvent(event);
     this.network.onStatus = (status) => {
       this.connected = status === "connected";
@@ -115,21 +121,13 @@ export class ProtocolMonitorUi {
   }
 
   private addEvent(event: ProtocolEvent) {
-    this.seenRoles.add(event.role);
-    const buffer = this.isNoisy(event) ? this.noisyBufferFor(event.role) : this.bufferFor(event.role);
-    buffer.push(event);
-    const max = this.isNoisy(event) ? this.maxNoisyEventsPerRole : this.maxEventsPerRole;
-    if (buffer.length > max) {
-      buffer.shift();
+    if (!this.eventStore.addEvent(event, this.paused)) {
+      return;
     }
 
     const eventIsVisible = this.eventMatchesCurrentView(event);
     if (!this.paused && eventIsVisible) {
       this.selectedId = event.id;
-    }
-    if (this.paused) {
-      this.pendingRender = true;
-      return;
     }
     if (!eventIsVisible && this.selectedId !== undefined) {
       return;
@@ -138,19 +136,7 @@ export class ProtocolMonitorUi {
   }
 
   private filteredEvents() {
-    const roles =
-      this.activeRole === "All" ? Array.from(this.seenRoles) : [this.activeRole];
-    const events = roles.flatMap((role) => this.eventsForRole(role));
-    events.sort((a, b) => a.id - b.id);
-    return events;
-  }
-
-  private eventsForRole(role: string) {
-    const normal = this.eventsByRole.get(role) ?? [];
-    if (!this.showNoisy) {
-      return normal;
-    }
-    return [...normal, ...(this.noisyEventsByRole.get(role) ?? [])];
+    return this.eventStore.filteredEvents(this.activeRole, this.showNoisy);
   }
 
   private render() {
@@ -160,7 +146,7 @@ export class ProtocolMonitorUi {
   }
 
   private renderFilters() {
-    const roles = ["All", ...Array.from(this.seenRoles).sort()];
+    const roles = ["All", ...this.eventStore.roles()];
     if (!roles.includes(this.activeRole)) {
       this.activeRole = "All";
     }
@@ -286,9 +272,24 @@ export class ProtocolMonitorUi {
 
   private renderPayload(event: ProtocolEvent) {
     const view = buildProtocolPayloadView(event);
-    this.payloadEl.replaceChildren(
-      ...view.rows.map((row) => this.payloadRow(row))
-    );
+    const rows = document.createElement("div");
+    rows.className = "protocol-payload-rows";
+    rows.append(...view.rows.map((row) => this.payloadRow(row)));
+
+    const layout = document.createElement("div");
+    layout.className = view.fieldCards.length > 0
+      ? "protocol-payload-layout with-nested"
+      : "protocol-payload-layout single";
+    layout.append(rows);
+
+    if (view.fieldCards.length > 0) {
+      const nested = document.createElement("div");
+      nested.className = "protocol-payload-nested";
+      nested.append(...view.fieldCards.map((card) => this.payloadFieldCard(card)));
+      layout.append(nested);
+    }
+
+    this.payloadEl.replaceChildren(layout);
 
     this.payloadHexEl.className =
       view.hexBlocks.length === 1 ? "protocol-hex-grid single" : "protocol-hex-grid";
@@ -325,12 +326,24 @@ export class ProtocolMonitorUi {
     return fragment;
   }
 
+  private payloadFieldCard(card: ProtocolPayloadFieldCard) {
+    const box = document.createElement("div");
+    box.className = "protocol-payload-card";
+
+    const title = document.createElement("div");
+    title.className = "protocol-payload-card-title";
+    title.textContent = card.title;
+
+    const rows = document.createElement("div");
+    rows.className = "protocol-payload-card-rows";
+    rows.append(...card.rows.map((row) => this.payloadRow(row)));
+
+    box.append(title, rows);
+    return box;
+  }
+
   private togglePause() {
     this.paused = !this.paused;
-    if (!this.paused && this.pendingRender) {
-      this.selectedId = this.latestFilteredEvent()?.id;
-      this.pendingRender = false;
-    }
     this.render();
   }
 
@@ -338,24 +351,6 @@ export class ProtocolMonitorUi {
     this.showNoisy = !this.showNoisy;
     this.selectedId = this.latestFilteredEvent()?.id;
     this.render();
-  }
-
-  private bufferFor(role: string) {
-    let buffer = this.eventsByRole.get(role);
-    if (!buffer) {
-      buffer = [];
-      this.eventsByRole.set(role, buffer);
-    }
-    return buffer;
-  }
-
-  private noisyBufferFor(role: string) {
-    let buffer = this.noisyEventsByRole.get(role);
-    if (!buffer) {
-      buffer = [];
-      this.noisyEventsByRole.set(role, buffer);
-    }
-    return buffer;
   }
 
   private eventMatchesCurrentView(event: ProtocolEvent) {
@@ -374,14 +369,10 @@ export class ProtocolMonitorUi {
   }
 
   private findVisibleEvent(id?: number) {
-    if (id === undefined) {
-      return undefined;
-    }
-    return this.filteredEvents().find((event) => event.id === id);
+    return this.eventStore.findVisibleEvent(this.activeRole, this.showNoisy, id);
   }
 
   private latestFilteredEvent() {
-    const filtered = this.filteredEvents();
-    return filtered.length > 0 ? filtered[filtered.length - 1] : undefined;
+    return this.eventStore.latestFilteredEvent(this.activeRole, this.showNoisy);
   }
 }

@@ -10,6 +10,11 @@
 #include <winsock2.h>
 #include <ws2tcpip.h>
 
+/**
+ * @file net_socket.cpp
+ * @brief 网络套接字生命周期管理模块，封装了 TCP 监听、连接、接收以及底层配置的 Winsock API。
+ */
+
 namespace cyber
 {
 namespace
@@ -59,7 +64,13 @@ void close_if_valid(NativeSocket socket)
 }
 } // namespace
 
-// 创建 TCP 监听 socket，并绑定指定 IP 和端口。
+
+/**
+ * @brief 创建 TCP 监听 socket，并绑定指定 IP 和端口。（只负责监听，不会用来收发数据）
+ * @param endpoint 监听的本地 IP 和端口。
+ * @param backlog 操作系统允许处于半连接/全连接队列的最大积压数。
+ * @return 创建并监听成功的 SocketHandle。
+ */
 SocketHandle listen_tcp(const TcpEndpoint& endpoint, int backlog)
 {
     NativeSocket socket = ::socket(AF_INET, SOCK_STREAM, 0);
@@ -71,6 +82,8 @@ SocketHandle listen_tcp(const TcpEndpoint& endpoint, int backlog)
     try
     {
         int reuse = 1;
+
+        // SO_REUSEADDR：允许端口复用，使得在服务器重启时能够快速重新绑定同一端口，避免等待 TIME_WAIT 状态结束。
         if (setsockopt(socket, SOL_SOCKET, SO_REUSEADDR, reinterpret_cast<const char*>(&reuse),
                        sizeof(reuse)) != 0)
         {
@@ -96,7 +109,13 @@ SocketHandle listen_tcp(const TcpEndpoint& endpoint, int backlog)
     return to_handle(socket);
 }
 
-// 接受一个 TCP 连接，并设置 TCP_NODELAY。
+
+/**
+ * @brief 接受一个 TCP 客户端的连接。
+ * @param listen_socket 处于监听状态的 socket。
+ * @param peer 输出参数：如果不为空，将写入客户端的 "IP:端口" 字符串。
+ * @return 建立好连接的新 SocketHandle，该socket与特定客户端通信。以实现服务器可以同时保持监听状态并处理已连接的客户端。
+ */
 SocketHandle accept_tcp(SocketHandle listen_socket, std::string* peer)
 {
     sockaddr_in addr{};
@@ -163,6 +182,7 @@ SocketHandle connect_tcp(const TcpEndpoint& endpoint)
 }
 
 // 给 socket 开启 TCP_NODELAY，降低小报文延迟。
+// 关闭Nagle算法：TCP_NODELAY选项用于禁用Nagle算法，这个算法会将小的网络数据包合并成一个更大的包来发送，以减少网络拥塞，但在某些实时应用中可能会增加延迟。通过设置TCP_NODELAY，可以让每个小数据包立即发送，适合需要低延迟的游戏通信场景。
 void set_tcp_nodelay(SocketHandle socket)
 {
     int flag = 1;

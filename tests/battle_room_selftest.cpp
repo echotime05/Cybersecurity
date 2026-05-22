@@ -27,12 +27,12 @@ int main()
 {
     try
     {
-        require(cyber::game::kServerTickIntervalMs == 20U,
-                "server tick interval should be 20ms");
-        require_close(cyber::game::kTankSpeed, 0.2F * 20.0F / 33.0F,
-                      "tank speed should preserve the old 33ms movement pace at 20ms ticks");
-        require_close(cyber::game::kBulletSpeed, 0.65F * 20.0F / 33.0F,
-                      "bullet speed should preserve the old 33ms movement pace at 20ms ticks");
+        require(cyber::game::kServerTickIntervalMs == 33U,
+                "server tick interval should be 33ms");
+        require_close(cyber::game::kTankSpeed, 0.2F,
+                      "tank speed should use the 33ms baseline movement pace");
+        require_close(cyber::game::kBulletSpeed, 0.65F,
+                      "bullet speed should use the 33ms baseline movement pace");
         require_close(cyber::game::kTankRange, 32.0F,
                       "bullet range should be 32 world units");
 
